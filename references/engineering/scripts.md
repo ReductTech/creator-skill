@@ -1,5 +1,7 @@
 # 工具脚本规范
 
+目标工程根目录只从 Skill 根目录的本地 `target-root.json` 读取。Python 使用 `_common.get_target_root()`／`project_path()`，Node 使用 `common/_target_root.mjs` 的 `getTargetRoot()`；相对工程路径以配置为基准，不使用当前工作目录、脚本父目录层数或旧环境变量推算。Skill 自己的文档、模板、检查器和浏览器启动文件按脚本自身位置读取。旧的 `--root`／`--repository` 参数只能确认同一目标，不能覆盖配置。
+
 用于维护 `scripts/` 中供智能体调用的工具。按用途分为 `module/`、`checks/`、`media/`、`analysis/`、`common/`、`tests/`，模板单独放在 `templates/`，不再增加更深层级。统一入口、清单与依赖文件保留在根目录；测试和内部辅助文件不强套命令行模板。
 
 ## 新建脚本

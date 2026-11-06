@@ -34,7 +34,7 @@ def validate_skill(skill_path: Path | str) -> tuple[bool, str]:
         import yaml
     except ImportError as exc:
         raise RuntimeError(
-            "PyYAML is required: install creator-skill/scripts/requirements.txt"
+            f'PyYAML is required: python -m pip install -r "{SCRIPTS / "requirements.txt"}"'
         ) from exc
     skill_path = Path(skill_path)
 

@@ -14,7 +14,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import ROOT, read_modules, emit_result, report_error
+from _common import ROOT, read_modules, emit_result, report_error, require_target_root
 from module.module_identity import new_identity, register_identity
 
 
@@ -237,7 +237,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         emit_result(
-            ensure_outline(args.repository, args.directory, args.title, args.dry_run)
+            ensure_outline(require_target_root(args.repository), args.directory, args.title, args.dry_run)
         )
         return 0
     except (OSError, ValueError) as exc:

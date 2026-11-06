@@ -1,10 +1,12 @@
 // Typecheck generated files against the real Shared contracts without writing a module into the app.
 import fs from 'node:fs';
 import path from 'node:path';
-import ts from 'typescript';
+import {createRequire} from 'node:module';
+import {getTargetRoot} from '../common/_target_root.mjs';
 let input='';for await(const chunk of process.stdin)input+=chunk;
 const files=JSON.parse(input);
-const root=process.cwd();
+const root=getTargetRoot();
+const ts=createRequire(path.join(root,'package.json'))('typescript');
 const virtualRoot=path.join(root,'modules','__toolkit_scaffold_test__');
 const normalized=value=>path.resolve(value).replaceAll('\\','/');
 const virtual=new Map(Object.entries(files).map(([name,text])=>[normalized(path.join(virtualRoot,name)),text]));

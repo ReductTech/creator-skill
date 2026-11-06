@@ -11,7 +11,8 @@ import pytest
 from tools import catalog
 
 SCRIPTS = Path(__file__).resolve().parents[1]
-ROOT = SCRIPTS.parent.parent
+from _common import get_target_root
+ROOT = get_target_root()
 PYTHON_TOOLS = sorted(
     {
         Path(tool["path"]).relative_to("scripts").as_posix()

@@ -15,7 +15,7 @@ import re
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import emit_result, report_error
+from _common import emit_result, report_error, require_target_root
 from module_assets import asset_directory, asset_relative
 from module.module_identity import ROOT, IdentityError, register_identity
 
@@ -179,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        errors = validate_modules(args.repository.resolve(), args.module)
+        errors = validate_modules(require_target_root(args.repository), args.module)
     except (OSError, UnicodeError) as exc:
         return report_error(exc)
     emit_result(

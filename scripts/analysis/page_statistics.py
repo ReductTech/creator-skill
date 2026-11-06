@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
 from module_assets import asset_directory
-from _common import ROOT, emit_result, report_error, resolve_module, scratchpad_path
+from _common import ROOT, emit_result, report_error, resolve_module, scratchpad_path, require_target_root, project_path
 
 HTML_TEMPLATE = r"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -351,7 +351,9 @@ def report_html(data: dict) -> str:
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace(
         "<", "\\u003c"
     )
-    return HTML_TEMPLATE.replace("__REPORT_DATA__", payload)
+    from html import escape
+    launcher = escape('python "' + str(Path(__file__).resolve().parents[1] / 'tools.py') + '"')
+    return HTML_TEMPLATE.replace("__REPORT_DATA__", payload).replace('python creator-skill/scripts/tools.py', launcher)
 
 
 def save_report(data: dict, directory: Path, output: Path) -> dict:
@@ -386,7 +388,9 @@ def save_report(data: dict, directory: Path, output: Path) -> dict:
 
 def write_report(args: argparse.Namespace) -> dict:
     """Write one report per selected module, keeping bulk analysis module-local."""
-    root = args.root.resolve()
+    root = require_target_root(args.root)
+    if args.text_counts:
+        args.text_counts = project_path(args.text_counts, external=True)
     if args.output and not args.module:
         raise ValueError("--output requires --module so the report has a module owner")
     if args.module:

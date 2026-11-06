@@ -11,7 +11,7 @@ import json
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import ROOT, resolve_module, emit_result, report_error, scratchpad_path
+from _common import ROOT, resolve_module, emit_result, report_error, scratchpad_path, project_path
 from media.capture_slides import browser_session, capture_url
 
 
@@ -135,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
             else None
         )
         if args.snapshot:
-            snapshot = json.loads(args.snapshot.read_text(encoding="utf-8-sig"))
+            snapshot = json.loads(project_path(args.snapshot, external=True).read_text(encoding="utf-8-sig"))
         else:
             with browser_session(
                 args.base_url,

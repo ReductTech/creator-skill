@@ -6,14 +6,16 @@ stale PNGs. Ordinary course images and scratch screenshots are left untouched.
 """
 import argparse
 import json
+import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
+from _common import ROOT
 from PIL import Image
 try:
     from media.thumbnail_profiles import THUMBNAIL_SIZE, save_thumbnail
 except ModuleNotFoundError:
     from thumbnail_profiles import THUMBNAIL_SIZE, save_thumbnail
 
-ROOT = Path(__file__).resolve().parents[3]
 THUMBNAIL_DIRS = {'scenedeck-thumbnails', 'course-thumbnails'}
 
 

@@ -21,7 +21,7 @@ def course(root, name="Example", module_id=UUID):
     (directory / "Guide.tsx").write_text("export function Guide() { return null; }")
     outline = {"id": name.lower(), "title": "Example", "path": "/modules/" + name.lower(),
                "entry": "Guide.tsx", "moduleIdentity": {"version": 1, "id": module_id},
-               "pages": [{"id": "01", "title": "Question"}]}
+               "pages": [{"id": "01", "title": "Question", "snippet": "Narration"}]}
     (directory / "outlines.json").write_text(json.dumps(outline))
     return directory
 

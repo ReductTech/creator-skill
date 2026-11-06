@@ -10,7 +10,7 @@ const cache = new Map();
 function buildParser() {
     return {
         help: { type: 'boolean', short: 'h', description: 'show help without scanning source files' },
-        root: { type: 'string', default: path.resolve(__dirname, '../../..'), description: 'repository root' },
+        root: { type: 'string', description: 'must match targetRoot in target-root.json' },
     };
 }
 
@@ -267,7 +267,12 @@ async function main(argv = process.argv.slice(2)) {
             printHelp('Read-only TSX declaration statistics; counts are approximate.', options);
             return 0;
         }
-        emitResult(collectMetrics(args.root));
+        const { getTargetRoot } = await import('../common/_target_root.mjs');
+        const target = getTargetRoot();
+        if (args.root && fs.realpathSync(path.resolve(args.root)) !== target) {
+            throw new Error('--root must match targetRoot in target-root.json');
+        }
+        emitResult(collectMetrics(target));
         return 0;
     }
     catch (error) {

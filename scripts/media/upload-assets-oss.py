@@ -18,7 +18,7 @@ from pathlib import Path
 from threading import local
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import ROOT, emit_result, report_error
+from _common import ROOT, emit_result, report_error, project_path
 from module_assets import asset_roots, object_relative, object_relatives
 
 OSS_KEY_ID = os.environ.get(
@@ -127,7 +127,7 @@ def upload_one(
 
 def upload_assets(args: argparse.Namespace) -> dict:
     """Upload selected files or return dry-run object keys without accessing OSS."""
-    assets_dir = args.assets_dir.resolve()
+    assets_dir = project_path(args.assets_dir, external=True)
     if not assets_dir.is_dir():
         raise ValueError(f"assets directory does not exist: {assets_dir}")
     if not 1 <= args.workers <= 32:
@@ -168,7 +168,7 @@ def upload_assets(args: argparse.Namespace) -> dict:
         import oss2
     except ImportError:
         raise RuntimeError(
-            "oss2 is required: python -m pip install -r creator-skill/scripts/requirements.txt"
+            f'oss2 is required: python -m pip install -r "{Path(__file__).resolve().parents[1] / "requirements.txt"}"'
         )
 
     if not OSS_KEY_ID or not OSS_KEY_SECRET:

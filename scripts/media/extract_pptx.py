@@ -22,7 +22,7 @@ import xml.etree.ElementTree as ET
 from zipfile import BadZipFile, ZipFile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import emit_result, report_error, resolve_module, scratchpad_path
+from _common import emit_result, report_error, resolve_module, scratchpad_path, project_path
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -227,7 +227,7 @@ try {
 
 def run_task(args: argparse.Namespace) -> dict:
     """Stage all outputs, publishing a new directory only after complete export."""
-    source = args.input.resolve()
+    source = project_path(args.input, external=True)
     if not source.is_file() or source.suffix.lower() != ".pptx":
         raise ValueError("Input must be an existing .pptx file")
     if not 1 <= args.width <= 16384 or args.timeout <= 0:

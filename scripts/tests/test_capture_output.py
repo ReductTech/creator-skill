@@ -26,7 +26,8 @@ def test_capture_mounts_current_module_without_app_router(tmp_path, monkeypatch)
 
     context = Context()
     capture.configure_module_capture(context, module, "http://localhost:5173")
-    assert routes[0][0].fullmatch(capture.capture_url('http://localhost:5173', 'example', 'one'))
+    assert routes[0][0] == 'http://localhost:5173/__creator_skill__/capture-entry.mjs'
+    assert routes[1][0].fullmatch(capture.capture_url('http://localhost:5173', 'example', 'one'))
     assert '"entry": "/modules/Example/ExamplePpt.tsx"' in scripts[0]
     assert '"component": "ExamplePpt"' in scripts[0]
     assert "/src/main.tsx" not in scripts[0]

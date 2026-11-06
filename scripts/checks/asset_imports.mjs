@@ -1,10 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import ts from 'typescript';
+import {createRequire} from 'node:module';
+import {getTargetRoot} from '../common/_target_root.mjs';
 
 /** Assets are runtime resources regardless of extension or size. */
 export function checkAssetImports(root, directories = ['modules', 'src']) {
+  const ts = createRequire(path.join(getTargetRoot(), 'package.json'))('typescript');
   const errors = [];
   function reference(file, specifier, start, source) {
     if (!specifier.startsWith('.') && !specifier.startsWith('/')) return;
@@ -56,8 +58,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   const args=process.argv.slice(2), module=args.indexOf('--module');
   if(args.includes('--help')) { console.log('node asset_imports.mjs [--module ModuleDirectory]'); }
   else {
-    const errors=checkAssetImports(process.cwd(),module<0?undefined:['modules/'+args[module+1]]);
+    try {
+    const errors=checkAssetImports(getTargetRoot(),module<0?undefined:['modules/'+args[module+1]]);
     console.log(JSON.stringify({status:errors.length?'failed':'ok',errors}));
     process.exitCode=errors.length?1:0;
+    } catch (error) {
+      console.log(JSON.stringify({status:'error',error:error.message}));
+      process.exitCode=2;
+    }
   }
 }

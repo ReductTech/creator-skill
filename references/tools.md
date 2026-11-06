@@ -4,7 +4,9 @@
 
 ## 发现与调用
 
-从仓库根目录执行。`<工具 ID>` 指清单中的命令名称，例如 `capture.slides`；`describe` 展示工具信息，不执行任务：
+先按 `SKILL.md` 中的模板，根据用户指定的目录创建本地 `target-root.json`，唯一字段为 `targetRoot`。该文件被 Git 忽略，不随仓库提供。工具以配置的目录作为工程根目录和执行工作目录；`IDL_REPOSITORY_ROOT` 不再覆盖此配置。不要在执行任务时改动配置。
+
+下例假定 Skill 位于工程内的 `creator-skill/`。独立安装时，将 `creator-skill/scripts/tools.py` 换成该脚本的实际绝对路径；无需移动或复制 Skill。`<工具 ID>` 指清单中的命令名称，例如 `capture.slides`；`describe` 展示工具信息，不执行任务：
 
 ```powershell
 python creator-skill/scripts/tools.py list

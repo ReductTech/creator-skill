@@ -15,7 +15,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import emit_result, report_error, resolve_module, scratchpad_path
+from _common import emit_result, report_error, resolve_module, scratchpad_path, project_path
 
 SIMILARITY = 0.36
 BLEND = 0.12
@@ -124,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
             scratchpad_path(
                 directory, output / f"{args.input.stem}_alpha{suffix}", default=""
             )
-        emit_result(remove_green_screen(args.input, output))
+        emit_result(remove_green_screen(project_path(args.input, external=True), output))
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
         return report_error(exc)

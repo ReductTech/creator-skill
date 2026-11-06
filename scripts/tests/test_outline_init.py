@@ -73,13 +73,14 @@ def test_concurrent_creator_is_not_overwritten(tmp_path, monkeypatch):
     assert {p.name for p in folder.iterdir()} == {"outlines.json"}
 
 
-def test_cli_needs_only_directory_and_preserves_existing_outline(tmp_path):
-    command = [sys.executable, "-B", str(Path(init_module.__file__)),
+def test_cli_needs_only_directory_and_preserves_existing_outline(tmp_path, isolated_skill):
+    skill, environment = isolated_skill
+    command = [sys.executable, "-B", str(skill / 'scripts/module/init_module.py'),
                "--repository", str(tmp_path), "--directory", "Example"]
-    created = subprocess.run(command, capture_output=True, text=True, check=True)
+    created = subprocess.run(command, capture_output=True, text=True, check=True, env=environment)
     assert json.loads(created.stdout)["status"] == "created"
     path = tmp_path / "modules/Example/outlines.json"
     original = path.read_bytes()
-    unchanged = subprocess.run(command + ["--title", "Ignore this"], capture_output=True, text=True, check=True)
+    unchanged = subprocess.run(command + ["--title", "Ignore this"], capture_output=True, text=True, check=True, env=environment)
     assert json.loads(unchanged.stdout)["status"] == "unchanged"
     assert path.read_bytes() == original

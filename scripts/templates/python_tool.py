@@ -12,7 +12,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import emit_result, report_error
+from _common import emit_result, report_error, get_target_root, project_path
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -35,6 +35,8 @@ def run_task(args: argparse.Namespace) -> dict:
         RuntimeError: 依赖缺失或执行失败。
     """
     # 替换此函数主体；可选依赖在实际使用时导入，进度写入 sys.stderr。
+    # 工程根目录使用 get_target_root()；工程相对路径使用 project_path()。
+    # 不使用当前工作目录或模板所在位置推算目标工程。
     # 有中间产物时添加 --module，复用 resolve_module / scratchpad_path 校验输出。
     raise NotImplementedError(
         "Implement run_task() before registering or using this tool."

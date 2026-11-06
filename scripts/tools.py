@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent / "common"))
-from _common import ROOT,SCRIPTS
+from _common import SCRIPTS, get_target_root, report_error
 SKILL = SCRIPTS.parent
 
 
@@ -34,7 +34,7 @@ def main(argv=None):
         selected=[tool for tool in tools if not args.category or tool['category']==args.category]
         if args.json:print(json.dumps(selected,ensure_ascii=False,indent=2))
         else:
-            print('Run: python creator-skill/scripts/tools.py <tool-id> --help')
+            print(f'Run: python "{Path(__file__).resolve()}" <tool-id> --help')
             for tool in selected:print(f"{tool['id']:<32} {tool['description']} [{tool['category']}]")
         return 0
     describe=argv[0]=='describe'
@@ -44,11 +44,21 @@ def main(argv=None):
     else:key=argv[0]
     tool=next((tool for tool in tools if tool['id']==key),None)
     if tool is None:print(f'Unknown tool: {key}; use list.',file=sys.stderr);return 2
-    if describe:print(json.dumps({**tool,'help':f'python creator-skill/scripts/tools.py {key} --help'},ensure_ascii=False,indent=2));return 0
+    if describe:print(json.dumps({**tool,'help':f'python "{Path(__file__).resolve()}" {key} --help'},ensure_ascii=False,indent=2));return 0
     executable=sys.executable if tool['runtime']=='python' else shutil.which('node')
     if not executable:print('Node.js is unavailable; run environment.doctor.',file=sys.stderr);return 2
     command=[executable,str(SKILL/tool['path']),*tool.get('arguments',[]),*argv[1:]]
-    try:return subprocess.run(command,cwd=ROOT,check=False).returncode
+    try:
+        root = SKILL if key == 'check.skill' else get_target_root()
+        if key != 'check.skill':
+            for index, argument in enumerate(argv[1:], 1):
+                option, separator, value = argument.partition('=')
+                if option in {'--repository', '--root'}:
+                    value = value if separator else argv[index+1] if index+1 < len(argv) else ''
+                    if not value or Path(value).resolve() != root:
+                        raise ValueError('Target overrides must match targetRoot in target-root.json')
+        return subprocess.run(command,cwd=root,check=False).returncode
+    except ValueError as exc:return report_error(exc)
     except KeyboardInterrupt:return 130
     except OSError as exc:print(f'Could not run {key}: {exc}',file=sys.stderr);return 2
 

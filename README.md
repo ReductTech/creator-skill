@@ -77,15 +77,25 @@
 
 ## 开始使用
 
-### 1. 放入配套课程工程
+### 1. 获取 Skill，指定目标工程
 
-在具有 `modules/`、公共组件与 React 构建配置的课程工程根目录执行：
+将 Skill 克隆到固定位置，可以与课程工程分开放置：
 
 ```bash
 git clone https://github.com/ReductTech/creator-skill.git creator-skill
 ```
 
-如果工程已包含同名目录，请先处理已有内容，避免重复嵌套。也可以下载本仓库，将内容放入工程的 `creator-skill/` 目录。
+首次使用时，由 AI 助手根据你指定的课程工程绝对路径，在 Skill 根目录创建本地配置 `target-root.json`。文件不随仓库提供，并已加入 `.gitignore`。格式只有一个字段：
+
+```json
+{
+  "targetRoot": "D:/Courses/MyProject"
+}
+```
+
+上面的路径仅为格式示例，实际创建时使用你指定的已存在目录；Windows 路径推荐使用 `/`。未配置或路径无效时工程工具会报错，不会猜测目标，也不会自动创建目录。配置确定后沿用，工具不再以 Skill 所在目录或 `IDL_REPOSITORY_ROOT` 推算工程位置。
+
+目标工程需要具有 `modules/`、公共组件和 React 构建配置。如果选择把 Skill 放在工程内部，布局可以如下；分开放置时也读取同一份配置。
 
 预期位置如下：
 
@@ -93,6 +103,7 @@ git clone https://github.com/ReductTech/creator-skill.git creator-skill
 your-course-project/
 ├── creator-skill/          # 本仓库
 │   ├── SKILL.md
+│   ├── target-root.json    # 首次使用时创建，Git 忽略
 │   ├── references/
 │   ├── assets/
 │   └── scripts/
@@ -126,6 +137,8 @@ your-course-project/
 ### 3. 按需使用创作工具
 
 在配套课程工程根目录运行：
+
+下面命令以工程内安装为例；独立安装时，用 `tools.py` 的绝对路径调用。执行入口会自动切换到配置的目标工程；查看清单、工具描述和检查 Skill 文档不要求配置目标。
 
 ```bash
 # 查看工具清单，不执行创作或上传任务
@@ -166,6 +179,7 @@ python -m playwright install chromium
 ```text
 creator-skill/
 ├── SKILL.md               # AI 助手的创作入口
+├── target-root.json       # 使用时创建的本地配置，不纳入 Git
 ├── references/
 │   ├── workflow/          # 从零创作、参考改编与续作规则
 │   ├── design/            # 大纲、口播、视觉设计与习题

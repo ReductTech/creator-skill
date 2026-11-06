@@ -14,7 +14,9 @@ from checks.course_consistency import compare_course
 from media import capture_slides
 from checks.inspect_assets import inspect_assets
 
-ROOT=Path(__file__).resolve().parents[3]
+from _common import get_target_root
+ROOT=get_target_root()
+SKILL=Path(__file__).resolve().parents[2]
 OUTLINE={"title":"Example","pages":[{"id":"one","title":"First","snippet":"Notes"}]}
 
 
@@ -32,7 +34,7 @@ def test_unknown_tool_fails_without_launching(monkeypatch):
 
 def test_every_tool_help_is_safe_and_available():
     for tool in catalog():
-        result=subprocess.run([sys.executable,str(ROOT/'creator-skill/scripts/tools.py'),tool['id'],'--help'],capture_output=True,text=True,timeout=15)
+        result=subprocess.run([sys.executable,str(SKILL/'scripts/tools.py'),tool['id'],'--help'],capture_output=True,text=True,timeout=15)
         assert result.returncode==0,(tool['id'],result.stderr)
         assert result.stdout.strip(),tool['id']
 

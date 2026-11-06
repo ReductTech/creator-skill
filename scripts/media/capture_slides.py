@@ -31,10 +31,8 @@ from urllib.request import urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
 from module_assets import asset_directory
-from _common import emit_result, report_error, scratchpad_path
-from idl_backend.config import repository_root
+from _common import ROOT, emit_result, report_error, scratchpad_path, project_path
 
-ROOT = repository_root()
 MODULES = ROOT / "modules"
 SLIDE_SIZE = (1600, 900)
 
@@ -106,7 +104,7 @@ def load_dependencies():
         from playwright.sync_api import Error as PlaywrightError, sync_playwright
     except ImportError as exc:
         raise RuntimeError(
-            "Install capture dependencies: python -m pip install -r creator-skill/scripts/requirements-capture.txt"
+            f'Install capture dependencies: python -m pip install -r "{Path(__file__).resolve().parents[1] / "requirements-capture.txt"}"'
         ) from exc
 
 
@@ -166,7 +164,7 @@ def vite_server(log_directory: Path | None = None):
                 "--strictPort",
             ],
             cwd=ROOT,
-            env={**os.environ, "IDL_CAPTURE_ONLY": "1"},
+            env={**os.environ, "IDL_CAPTURE_ONLY": "1", "IDL_REPOSITORY_ROOT": str(ROOT)},
             stdout=log,
             stderr=subprocess.STDOUT,
         )
@@ -234,6 +232,9 @@ def configure_module_capture(context, directory: Path, base_url: str) -> None:
         {"entry": entry_url, "component": component_name}
     ) + ";")
     document = (Path(__file__).resolve().parents[1] / "common/_capture_entry.html").read_text(encoding="utf-8")
+    bootstrap = (Path(__file__).resolve().parents[1] / "common/_capture_entry.mjs").read_text(encoding="utf-8")
+    context.route(base_url.rstrip("/") + "/__creator_skill__/capture-entry.mjs",
+                  lambda route: route.fulfill(status=200, content_type="application/javascript", body=bootstrap))
     context.route(re.compile(re.escape(base_url.rstrip("/")) + r"/scenedeck/\?.*$"),
                   lambda route: route.fulfill(status=200, content_type="text/html", body=document))
 
@@ -499,7 +500,7 @@ def capture_module(args: argparse.Namespace, context_setup=None) -> dict:
                 raise ValueError(f"Thumbnail output must be inside {thumbnail_root}")
             destinations.append(thumbnail_output)
     actions = (
-        json.loads(args.actions.read_text(encoding="utf-8-sig")) if args.actions else {}
+        json.loads(project_path(args.actions, external=True).read_text(encoding="utf-8-sig")) if args.actions else {}
     )
     if not isinstance(actions, dict) or any(
         not isinstance(items, list) or any(not isinstance(item, dict) for item in items)

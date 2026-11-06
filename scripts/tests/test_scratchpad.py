@@ -66,7 +66,7 @@ def test_page_scratchpad_rejects_escape_and_other_page(tmp_path):
 
 def test_module_check_ignores_scratch_sources(tmp_path):
     initialize(
-        tmp_path, "Demo", {"title": "Demo", "pages": [{"id": "one", "title": "One"}]}
+        tmp_path, "Demo", {"title": "Demo", "pages": [{"id": "one", "title": "One", "snippet": "Narration"}]}
     )
     scratch = tmp_path / "modules/Demo/_scratchpad"
     scratch.mkdir()
@@ -79,6 +79,10 @@ def test_module_check_ignores_scratch_sources(tmp_path):
 
 @pytest.fixture
 def report_data(tmp_path, monkeypatch):
+    import _common
+    config = tmp_path / "target-root.json"
+    config.write_text(json.dumps({"targetRoot": str(tmp_path)}), encoding="utf-8")
+    monkeypatch.setattr(_common, "TARGET_ROOT_CONFIG", config)
     modules, pages = [], []
     for name in ("First", "Second"):
         directory = tmp_path / "modules" / name

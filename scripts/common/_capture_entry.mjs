@@ -1,11 +1,15 @@
 /** Internal browser bootstrap for capture_slides.py, transformed by Vite. */
-import { createElement } from 'react';
-import { createRoot } from 'react-dom/client';
-import { flushSync } from 'react-dom';
+import React from '/@id/react';
+import ReactDOMClient from '/@id/react-dom/client';
+import ReactDOM from '/@id/react-dom';
 import RefreshRuntime from '/@react-refresh';
 import '/modules/shared/react/styles.css';
 import '/modules/shared/react/ui-kit.css';
 import '/modules/shared/react/presentation.css';
+
+const {createElement} = React;
+const {createRoot} = ReactDOMClient;
+const {flushSync} = ReactDOM;
 
 if (!window.__vite_plugin_react_preamble_installed__) {
   RefreshRuntime.injectIntoGlobalHook(window);

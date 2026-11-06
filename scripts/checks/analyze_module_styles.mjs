@@ -3,9 +3,8 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { getTargetRoot } from '../common/_target_root.mjs';
 import { emitResult, isMain, parseOptions, printHelp, reportError } from '../common/_cli.mjs';
-const REPOSITORY = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 export function buildParser() {
     return {
         help: { type: 'boolean', short: 'h', description: 'show help without scanning files' },
@@ -53,6 +52,7 @@ function classesFromSource(source) {
     return classes;
 }
 export function analyzeStyles(moduleName) {
+    const REPOSITORY = getTargetRoot();
     const moduleRoot = path.resolve(REPOSITORY, 'modules', moduleName);
     if (path.dirname(moduleRoot) !== path.join(REPOSITORY, 'modules')) {
         throw new Error('Module must be a direct child of modules/.');

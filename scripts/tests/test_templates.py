@@ -29,6 +29,8 @@ def test_copied_template_help_import_and_unimplemented_behavior(
     target = category / ("new_tool" + Path(template).suffix)
     shutil.copyfile(SCRIPTS / "templates" / template, target)
     shutil.copyfile(SCRIPTS / "common" / helper, common / helper)
+    if template.endswith('.mjs'):
+        shutil.copyfile(SCRIPTS / "common/_target_root.mjs", common / "_target_root.mjs")
     environment = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
 
     def execute(*arguments):
@@ -66,4 +68,5 @@ def test_copied_template_help_import_and_unimplemented_behavior(
     assert imported.returncode == 0, imported.stderr
     assert not imported.stdout and not imported.stderr
     assert {p.name for p in category.iterdir()} == {target.name}
-    assert {p.name for p in common.iterdir()} == {helper}
+    expected_helpers = {helper, '_target_root.mjs'} if template.endswith('.mjs') else {helper}
+    assert {p.name for p in common.iterdir()} == expected_helpers

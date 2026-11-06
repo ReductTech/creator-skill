@@ -3,6 +3,7 @@
  * Writes: describe output paths and overwrite behavior. This template writes nothing.
  */
 import { emitResult, isMain, parseOptions, printHelp, reportError } from '../common/_cli.mjs';
+import { getTargetRoot } from '../common/_target_root.mjs';
 
 export function buildParser() {
   // 按实际需要添加参数；类型、默认值和说明集中放在这里。
@@ -19,6 +20,7 @@ export function buildParser() {
  */
 export async function runTask(args) {
   // 替换此函数主体；可选依赖在实际使用时加载，进度使用 console.error。
+  // 工程根目录使用 getTargetRoot()，相对路径基于该目录解析，不依赖 process.cwd()。
   // 有中间产物时添加 --module；写入前验证所有目标均在该模块的 _scratchpad 内。
   throw new Error('Implement runTask() before registering or using this tool.');
 }

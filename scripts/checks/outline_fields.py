@@ -9,8 +9,10 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import sys
 
-ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
+from _common import ROOT, require_target_root, report_error
 
 def source_ids(directory):
     result = {}
@@ -90,7 +92,10 @@ def main():
     parser.add_argument("--module")
     parser.add_argument("--fix", action="store_true", help="Fill missing IDs; never invent title/snippet prose")
     args = parser.parse_args()
-    result = process(args.repository.resolve(), args.fix, args.module)
+    try:
+        result = process(require_target_root(args.repository), args.fix, args.module)
+    except (ValueError, OSError) as exc:
+        return report_error(exc)
     print(json.dumps(result, ensure_ascii=False))
     return bool(result["errors"])
 

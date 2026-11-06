@@ -12,6 +12,10 @@ from pathlib import Path
 import tempfile
 import shutil
 import os
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
+from _common import get_target_root, project_path
 
 
 def fit_size(width, height, max_width=1600, max_height=900):
@@ -132,10 +136,16 @@ def main():
     parser.add_argument('--resize-only', action='store_true',
                         help='Keep formats and filenames; do not convert opaque PNGs to JPG')
     args = parser.parse_args()
+    root = get_target_root()
+    args.directory = project_path(args.directory)
+    if args.backup_dir:
+        args.backup_dir = project_path(args.backup_dir)
+    if args.report:
+        args.report = project_path(args.report)
     if not args.directory.is_dir() or not 1 <= args.quality <= 100 or min(args.max_width, args.max_height) < 1:
         parser.error('An existing directory and quality between 1 and 100 are required')
     directory = args.directory.resolve()
-    backup = (args.backup_dir or directory.with_name(directory.name + '-image-originals')).resolve()
+    backup = project_path(args.backup_dir or directory.with_name(directory.name + '-image-originals'))
     if backup == directory or backup.is_relative_to(directory):
         parser.error('Backup directory must be outside the input directory')
     rows = []
@@ -152,10 +162,8 @@ def main():
     # The shared URL helper consumes exact conversions, including dynamic filenames.
     # Transparent/unconverted PNGs are never added to this mapping.
     if not args.dry_run and any(row['status'] == 'converted' for row in rows):
-        for root in [args.directory.resolve(), *args.directory.resolve().parents]:
-            index = root / 'modules/shared/asset-index.json'
-            if not index.is_file():
-                continue
+        index = root / 'modules/shared/asset-index.json'
+        if index.is_file():
             document = json.loads(index.read_text(encoding='utf-8'))
             for outline in (root/'modules').glob('*/outlines.json'):
                 identity=json.loads(outline.read_text(encoding='utf-8-sig')).get('moduleIdentity',{})
@@ -172,7 +180,6 @@ def main():
             index.write_text(json.dumps(document, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
             (root/'modules/shared/react/asset-formats.json').write_text(
                 json.dumps(document['formats'], ensure_ascii=False, separators=(',',':'))+'\n', encoding='utf-8')
-            break
     text = json.dumps(rows, ensure_ascii=False, indent=2)
     if args.report:
         args.report.write_text(text + '\n', encoding='utf-8')
