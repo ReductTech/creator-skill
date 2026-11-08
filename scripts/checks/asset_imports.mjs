@@ -17,8 +17,11 @@ export function checkAssetImports(root, directories = ['modules', 'src']) {
       if (fs.existsSync(target + extension)) { target += extension; break; }
     }
     if (!target.split(path.sep).includes('assets')) return;
-    errors.push({file:path.relative(root,file).replaceAll('\\','/'),line:source.slice(0,start).split('\n').length,specifier,
-      message:'assets 资源禁止编译时导入；请使用 moduleAssetUrl + 运行时加载（JSON 可使用 moduleJson）。'});
+    const owner=path.relative(path.join(root,'modules'),file).split(path.sep)[0];
+    const allowed=[path.join(root,'modules',owner,'assets')+path.sep,path.join(root,'modules/shared/assets')+path.sep];
+    const valid=allowed.some(base=>target.startsWith(base))&&fs.existsSync(target)&&fs.statSync(target).isFile();
+    if(!valid)errors.push({file:path.relative(root,file).replaceAll('\\','/'),line:source.slice(0,start).split('\n').length,specifier,
+      message:'资源必须静态引用本课程或共享 assets 内存在的文件。'});
   }
   function walk(directory) {
     if (!fs.existsSync(directory)) return;

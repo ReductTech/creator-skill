@@ -55,6 +55,8 @@ def validate_modules(repository: Path, requested: str | None = None) -> list[str
             if "moduleIdentity" not in document:
                 raise IdentityError("Missing moduleIdentity")
             module_id = register_identity(document["moduleIdentity"], path, seen)
+            if path.parent.name != module_id or document.get('id') != module_id:
+                errors.append(f'{path}: directory UUID, outlines.id and moduleIdentity.id must agree')
             loaded.append((path, document, module_id))
         except (OSError, UnicodeError, ValueError) as exc:
             errors.append(f"{path}: {exc}")
@@ -63,7 +65,7 @@ def validate_modules(repository: Path, requested: str | None = None) -> list[str
         for item in loaded
         if requested is None
         or requested.lower()
-        in {item[0].parent.name.lower(), str(item[1].get("id", "")).lower(), item[2]}
+        in {item[0].parent.name.lower(), str(item[1].get("id", "")).lower(), str(item[1].get('alias', '')).lower(), item[2]}
     ]
     if requested and not selected:
         errors.append(f"Unknown module: {requested}")

@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import tempfile
+import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
 from _common import ROOT, read_modules, emit_result, report_error, require_target_root
@@ -21,7 +22,7 @@ from module.module_identity import new_identity, register_identity
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--directory", required=True, help="module directory name under modules/"
+        "--directory", help="canonical module UUID; generate a new UUID when omitted"
     )
     parser.add_argument(
         "--title",
@@ -31,7 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--repository",
         type=Path,
         default=ROOT,
-        help="repository root; default the checkout containing this script",
+        help="must match targetRoot in the Skill's target-root.json",
     )
     parser.add_argument(
         "--dry-run",
@@ -46,8 +47,13 @@ def ensure_outline(
 ) -> dict:
     """Create the canonical outline once, without reading or rewriting an existing one."""
     root = Path(root).resolve()
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", directory):
-        raise ValueError("Invalid module directory name")
+    directory = directory or str(uuid.uuid4())
+    try:
+        parsed = uuid.UUID(directory)
+    except ValueError as exc:
+        raise ValueError("Module directory must be a UUID") from exc
+    if str(parsed) != directory or parsed.version != 4:
+        raise ValueError("Module directory must be a canonical UUID v4")
     modules = (root / "modules").resolve()
     target = modules / directory
     if (
@@ -76,7 +82,7 @@ def ensure_outline(
         "description": "",
         "path": "/modules/" + directory.lower(),
         "pages": [],
-        "moduleIdentity": new_identity({}),
+        "moduleIdentity": {"version": 1, "id": directory},
     }
     content = json.dumps(document, ensure_ascii=False, indent=2) + "\n"
     target.mkdir(parents=True, exist_ok=True)
@@ -110,8 +116,13 @@ def ensure_outline(
 
 def plan_module(root, directory, outline):
     """Legacy scaffold helper; not used by the module.init command."""
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", directory):
-        raise ValueError("Invalid module directory name")
+    directory = directory or str(uuid.uuid4())
+    try:
+        parsed = uuid.UUID(directory)
+    except ValueError as exc:
+        raise ValueError("Module directory must be a UUID") from exc
+    if str(parsed) != directory or parsed.version != 4:
+        raise ValueError("Module directory must be a canonical UUID v4")
     target = root / "modules" / directory
     if target.exists():
         raise ValueError(f"Module already exists: {target}")
@@ -149,11 +160,11 @@ def plan_module(root, directory, outline):
         )
     doc.update(
         {
-            "id": doc.get("id") or directory.lower(),
+            "id": directory,
             "path": "/modules/" + directory.lower(),
             "entry": "GuidePage.tsx",
             "ppt": {"entry": "CoursePpt.tsx", "path": "/scenedeck/", "player": False},
-            "moduleIdentity": new_identity(seen),
+            "moduleIdentity": {"version": 1, "id": directory},
         }
     )
     if any(

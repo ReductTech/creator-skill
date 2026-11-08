@@ -142,3 +142,21 @@ def test_cold_optimizer_retry_is_bounded_and_does_not_repeat_captured_slides(tmp
     assert len(attempts) == 2
     assert result['generatedCount'] == result['requestedCount'] == 2
     assert not result['errors']
+
+
+def test_built_capture_keeps_uuid_urls_and_never_mounts_source(tmp_path, monkeypatch):
+    uid = "2e5c4732-a40a-4d20-b954-a61507aabc75"
+    module = tmp_path / "modules" / uid
+    module.mkdir(parents=True)
+    (module / "outlines.json").write_text(json.dumps({"id": uid}))
+    (tmp_path / "dist").mkdir()
+    (tmp_path / "dist/catalog.json").write_text(json.dumps({"kind": "idl-built-catalog", "modules": [{"id": uid, "alias": "example", "base": uid + "/"}]}))
+    monkeypatch.setattr(capture, "ROOT", tmp_path)
+    class Context:
+        def route(self, *args): pytest.fail("Built capture must not mount source routes")
+        def add_init_script(self, *args): pytest.fail("Built capture must not inject a source entry")
+    capture.configure_module_capture(Context(), module, "http://localhost:5180")
+    url = capture.capture_url("http://localhost:5180", uid, "opening")
+    assert uid + "/index.html?" in url
+    assert "mode=ppt" in url and "slide=opening" in url
+    assert "/scenedeck/" not in url

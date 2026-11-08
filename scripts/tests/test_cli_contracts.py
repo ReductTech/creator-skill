@@ -177,7 +177,7 @@ def test_upload_dry_run_returns_json_without_importing_oss(
     assert uploader.main(["--assets-dir", str(tmp_path), "--dry-run"]) == 0
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "dry-run"
-    assert result["objects"] == ["cloud-IDL/assets/image.png"]
+    assert result["objects"] == [uploader.object_key(tmp_path, tmp_path / "image.png")]
 
 
 def test_doctor_checks_node_as_an_executable(monkeypatch):

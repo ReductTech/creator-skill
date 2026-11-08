@@ -2,17 +2,15 @@
 
 ## 模块 UUID
 
-每个活跃模块在 `outlines.json` 顶层保存 `moduleIdentity`，其 `id` 是标准小写 UUID v4，与实现层的播放器场景 ID 分开；大纲每页必须保存 `id`、`title` 与 `snippet`，其中页面 `id` 与播放器场景 ID 一致，不是模块 UUID。
+每个模块目录为 `modules/<UUID>/`，`outlines.json.id` 与 `moduleIdentity.id` 必须等于目录 UUID（标准小写 UUID v4）。标题与 `alias` 可读，改标题、内容、页序不改变 UUID。页面 `id`、文件名和语义页目录保持原样，不引入单页 UUID 或版本链。
 
 ```json
-{"moduleIdentity": {"version": 1, "id": "2e5c4732-a40a-4d20-b954-a61507aabc75"}}
+{"id":"2e5c4732-a40a-4d20-b954-a61507aabc75","moduleIdentity":{"version":1,"id":"2e5c4732-a40a-4d20-b954-a61507aabc75"}}
 ```
 
-示例只展示格式，不复制为新模块身份。UUID 由工具生成一次并持续使用；修改标题、内容、页序或目录名不改变 UUID。路由 `path` 与目录匹配是独立约束。
+示例不能直接作为新课身份。`module.init --title "课程标题"` 自动分配 UUID，或用 `--directory <UUID>` 指定。只创建缺失大纲，不覆盖已有文件。`module.identity --check` 只读检查；不加 `--check` 可在已有 UUID 目录内补齐缺失身份，遇到语义目录、身份冲突或重复时停止，不擅自重命名。
 
-从仓库根目录运行 `python creator-skill/scripts/tools.py module.identity --check` 只检查身份，不写文件；省略 `--check` 会扫描全部 `modules/*/outlines.json` 并补齐所有缺失身份，不只处理当前模块。工具先检查已有 UUID，遇到格式错误或重复时停止，不替换已有 UUID；后端加载也拒绝缺失或无效身份。命令无需安装后端包，依赖要求见工具帮助和[工具索引](../tools.md)。
-
-复制为独立新模块时，移除复制来的 `moduleIdentity` 再由工具生成新 UUID，将对应资源放入新模块自己的 `modules/<目录>/assets/`，同步运行时引用和术库 `assetId`，不沿用源模块身份。
+复制为独立新模块时分配新的目录 UUID，同步大纲 id、moduleIdentity.id、path 和运行时 assetId，再核对引用。不要沿用源模块身份。素材文件可以保留原名与字节，上传后自然复用同一 SHA-256 对象。Git 记录整个模块的版本，UUID 不代替 Git 提交。
 
 ## 正式资源与中间产物
 
@@ -22,84 +20,79 @@
 
 设计图、试制素材、检查截图与报告等逐页中间产物放在 `pages/<语义页目录>/_scratchpad/`。课程整体原稿提取和汇总资料放在模块级 `_scratchpad/`，两者均不上传到资源 CDN。确定用于正式页面的素材再放入 `modules/<课程目录>/assets/`，实现不得引用 `_scratchpad/` 中的文件。
 
-## 引用
+## 资源引用：平台强制约定
 
-模块根目录中的引用示例：
+创作者只维护真实文件及其静态相对引用，不登记资源，不维护全局映射表。路径相对于写引用的源码或 CSS 文件，不相对于网站域名、仓库根目录或部署目录。
 
-```tsx
-import { moduleAssetUrl } from '../shared/react';
-import { moduleIdentity } from './outlines.json';
-
-const imageUrl = moduleAssetUrl(moduleIdentity.id, 'images/example.png');
-```
-
-深层页面按文件位置调整 import。第二个参数是相对于当前模块 `assets/` 的路径，例如文件 `modules/Example/assets/images/example.png` 对应 `images/example.png`，不包含模块目录、`assets/` 或 UUID 前缀；图片、视频、模型及 Canvas/WebGL 资源均通过此方法引用。CSS 背景图由组件生成 URL，再传入 CSS 自定义属性。
-
-### assets 是运行时边界
-
-`assets/` 中所有文件都应进入 OSS 资源发布范围，包括 JSON、二进制、音视频和模型；不按扩展名或大小偷偷跳过。开发时保留本地素材，由统一 URL 解析器选择本地服务、OSS 或离线包。私有数据、凭据、训练缓存及未准备公开的产物不得放进公共 `assets/`。
-
-禁止从 `assets/` 静态导入、动态 `import()`、重新导出、`require()`、`?url`/`?raw`、`import.meta.glob()`，或用 `new URL(相对素材路径, import.meta.url)` 让打包器收集资源。禁止在 CSS 中直接引用相对 `assets/` 路径；组件应通过 `moduleAssetUrl` 生成地址再传入。不要为修复构建添加按课程名称列举的 Docker COPY/白名单，也不要将资源内容复制进 TS 来绕过边界。
-
-JSON 同样在页面需要时加载，不能用 `import type` 从素材反推类型；在代码目录定义接口。通用加载器缓存成功结果、合并并发请求；失败可重试。例如：
+模块根目录中的组件示例：
 
 ```tsx
-import { moduleJson } from '../shared/react/moduleJson';
-import { withAssetResources } from '../shared/react/withAssetResources';
-import { Typography } from '../shared/react/typography';
-import { moduleIdentity } from './outlines.json';
+import diagram from './assets/images/diagram.png';
+import './Lesson.css';
 
-interface LessonData { values: number[] }
-const data = moduleJson<LessonData>(moduleIdentity.id, 'data/lesson.json');
-function LessonContent() {
-  const { values } = data.read();
-  return <Typography variant="body">{values.join('、')}</Typography>;
+export function Lesson() {
+  return <img src={diagram} alt="模型结构" />;
 }
-export const Lesson = withAssetResources(LessonContent, [data]);
 ```
 
-服务函数可使用 `await data.load()`；图片等直接将 `moduleAssetUrl` 返回值交给对应加载器。确实参与编译的小配置应放在代码目录，例如 `config/`，而不是 `assets/`。大型 JSON 按需加载，必要时分片，禁止打进前端 JS；没有统一的“JSON 都很小”假设。
+同目录 CSS 示例：
 
-新增或修改资源引用后执行 `python creator-skill/scripts/tools.py check.asset-imports`，也可通过 `--module <模块目录名>` 限定范围。`npm run build` 与 `build:public` 已在编译前运行该检查。它检查源码引用，不代替真实加载验证。
+```css
+.lesson { background-image: url('./assets/images/background.png'); }
+```
 
-离线包必须保留同一 `moduleAssetUrl` 路径契约，将 JSON 与它引用的素材一并收集；解压后用 data/blob 地址读取 JSON，不能依赖被浏览器拦截的 `fetch(file://...)`。验证断网打开、交互、请求失败后重试，以及 JSON 内命名的图片/图集等依赖。
+页面组件在 `pages/intro/` 时，引用同一课程资源应写 `../../assets/images/diagram.png`。音视频、字体、模型等同样使用静态文件引用；需要 URL 而不能作为 JS 数据导入的文件使用字面量 `import dataUrl from './assets/data/lesson.json?url'`，在需要时 `fetch(dataUrl)`。JSON 不直接作为数据导入 JS 包；代码中的接口单独定义。
+
+强制规则：
+
+- TS/TSX 使用静态 `import` 获取素材 URL，CSS 使用字面量 `url(...)`。禁止动态拼接素材路径、模板字符串计算路径、动态资源导入、glob 自动扫描及 `require`；多张图片逐项静态导入，再在代码数组中选择已导入的 URL。
+- 禁止使用 `C:\Users\…`、`file://`、以 `/assets/` 开头的网站根路径、跨仓库路径、手写 OSS/CDN 地址或 UUID 资源 URL。资源引用必须留在课程 assets 或仓库正式共享 assets 范围内，不得引用 `_scratchpad/`。
+- 不使用 `moduleAssetUrl`、历史别名或格式替换表作为新引用方式。禁止新增、生成或维护 `asset-formats.json`、手写 `asset-index.json` 等全局路径映射文件。
+- 素材格式以磁盘真实文件为准。源文件改名或改格式时同步修改其静态引用，不增加旧路径兼容登记。仅在构建产物中做压缩转换时由构建器自动连接输入与输出，不修改源码、不生成需要用户维护的映射。
+- JSON、GLTF 等资源文件内部若还引用图片或二进制，使用固定相对文件名；发布器须收集这些依赖并保持相对层级或重写其引用，不能将顶层资源换成裸哈希 URL 后遗漏依赖。
+
+## 本地引用如何变成 OSS 地址
+
+上述源码约定与生产 OSS 交付相互独立：
+
+1. 本地开发由开发服务器解析静态 import 和 CSS URL，直接读取本地素材。
+2. Shuku 构建器解析这些引用，收集实际资源依赖。发布构建不得将图片、音视频、模型和资源 JSON 内联到 JS、CSS 或 data URL；应输出独立资源文件。
+3. 平台根据最终字节生成内容哈希、上传并校验 OSS 对象，自动生成该版本的产物清单；清单不提交到课程源码仓库，不要求创作者维护。
+4. 构建产物中的 import 结果和 CSS URL 改为配置的 OSS/CDN 资源地址；受权限保护的资源使用对应授权交付地址。必须在构建阶段配置资源公网基址或使用可解析的占位符完成发布重写，不能仅上传 OSS 而仍让浏览器请求本地路径。
+5. 所需资源上传成功后才发布课程。课程源代码仍保留原静态相对路径；HTML、交互代码及计算服务继续由 Shuku 服务器交付。
+
+例如源码中的 `./assets/images/diagram.png`，在发布后的 JS 中应成为平台生成的 `https://<资源域名>/<版本资源路径或内容哈希>.png`；该生产 URL 不是创作者需要填写或保存的字段。OSS 桶、域名和路径前缀由 Shuku 配置提供，不能写死在课程或 Skill 中。私有资源不得因采用 OSS 而变成公开对象。
+
+构建检查应对动态引用、越界引用和缺失文件报出源码位置并终止发布。历史 `check.asset-imports` 禁止静态导入的行为与本规范冲突，必须调整检查器及构建链后实施本规范，不能将旧检查通过视为新约定已落地。本次规范更新本身不代表 Shuku 构建链已完成迁移。
+
+离线导出由平台将同一组依赖改写为包内地址并保留必要层级，不要求课程源码维护另一套引用。不能假设 `fetch(file://...)` 可用；资源 JSON 需由离线加载器或本地 HTTP 服务交付。
 
 正式术库缩略图保存在 `modules/<课程目录>/assets/scenedeck-thumbnails/`，统一为 `<scene-id>.jpg`，320×180 渐进式 JPEG，质量 75、4:4:4 采样。由 `capture.thumbnails` 生成，播放器使用 320×180 小图；运行时第一页同时自动生成 `assets/course-covers/<第一页ID>.jpg` 的 800×450 首页封面（质量 80）。无需传入尺寸或质量参数，评估截图仍为 1600×900 PNG。播放器 `assetId` 使用当前模块的 UUID，不使用目录名。
 
 已有正式缩略图对应当前实现时可直接用于检查，无需重复截图；交互状态截图保存在 `_scratchpad/`。
 
-## 本地与 CDN
+## 构建、去重与发布
 
-`modules/shared/asset-index.json` 只保存目录、历史别名和格式映射等元数据，不集中保存素材本体。当前模块的本地归属由 `outlines.json` 所在目录确定；模块改名或移动时同步核对索引及相关别名，保持 UUID 不变。工具读取资源时复用 `scripts/common/module_assets.py` 的解析函数，不自行拼接旧根目录路径。
+课程源码不再提供全局资源索引。平台从模块大纲发现课程，从静态引用解析资源依赖，并为每个构建版本自动生成产物清单。`module_assets.py` 等旧工具需要迁移到此契约；不得继续依赖手写 UUID 到目录或格式的登记。
 
-Vite 开发服务按模块 UUID 将请求映射到课程自己的 assets 目录。应用 base 为 `/` 时，磁盘文件 `modules/<课程目录>/assets/images/photo.jpg` 的本地 URL 仍是 `/<UUID>/images/photo.jpg`。页面只调用 `moduleAssetUrl`，由它处理应用 base 与资源域名。
+构建版本清单可记录 `path`、`sha256`、`size`、`mime`、`object_key`，用于去重、权限、完整性校验和恢复。这属于平台内部构建输出，不是全局映射表，也不是创作者的维护项。
 
-项目的资源发布配置为：
+哈希基于处理完成后的最终字节，不基于文件名、模块或 MIME。图片、视频、字体、JSON、模型、二进制及构建 JS/CSS 都适用；相似画面但字节不同不会去重。压缩或转码后重新计算。每个版本保留自己的不可变清单，多个逻辑路径可引用同一对象。
 
-- OSS 位置：`oss://jianlun/cloud-IDL/assets/`
-- 公网前缀：`https://image.reduct.cn/cloud-IDL/assets`
+术库按已发布或获授权预览的版本清单解析逻辑路径，只返回清单列出的已构建文件，按逻辑文件类型设置响应 MIME。保留 URL 目录层级，使 CSS、GLTF、模型纹理的相对引用正常；不要把页面里的所有 URL 直接替换为裸哈希 URL。对象本身为 private，不能通过猜哈希绕过权限。Shuku 展示端禁止读取源码。
 
-CDN 构建设置：
+本地 `dist` 在生成文件之间使用硬链接共享相同字节，文件树仍可独立部署；普通 ZIP 或复制到其他文件系统后可能重新占用空间。云端真正跨模块、跨版本去重由公共内容对象命名空间保证，与本地链接无关。
 
-```text
-VITE_ASSET_BASE_URL=https://image.reduct.cn/cloud-IDL/assets
-```
+`assets.upload --module <UUID> --dry-run` 只读生成素材清单并统计唯一对象，不联系 OSS。执行真实上传需本次发布授权并传入 `--config <Shuku配置JSON绝对路径>`，读取同一份 `storage.oss` 配置，不在 Skill 另存桶地址或凭据。配置文件不可提交。默认扫描课程资源；`--module` 限定该模块拥有的 assets，共享依赖由正式构建的完整产物清单处理。显式 `--assets-dir` 的逻辑路径以该目录为根。
 
-该变量在构建时读取。设置后，前端构建不复制本地静态资源；发布时单独上传所需资源，并保持 `<UUID>/相对路径` 的目录结构。本地开发或需要包含素材的离线构建不设置该变量。
+上传器只创建缺失对象，校验并复用已有对象；并发重复创建按不可覆盖语义处理。拒绝 `--overwrite`，不删除远端文件，不自动删除源文件。`--private-records` 只接受 JSON，仍写 private CAS 对象；所有文件均须通过对应清单授权。上传返回的清单必须交给发布流程保存，单独上传素材不等于发布完整课程。
 
-## 发布与上传
-
-使用已有 `assets.upload`，调用入口见[工具索引](../tools.md#资源与环境)，完整参数以 `assets.upload --help` 为准。上传前核对对象范围，并确认已有本次发布授权；凭据使用环境变量 `OSS_ACCESS_KEY_ID` 和 `OSS_ACCESS_KEY_SECRET`，不写入 Skill 或模块文件。
-
-上传模块素材时指定模块 UUID，保留 `<UUID>/相对路径`。默认从已注册的 `modules/*/assets/` 与索引中的共享、历史别名目录收集全部文件，再映射到原有 OSS 对象键；省略模块筛选会处理全部注册资源，不能把它当作当前模块上传。不要将 `--assets-dir modules/<课程目录>/assets` 当作上传单模块的快捷方式：显式资源根目录按其相对路径生成对象键，会丢失默认模式保留的 UUID 前缀。默认跳过已有对象，覆盖须明确指定；工具不删除远端文件。非公开数据集、训练缓存、权重和产物留在公共 assets 之外，不依赖上传脚本的扩展名黑名单保护。
-
-私有 JSON 回放记录使用 `--private-records`，写入 `cloud-IDL/records/`，采用 private ACL 与 no-store；普通页面素材使用默认资源发布模式。
-
+CAS 使用未开启版本控制的桶，读取桶状态后发现 Enabled/Suspended 就停止，不改桶设置。删除模块或版本不能直接删除共享对象；垃圾回收另行设计，此次不执行。
 
 ## 普通 PNG 压缩
 
 运行 `python creator-skill/scripts/tools.py assets.compress modules/<课程目录>/assets --dry-run` 先检查范围，移除 `--dry-run` 才执行。工具只处理单帧、完全不透明、普通 8 位 PNG，生成 `.jpg`；透明 PNG（包括调色板透明）、APNG、GIF、SVG、WebP、16 位 PNG 和其他格式保持原字节，不铺背景、不抽帧、不缩放。JPEG 不比原图小时不转换；已有 JPG 不覆盖；原 PNG 默认保留。
 
-只有成功转换的文件进入精确格式映射。`moduleAssetUrl` 使用 `modules/shared/react/asset-formats.json`，动态文件名也按实际结果选择后缀，不能统一把 `.png` 改成 `.jpg`。`modules/shared/asset-index.json` 记录本地目录与稳定 OSS UUID 前缀；移动本地目录不改变 UUID。
+直接压缩源码资源并改为 JPG 时，必须同步修改所有静态引用；未能可靠定位引用就不改名、不自动替换。不生成格式映射表，不保留依赖映射的兼容路径。优先在 Shuku 构建中进行可选压缩，让创作者的源文件和引用保持一致。
 
-上线素材仍单独上传 OSS，前端镜像不复制素材，Nginx 不提供素材内容。新生成的 JPG 是新对象，需要随发布上传，原有 OSS PNG 不自动删除。
+转码后的最终字节重新计算 SHA-256，随新构建上传；旧发布版本保持不变，不自动删除其对象。旧压缩工具若仍写入映射文件，必须迁移后才可使用。

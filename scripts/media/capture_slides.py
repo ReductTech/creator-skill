@@ -26,7 +26,7 @@ import time
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from urllib.error import URLError
-from urllib.parse import urlencode, urlparse, parse_qs
+from urllib.parse import urlencode, urlparse, parse_qs, urljoin
 from urllib.request import urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
@@ -74,7 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="image directory relative to cwd, within module _scratchpad (screenshots/both) or official thumbnail directory (thumbnails)",
     )
     parser.add_argument(
-        "--base-url", help="running Vite URL; omit to start and stop a temporary Vite"
+        "--base-url", help="built preview URL; defaults to a temporary dist-only preview for the IDL course repository"
     )
     parser.add_argument(
         "--inspect",
@@ -127,7 +127,8 @@ def available_modules() -> list[tuple[Path, str, str]]:
 
 def resolve_module(requested: str) -> tuple[Path, str, str]:
     for directory, deck_id, asset_id in available_modules():
-        if requested.lower() in {deck_id.lower(), directory.name.lower(), asset_id}:
+        alias = json.loads((directory / 'outlines.json').read_text(encoding='utf-8-sig')).get('alias', '')
+        if requested.lower() in {deck_id.lower(), directory.name.lower(), asset_id, alias.lower()}:
             return directory, deck_id, asset_id
     known = ", ".join(deck_id for _, deck_id, _ in available_modules())
     raise ValueError(f"Unknown PPT module: {requested}. Available: {known}")
@@ -205,11 +206,28 @@ def launch_browser(playwright):
     )
 
 
+def built_entry(base_url: str, deck_id: str) -> str | None:
+    """Resolve this checkout's fixed build; never infer a source route for IDL."""
+    catalog = ROOT / 'dist/catalog.json'
+    if not catalog.is_file():
+        return None
+    document = json.loads(catalog.read_text(encoding='utf-8'))
+    if document.get('kind') != 'idl-built-catalog':
+        return None
+    for module in document.get('modules', []):
+        if deck_id in {module.get('id'), module.get('alias')}:
+            return urljoin(base_url.rstrip('/') + '/', module['base'] + 'index.html')
+    return None
+
+
 def capture_url(base_url: str, deck_id: str, slide_id: str | None = None) -> str:
     query = {"scenedeckCapture": "1", "deck": deck_id}
     if slide_id:
         query["slide"] = slide_id
-    return base_url + "/scenedeck/?" + urlencode(query)
+    entry = built_entry(base_url, deck_id)
+    if entry:
+        query['mode'] = 'ppt'
+    return (entry or base_url.rstrip('/') + '/scenedeck/') + '?' + urlencode(query)
 
 
 def configure_module_capture(context, directory: Path, base_url: str) -> None:
@@ -223,6 +241,11 @@ def configure_module_capture(context, directory: Path, base_url: str) -> None:
         return  # Older callers may supply their own capture fixture.
     context._idl_reuse_capture = True
     outline = json.loads(outline_path.read_text(encoding="utf-8-sig"))
+    if built_entry(base_url, outline.get('id', '')):
+        context._idl_reuse_capture = True
+        return
+    if (ROOT / 'scripts/preview.mjs').is_file() and directory.resolve().is_relative_to((ROOT / 'modules').resolve()):
+        raise ValueError('Build this module first; capture does not fall back to IDL source routes')
     entry = (directory / outline["ppt"]["entry"]).resolve()
     if not entry.is_relative_to(directory.resolve()) or not entry.is_file():
         raise ValueError(f"PPT entry must be an existing file inside {directory}")
@@ -410,15 +433,51 @@ def safe_slide_id(value):
 
 
 @contextmanager
+def built_preview(log_directory=None):
+    """Own a temporary server serving only this repository's dist."""
+    if not (ROOT / 'dist/catalog.json').is_file():
+        raise RuntimeError('Run npm run build before capturing the course')
+    node = shutil.which('node')
+    if not node:
+        raise RuntimeError('Node.js is unavailable')
+    port = free_port()
+    address = f'http://127.0.0.1:{port}'
+    process = subprocess.Popen([node, str(ROOT / 'scripts/preview.mjs'), '--port', str(port)],
+        cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+    try:
+        for _ in range(100):
+            if process.poll() is not None:
+                raise RuntimeError('Built preview server exited')
+            try:
+                with urlopen(address + '/catalog.json', timeout=.5) as response:
+                    if json.load(response).get('kind') == 'idl-built-catalog':
+                        break
+            except (OSError, ValueError):
+                time.sleep(.1)
+        else:
+            raise RuntimeError('Built preview server did not become ready')
+        yield address
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+
+
+@contextmanager
 def browser_session(base_url=None, reset_storage=True, scratchpad=None):
     """One isolated browser context; never touches the user's browser profile."""
     load_dependencies()
-    address = base_url or running_vite()
+    use_built = (ROOT / 'scripts/preview.mjs').is_file()
+    address = base_url or (None if use_built else running_vite())
     if address and not base_url:
         print(f"Reusing Vite for this repository: {address}", file=sys.stderr, flush=True)
     with (
         (
-            nullcontext(address.rstrip("/")) if address else vite_server(scratchpad)
+            nullcontext(address.rstrip("/")) if address else built_preview(scratchpad) if use_built else vite_server(scratchpad)
         ) as address,
         sync_playwright() as playwright,
     ):

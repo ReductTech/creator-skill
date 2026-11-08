@@ -16,7 +16,7 @@
       "category": "module",
       "path": "scripts/module/module_identity.py",
       "runtime": "python",
-      "description": "生成缺失 UUID 或检查已有身份",
+      "description": "检查目录与大纲 UUID 一致，或补齐 UUID 目录中的缺失身份",
       "effects": "默认写 outlines.json；--check 只读；扫描全部模块",
       "dependencies": [],
       "arguments": []
@@ -26,7 +26,7 @@
       "category": "module",
       "path": "scripts/module/init_module.py",
       "runtime": "python",
-      "description": "确保模块目录内的 outlines.json 存在",
+      "description": "分配模块 UUID，确保该目录的大纲存在",
       "effects": "已有文件不读写；缺失时仅创建初始大纲；--dry-run 不写入；不生成 React 文件或资源目录",
       "dependencies": [],
       "arguments": []
@@ -148,8 +148,8 @@
       "category": "assets",
       "path": "scripts/media/upload-assets-oss.py",
       "runtime": "python",
-      "description": "上传可视化资源到 OSS",
-      "effects": "默认远端写入并跳过已存在对象；--overwrite 覆盖；--dry-run 不联系 OSS",
+      "description": "按 SHA-256 去重上传素材，返回逻辑路径清单",
+      "effects": "真实上传需 --config 统一 Shuku JSON；对象不可覆盖，复用前校验；--dry-run 无网络；不删除对象",
       "dependencies": [
         "oss2"
       ],

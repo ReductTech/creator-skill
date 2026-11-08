@@ -76,6 +76,7 @@ def resolve_module(requested, root=None):
         in {
             directory.name.lower(),
             str(doc.get("id", directory.name)).lower(),
+            str(doc.get("alias", "")).lower(),
             str(doc.get("moduleIdentity", {}).get("id", "")).lower(),
         }
     ]

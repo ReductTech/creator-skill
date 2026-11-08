@@ -40,14 +40,14 @@ def test_every_tool_help_is_safe_and_available():
 
 
 def test_initializer_dry_run_writes_nothing_and_actual_run_never_overwrites(tmp_path):
-    result=initialize(tmp_path,'Example',OUTLINE,True)
+    result=initialize(tmp_path,'2e5c4732-a40a-4d20-b954-a61507aabc75',OUTLINE,True)
     assert result['dry_run'] and list(tmp_path.iterdir())==[]
-    result=initialize(tmp_path,'Example',OUTLINE)
-    directory=tmp_path/'modules/Example'
+    result=initialize(tmp_path,'2e5c4732-a40a-4d20-b954-a61507aabc75',OUTLINE)
+    directory=tmp_path/'modules/2e5c4732-a40a-4d20-b954-a61507aabc75'
     assert (directory/'GuidePage.tsx').is_file()
-    assert (tmp_path/'modules/Example/assets').is_dir()
+    assert (tmp_path/'modules/2e5c4732-a40a-4d20-b954-a61507aabc75/assets').is_dir()
     before={p.name:p.read_bytes() for p in directory.iterdir() if p.is_file()}
-    with pytest.raises(ValueError,match='already exists'):initialize(tmp_path,'Example',OUTLINE)
+    with pytest.raises(ValueError,match='already exists'):initialize(tmp_path,'2e5c4732-a40a-4d20-b954-a61507aabc75',OUTLINE)
     assert before=={p.name:p.read_bytes() for p in directory.iterdir() if p.is_file()}
     # Reuse the actual module validator rather than duplicating expected file rules.
     from checks.validate_module import validate_modules
@@ -55,8 +55,8 @@ def test_initializer_dry_run_writes_nothing_and_actual_run_never_overwrites(tmp_
 
 
 def test_initializer_rejects_duplicate_pages_and_copied_identity(tmp_path):
-    with pytest.raises(ValueError,match='Duplicate page'):initialize(tmp_path,'Example',{**OUTLINE,'pages':OUTLINE['pages']*2})
-    with pytest.raises(ValueError,match='copied moduleIdentity'):initialize(tmp_path,'Example',{**OUTLINE,'moduleIdentity':{'id':'copied'}})
+    with pytest.raises(ValueError,match='Duplicate page'):initialize(tmp_path,'2e5c4732-a40a-4d20-b954-a61507aabc75',{**OUTLINE,'pages':OUTLINE['pages']*2})
+    with pytest.raises(ValueError,match='copied moduleIdentity'):initialize(tmp_path,'2e5c4732-a40a-4d20-b954-a61507aabc75',{**OUTLINE,'moduleIdentity':{'id':'copied'}})
     assert list(tmp_path.iterdir())==[]
 
 
@@ -70,11 +70,11 @@ def test_consistency_detects_ppt_guide_and_notes_drift():
 
 
 def test_asset_duplicates_are_reported_without_deleting(tmp_path):
-    result=initialize(tmp_path,'Example',OUTLINE)
-    folder=tmp_path/'modules/Example/assets'
+    result=initialize(tmp_path,'2e5c4732-a40a-4d20-b954-a61507aabc75',OUTLINE)
+    folder=tmp_path/'modules/2e5c4732-a40a-4d20-b954-a61507aabc75/assets'
     (folder/'a.png').write_bytes(b'same')
     (folder/'b.png').write_bytes(b'same')
-    report=inspect_assets(tmp_path,'Example',True)
+    report=inspect_assets(tmp_path,'2e5c4732-a40a-4d20-b954-a61507aabc75',True)
     assert report['duplicateGroups']==[['a.png','b.png']]
     assert (folder/'a.png').exists() and (folder/'b.png').exists()
 
@@ -138,15 +138,15 @@ def test_real_capture_uses_existing_engine_for_default_and_click_states(tmp_path
 
 def test_generated_scaffold_typechecks_against_real_shared(tmp_path):
     from module.init_module import plan_module
-    _,files=plan_module(tmp_path,'Example',OUTLINE)
+    _,files=plan_module(tmp_path,'2e5c4732-a40a-4d20-b954-a61507aabc75',OUTLINE)
     result=subprocess.run(['node',str(Path(__file__).with_name('typecheck_scaffold.mjs'))],input=json.dumps(files),text=True,capture_output=True,cwd=ROOT,timeout=60)
     assert result.returncode==0,result.stdout+result.stderr
 
 
 def test_initializer_asset_failure_does_not_register_partial_course(tmp_path):
     (tmp_path/'modules').write_text('not a directory')
-    with pytest.raises(OSError):initialize(tmp_path,'Example',OUTLINE)
-    assert not (tmp_path/'modules/Example').exists()
+    with pytest.raises(OSError):initialize(tmp_path,'2e5c4732-a40a-4d20-b954-a61507aabc75',OUTLINE)
+    assert not (tmp_path/'modules/2e5c4732-a40a-4d20-b954-a61507aabc75').exists()
 
 
 def test_legacy_capture_help_forwards():

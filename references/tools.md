@@ -28,7 +28,7 @@ python creator-skill/scripts/tools.py capture.slides --help
 |---|---|---|
 | `module/` | `module.identity`、`module.init` | 模块身份与初始大纲 |
 | `checks/` | `check.module`、`check.bounds`、`check.course`、`check.styles`、`assets.inspect`、`check.skill`、`environment.doctor` | 模块、页面、资源、Skill 与环境检查 |
-| `checks/` | `check.asset-imports` | 检查 assets 运行时边界，禁止源码编译时导入；构建前自动执行 |
+| `checks/` | `check.asset-imports` | 资源引用检查；现有实现需迁移到静态相对引用规范，不能继续禁止合法静态导入 |
 | `media/` | `extract.pptx`、`capture.slides`、`capture.thumbnails`、`capture.inspect`、`assets.upload`、`media.remove-green` | 原稿提取、截图、上传与视频处理 |
 | `analysis/` | `analyze.pages` | 源码和缩略图统计 |
 | `common/` | 内部辅助文件 | 路径、输出与命令行共用逻辑 |
@@ -44,10 +44,10 @@ Skill 仅收纳跨课程复用的创作工具。具体课程的模型训练、�
 ### 模块大纲与工程创建
 
 ```powershell
-python creator-skill/scripts/tools.py module.init --directory Digital-Image-Intro
+python creator-skill/scripts/tools.py module.init --title "数字图像入门"
 ```
 
-确保 `modules/Digital-Image-Intro/outlines.json` 存在：已有文件不读写，缺失时只创建初始大纲，不生成 React 文件或资源目录。替换模块名即可使用；可用 `--title "演示标题"` 设置新大纲标题，`--dry-run` 只查看是否需要创建。页面规划见[大纲说明](design/course-outline.md)。
+自动生成 UUID 并确保 `modules/<UUID>/outlines.json` 存在；可用 `--directory <UUID>` 指定身份。已有文件不读写，缺失时只创建初始大纲，不生成 React 文件或资源目录。可用 `--title "演示标题"` 设置新大纲标题，`--dry-run` 只查看是否需要创建。页面规划见[大纲说明](design/course-outline.md)。
 
 ### PPTX 原稿提取
 
@@ -63,7 +63,7 @@ python creator-skill/scripts/tools.py extract.pptx "原稿.pptx" --module Digita
 
 ### 截图和缩略图
 
-以下以仓库中的 Policy-Gradient 为例，调用时替换为任务目标。模块可用目录名、课程 ID 或 UUID 指定；`--slide` 使用实际场景 ID，可通过 `capture.inspect` 查询。省略 `--slide` 会捕获整套课件。
+以下命令的模块参数应替换为任务目标 UUID 或已登记 alias；`--slide` 使用实际场景 ID，可通过 `capture.inspect` 查询。省略 `--slide` 会捕获整套课件。新的 IDL 课程仓库先执行构建，截图工具默认启动临时 dist 静态服务，也可指定 `--base-url http://127.0.0.1:5180`；按构建 catalog 定位 UUID 入口，不回退加载源码。原站 Vite 模式仅供旧工程使用。
 
 **仅更新缩略图，直接执行一条命令：**
 
@@ -120,7 +120,7 @@ python creator-skill/scripts/tools.py check.course --module Policy-Gradient --ba
 
 ### 资源与环境
 
-素材清单读取目标模块自己的 `modules/<模块目录名>/assets/`。上传使用默认资源发现与 `--module <UUID>` 保留 OSS UUID 前缀；共享素材与历史别名按资源索引解析，详见[模块身份与资源](engineering/module-assets.md)。
+素材清单读取目标模块自己的 `modules/<模块目录名>/assets/`。上传使用默认资源发现与 `--module <UUID>` 选择本模块资源，按最终字节 SHA-256 去重，返回逻辑路径清单；真实上传通过 `--config <Shuku配置JSON>` 复用统一配置，详见[模块身份与资源](engineering/module-assets.md)。
 
 ```powershell
 python creator-skill/scripts/tools.py assets.inspect --module Policy-Gradient --duplicates

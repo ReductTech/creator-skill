@@ -57,9 +57,8 @@ description: 在当前仓库中规划、设计、实现、修改和评估 React 
 - 大纲每页必须包含非空字符串 `id`（稳定页面 ID）、`title`（题目）和 `snippet`（演讲稿）；ID 与 PPT scene.id、Guide step.id 一致，不增加其他页面字段。用户尚未提供的内容不自行补全。结构要求见[大纲](references/design/course-outline.md)。
 - 每页独占 `modules/<模块目录名>/pages/<语义页目录>/`，页面组件与同名样式放在该目录，不平铺在 `pages/` 下。该页的设计图、prompt、检查截图及临时脚本放在页目录内的 `_scratchpad/`；课程整体的原稿、大纲备份和汇总记录放在模块级 `_scratchpad/`。两级临时目录均由 Git 忽略，正式资源按工程约定保存。
 - 页目录与 `_scratchpad/` 按实际制作需要创建，不根据大纲预建未开始页面的空目录或占位文件。
-- 正式静态资源归各模块所有，保存到 `modules/<模块目录名>/assets/`；真正跨模块共用的素材放在 `modules/shared/assets/`。页面仍用 `moduleAssetUrl(moduleIdentity.id, relativePath)` 引用，UUID 是运行时与 OSS 命名空间，不是本地目录名。具体约定见[模块身份与资源](references/engineering/module-assets.md)。
-- `assets/` 内所有文件均为运行时 OSS 资源，与扩展名和体积无关；禁止 `import`、`require`、`?url` 或 `new URL(..., import.meta.url)` 把它们作为编译依赖。JSON 使用 `moduleAssetUrl` 后异步读取，优先复用 `moduleJson` 与 `withAssetResources`；构建必需的配置放在代码目录。修改资源引用后执行 `check.asset-imports`，并验证加载、失败重试与离线包；详见上述资源规范。
-
+- 正式静态资源保存到所属课程的 `assets/`；真正共享的资源放在 `modules/shared/assets/`。模块目录名、outlines.id、moduleIdentity.id 的 UUID 规则保持不变。资源引用统一采用源码文件到真实素材的静态相对路径：TS/TSX 使用 `import image from './assets/image.png'`，CSS 使用字面量 `url('./assets/background.png')`，深层文件相应使用 `../`。禁止动态拼接、电脑绝对路径、跨仓库路径和手写 OSS 地址；禁止要求用户登记 UUID 资源路径或维护全局资源映射表。完整规范见[模块身份与资源](references/engineering/module-assets.md)。
+- 开发读取本地资源；Shuku 构建发布负责收集静态资源、上传 OSS、重写构建产物中的 URL，课程源码保持原样。禁止新增或维护 `asset-formats.json`、手写 `asset-index.json` 或其他全局路径/格式映射；单次构建自动产生的版本产物清单由平台管理，不作为用户维护文件。旧工具与此约定冲突时应迁移工具，不能要求创作者恢复旧写法。
 ## 按动作读取
 
 执行相应动作前，读取对应资料。

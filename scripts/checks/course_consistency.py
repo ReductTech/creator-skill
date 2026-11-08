@@ -78,6 +78,8 @@ def compare_course(outline: dict, snapshot: dict) -> dict:
 
 
 def runtime_snapshot(context, base_url, outline):
+    from media.capture_slides import built_entry
+    entry = built_entry(base_url, outline.get('id', ''))
     page = context.new_page()
     try:
         page.goto(
@@ -86,7 +88,12 @@ def runtime_snapshot(context, base_url, outline):
             timeout=60000,
         )
         page.locator("[data-scene-deck-capture]").wait_for(timeout=60000)
-        snapshot = page.evaluate(
+        if entry:
+            snapshot = page.evaluate('window.__IDL_CAPTURE_COURSE__')
+            if not snapshot:
+                raise ValueError('Rebuild this course to expose the capture metadata')
+        else:
+            snapshot = page.evaluate(
             """async path => {
             const {activeModules}=await import('/src/app/modules.tsx');
             const module=activeModules.find(item=>item.path===path);
@@ -96,7 +103,7 @@ def runtime_snapshot(context, base_url, outline):
             outline["path"],
         )
         page.goto(
-            base_url + outline["path"], wait_until="domcontentloaded", timeout=60000
+            (entry + '?mode=guide') if entry else base_url + outline["path"], wait_until="domcontentloaded", timeout=60000
         )
         flow = page.locator(".edu-lesson-flow").first
         flow.wait_for(timeout=15000)

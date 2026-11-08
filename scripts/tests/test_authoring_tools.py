@@ -15,7 +15,7 @@ spec.loader.exec_module(uploader)
 UUID = "2e5c4732-a40a-4d20-b954-a61507aabc75"
 
 
-def course(root, name="Example", module_id=UUID):
+def course(root, name=UUID, module_id=UUID):
     directory = root / "modules" / name
     directory.mkdir(parents=True)
     (directory / "Guide.tsx").write_text("export function Guide() { return null; }")
@@ -94,41 +94,48 @@ def test_skill_rejects_empty_description_and_broken_reference(tmp_path):
     assert not validate_skill(tmp_path)[0]
 
 
-def test_upload_skips_existing_and_forbids_unintended_overwrite(tmp_path):
-    path = tmp_path / "course/picture.png"
-    path.parent.mkdir()
+def test_upload_reuses_verified_content_and_forbids_overwrite(tmp_path):
+    import hashlib
+    path = tmp_path / "picture.png"
     path.write_bytes(b"image")
     calls = []
-    bucket = SimpleNamespace(object_exists=lambda key: True, put_object_from_file=lambda *a, **kw: calls.append((a, kw)))
-    assert uploader.upload_one(bucket, tmp_path, path, False)[0] == "skipped"
+    bucket = SimpleNamespace(object_exists=lambda key: True,
+        head_object=lambda key: SimpleNamespace(content_length=5, headers={"x-oss-meta-sha256": hashlib.sha256(b"image").hexdigest()}),
+        put_object=lambda *a, **kw: calls.append((a, kw)))
+    assert uploader.upload_one(bucket, tmp_path, path)[0] == "skipped"
     assert calls == []
-    assert uploader.upload_one(bucket, tmp_path, path, True)[0] == "uploaded"
+    with pytest.raises(ValueError, match="overwritten"):
+        uploader.upload_one(bucket, tmp_path, path, True)
     bucket.object_exists = lambda key: False
-    uploader.upload_one(bucket, tmp_path, path, False)
+    uploader.upload_one(bucket, tmp_path, path)
     assert calls[-1][1]["headers"]["x-oss-forbid-overwrite"] == "true"
+    assert calls[-1][1]["headers"]["x-oss-object-acl"] == "private"
 
 
-def test_upload_private_records_remain_private(tmp_path):
-    path = tmp_path / "record.json"
-    path.write_text("{}")
-    calls = []
-    bucket = SimpleNamespace(object_exists=lambda key: False, put_object_from_file=lambda *a, **kw: calls.append((a, kw)))
-    uploader.upload_one(bucket, tmp_path, path, False, True)
-    assert calls[0][0][0] == "cloud-IDL/records/record.json"
-    assert calls[0][1]["headers"]["x-oss-object-acl"] == "private"
-    assert calls[0][1]["headers"]["Cache-Control"] == "private, no-store"
-
-
-def test_dry_run_preserves_uuid_prefix_without_oss_or_credentials(tmp_path, monkeypatch, capsys):
+def test_dry_run_groups_duplicates_and_retains_paths_without_oss(tmp_path, monkeypatch):
     import sys
-    (tmp_path / UUID).mkdir()
-    (tmp_path / UUID / "picture.png").write_bytes(b"image")
-    monkeypatch.setattr(uploader, "OSS_KEY_ID", "")
-    monkeypatch.setattr(uploader, "OSS_KEY_SECRET", "")
+    directory = tmp_path / "modules" / UUID / "assets"
+    directory.mkdir(parents=True)
+    (directory.parent / "outlines.json").write_text(json.dumps({"moduleIdentity": {"id": UUID}}))
+    for name in ["image.png", "copy.png"]:
+        (directory / name).write_bytes(b"same image")
+    monkeypatch.setattr(uploader, "get_target_root", lambda: tmp_path)
     monkeypatch.setitem(sys.modules, "oss2", None)
-    monkeypatch.setattr(sys, "argv", ["uploader", "--assets-dir", str(tmp_path), "--module", UUID, "--dry-run"])
-    assert uploader.main() == 0
-    assert f"cloud-IDL/assets/{UUID}/picture.png" in capsys.readouterr().out
+    args = uploader.build_parser().parse_args(["--module", UUID, "--dry-run"])
+    result = uploader.upload_assets(args)
+    assert result["unique_objects"] == 1
+    assert {r["path"] for r in result["manifest"]["files"]} == {UUID + "/image.png", UUID + "/copy.png"}
+    assert len({r["object_key"] for r in result["manifest"]["files"]}) == 1
+    assert result["objects"][0].startswith("assets/sha256/")
+
+
+def test_upload_rejects_bytes_changed_after_manifest(tmp_path):
+    path = tmp_path / 'picture.png'
+    path.write_bytes(b'original')
+    key = uploader.object_key(tmp_path, path)
+    path.write_bytes(b'changed while editing')
+    with pytest.raises(ValueError, match='changed after manifest'):
+        uploader.upload_one(SimpleNamespace(), tmp_path, path, expected_key=key)
 
 
 def test_all_files_explicitly_placed_in_public_assets_are_uploaded(tmp_path):
@@ -141,13 +148,13 @@ def test_all_files_explicitly_placed_in_public_assets_are_uploaded(tmp_path):
     }
 
 
-def test_optional_module_slug_uses_existing_router_fallback(tmp_path):
+def test_missing_module_uuid_id_is_rejected(tmp_path):
     directory = course(tmp_path)
     path = directory / "outlines.json"
     doc = json.loads(path.read_text())
     del doc["id"]
     path.write_text(json.dumps(doc))
-    assert validate_modules(tmp_path) == []
+    assert any('must agree' in error for error in validate_modules(tmp_path))
 
 
 @pytest.mark.parametrize("layout", ["module", "legacy"])
@@ -188,17 +195,17 @@ def test_default_upload_discovers_module_assets_and_preserves_uuid(tmp_path, mon
     (shared / "assets").mkdir(parents=True)
     (shared / "assets/common.svg").write_bytes(b"shared")
     (shared / "asset-index.json").write_text(json.dumps({
-        "roots": {UUID: "modules/Example/assets", "shared": "modules/shared/assets"},
+        "roots": {UUID: "modules/" + UUID + "/assets", "shared": "modules/shared/assets"},
         "formats": {},
     }))
-    monkeypatch.setattr(uploader, "ROOT", tmp_path)
+    monkeypatch.setattr(uploader, "get_target_root", lambda: tmp_path)
     monkeypatch.setattr(uploader, "DEFAULT_ASSETS_DIR", tmp_path / "modules")
     args = uploader.build_parser().parse_args(["--module", UUID, "--dry-run"])
     result = uploader.upload_assets(args)
-    assert result["objects"] == [f"cloud-IDL/assets/{UUID}/images/picture.jpg"]
+    assert result["objects"] == [uploader.object_key(directory, directory / "assets/images/picture.jpg")]
     args.module = None
     result = uploader.upload_assets(args)
     assert set(result["objects"]) == {
-        f"cloud-IDL/assets/{UUID}/images/picture.jpg",
-        "cloud-IDL/assets/shared/common.svg",
+        uploader.object_key(directory, directory / "assets/images/picture.jpg"),
+        uploader.object_key(shared, shared / "assets/common.svg"),
     }

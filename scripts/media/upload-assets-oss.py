@@ -1,233 +1,142 @@
 #!/usr/bin/env python3
-"""Upload visualization assets to the configured OSS destination.
-
-Reads: Local assets and configured credential environment variables.
-Writes: Remote objects; existing objects are skipped unless --overwrite. --dry-run never contacts OSS.
-"""
-
+"""Upload immutable SHA-256 objects and return a logical-path manifest. Dry-run has no network IO."""
 from __future__ import annotations
-
-
-import sys
 import argparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import hashlib
+import json
 import mimetypes
-import os
-import uuid
 from pathlib import Path
-from threading import local
+import sys
+import uuid
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import ROOT, emit_result, report_error, project_path
-from module_assets import asset_roots, object_relative, object_relatives
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'common'))
+from _common import get_target_root, emit_result, report_error, project_path
+from module_assets import asset_roots, object_relatives
 
-OSS_KEY_ID = os.environ.get(
-    "OSS_ACCESS_KEY_ID",
-    os.environ.get("ALIBABA_CLOUD_ACCESS_KEY_ID", os.environ.get("OSS_KEY_ID", "")),
-)
-OSS_KEY_SECRET = os.environ.get(
-    "OSS_ACCESS_KEY_SECRET",
-    os.environ.get(
-        "ALIBABA_CLOUD_ACCESS_KEY_SECRET", os.environ.get("OSS_KEY_SECRET", "")
-    ),
-)
-OSS_ENDPOINT = "https://oss-cn-hangzhou.aliyuncs.com"
-OSS_REGION = "cn-hangzhou"
-OSS_BUCKET_NAME = "jianlun"
-OSS_PREFIX = "cloud-IDL/assets/"
-PUBLIC_BASE_URL = "https://image.reduct.cn/cloud-IDL/assets"
-DEFAULT_ASSETS_DIR = ROOT / "modules"
-
-mimetypes.add_type("model/gltf-binary", ".glb")
+ROOT = None
+DEFAULT_ASSETS_DIR = None
+OSS_PREFIX = 'assets/sha256/'
 
 
-def build_parser() -> argparse.ArgumentParser:
+def object_key(assets_dir, path, private_records=False):
+    digest = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    return OSS_PREFIX + digest[:2] + '/' + digest
+
+
+def build_parser():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--assets-dir",
-        type=Path,
-        default=DEFAULT_ASSETS_DIR,
-        help="local asset root; default registered modules/*/assets directories",
-    )
-    parser.add_argument(
-        "--module",
-        help="upload only this module UUID while retaining its object-key prefix",
-    )
-    parser.add_argument(
-        "--workers", type=int, default=8, help="parallel uploads (default: 8)"
-    )
-    parser.add_argument(
-        "--overwrite", action="store_true", help="replace objects that already exist"
-    )
-    parser.add_argument(
-        "--dry-run", action="store_true", help="show object keys without contacting OSS"
-    )
-    parser.add_argument(
-        "--private-records",
-        action="store_true",
-        help="upload JSON playback records to private cloud-IDL/records objects",
-    )
+    parser.add_argument('--assets-dir', type=Path)
+    parser.add_argument('--module', help='Only this canonical module UUID')
+    parser.add_argument('--config', type=Path, help='Shared Shuku JSON; required for a real upload')
+    parser.add_argument('--overwrite', action='store_true', help='Rejected: SHA-256 objects are immutable')
+    parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--private-records', action='store_true', help='Restrict inputs to JSON; all CAS objects remain private')
     return parser
 
 
-def object_key(assets_dir: Path, path: Path, private_records: bool = False) -> str:
-    prefix = "cloud-IDL/records/" if private_records else OSS_PREFIX
-    relative = object_relative(ROOT, path) if assets_dir.resolve() == DEFAULT_ASSETS_DIR.resolve() else path.relative_to(assets_dir).as_posix()
-    return prefix + relative
+def visualization_files(assets_dir):
+    directory = Path(assets_dir).resolve()
+    candidates = directory.rglob('*')
+    if DEFAULT_ASSETS_DIR is not None and directory == DEFAULT_ASSETS_DIR.resolve():
+        candidates = {p for base in asset_roots(ROOT).values() for p in (ROOT / base).rglob('*')}
+    return sorted(p for p in candidates if p.is_file() and not p.is_symlink()
+                  and p.resolve().is_relative_to(directory) and '_scratchpad' not in p.parts)
 
 
-def visualization_files(assets_dir: Path) -> list[Path]:
-    """All files in public asset roots are runtime resources; never infer purpose from extension."""
-    candidates = assets_dir.rglob('*')
-    if assets_dir.resolve() == DEFAULT_ASSETS_DIR.resolve():
-        candidates = {p for base in asset_roots(ROOT).values() for p in (ROOT/base).rglob('*')}
-    return sorted(path for path in candidates if path.is_file() and not path.is_symlink()
-                  and path.resolve().is_relative_to(assets_dir.resolve()))
-
-
-def upload_one(
-    bucket: object,
-    assets_dir: Path,
-    path: Path,
-    overwrite: bool,
-    private_records: bool = False,
-) -> tuple[str, str]:
-    key = object_key(assets_dir, path, private_records)
-    aliases = object_relatives(ROOT,path) if assets_dir.resolve() == DEFAULT_ASSETS_DIR.resolve() else []
-    # Historical UUID aliases remain valid without duplicating local media files.
-    if len(aliases)>1:
-        uploaded=False
-        for relative in aliases:
-            alias_key=('cloud-IDL/records/' if private_records else OSS_PREFIX)+relative
-            if not overwrite and bucket.object_exists(alias_key):continue
-            headers={'Content-Type':mimetypes.guess_type(path.name)[0] or 'application/octet-stream'}
-            if private_records:
-                if path.suffix.lower()!='.json':raise ValueError('Private playback records must be JSON')
-                headers.update({'x-oss-object-acl':'private','Cache-Control':'private, no-store'})
-            if not overwrite:headers['x-oss-forbid-overwrite']='true'
-            bucket.put_object_from_file(alias_key,str(path),headers=headers);uploaded=True
-        return ('uploaded' if uploaded else 'skipped'),key
-    if not overwrite and bucket.object_exists(key):
-        return "skipped", key
-
-    content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-    headers = {"Content-Type": content_type}
-    if private_records:
-        if path.suffix.lower() != ".json":
-            raise ValueError(
-                "Private playback records must be JSON; datasets and weights are not uploaded."
-            )
-        headers["x-oss-object-acl"] = "private"
-        headers["Cache-Control"] = "private, no-store"
-    if not overwrite:
-        headers["x-oss-forbid-overwrite"] = "true"
-    bucket.put_object_from_file(key, str(path), headers=headers)
-    return "uploaded", key
-
-
-def upload_assets(args: argparse.Namespace) -> dict:
-    """Upload selected files or return dry-run object keys without accessing OSS."""
-    assets_dir = project_path(args.assets_dir, external=True)
-    if not assets_dir.is_dir():
-        raise ValueError(f"assets directory does not exist: {assets_dir}")
-    if not 1 <= args.workers <= 32:
-        raise ValueError("--workers must be between 1 and 32")
-
-    files = visualization_files(assets_dir)
-    if args.module:
-        try:
-            parsed_id = uuid.UUID(args.module)
-        except ValueError:
-            raise ValueError("--module must be a canonical lowercase UUID v4")
-        if str(parsed_id) != args.module or parsed_id.version != 4:
-            raise ValueError("--module must be a canonical lowercase UUID v4")
-        files = [
-            path
-            for path in files
-            if object_key(assets_dir, path).startswith(OSS_PREFIX + args.module + '/')
-        ]
-    if args.private_records and any(path.suffix.lower() != ".json" for path in files):
-        raise ValueError("--private-records accepts only JSON playback records")
-    if not files:
-        raise ValueError(f"no files found under {assets_dir}")
-    print(f"Found {len(files)} files in {assets_dir}", file=sys.stderr)
-    destination = f"oss://{OSS_BUCKET_NAME}/{'cloud-IDL/records/' if args.private_records else OSS_PREFIX}"
-    print(f"Destination: {destination}", file=sys.stderr)
-
-    if args.dry_run:
-        return {
-            "status": "dry-run",
-            "destination": destination,
-            "objects": [
-                ('cloud-IDL/records/' if args.private_records else OSS_PREFIX)+relative
-                for path in files for relative in (object_relatives(ROOT,path) if assets_dir.resolve()==DEFAULT_ASSETS_DIR.resolve() else [path.relative_to(assets_dir).as_posix()])
-            ],
-        }
-
+def upload_one(bucket, assets_dir, path, overwrite=False, private_records=False, expected_key=None):
+    if overwrite:
+        raise ValueError('Content-addressed objects cannot be overwritten')
+    if private_records and path.suffix.lower() != '.json':
+        raise ValueError('Private playback records must be JSON')
+    data = path.read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    key = OSS_PREFIX + digest[:2] + '/' + digest
+    if expected_key is not None and key != expected_key:
+        raise ValueError('Asset changed after manifest creation; retry from a fixed source version')
+    def verify():
+        head = bucket.head_object(key)
+        if head.content_length != len(data):
+            raise ValueError('Existing SHA-256 object has incorrect size')
+        if head.headers.get('x-oss-meta-sha256') != key.rsplit('/', 1)[-1]:
+            if bucket.get_object(key).read() != data:
+                raise ValueError('Existing SHA-256 object is corrupt')
+    if bucket.object_exists(key):
+        verify()
+        return 'skipped', key
     try:
-        import oss2
-    except ImportError:
-        raise RuntimeError(
-            f'oss2 is required: python -m pip install -r "{Path(__file__).resolve().parents[1] / "requirements.txt"}"'
-        )
+        bucket.put_object(key, data, headers={'Content-Type': 'application/octet-stream',
+            'x-oss-object-acl': 'private', 'x-oss-forbid-overwrite': 'true',
+            'x-oss-meta-sha256': key.rsplit('/', 1)[-1]})
+    except Exception as error:
+        if getattr(error, 'status', None) != 409 or getattr(error, 'code', None) != 'FileAlreadyExists':
+            raise
+        verify()
+        return 'skipped', key
+    return 'uploaded', key
 
-    if not OSS_KEY_ID or not OSS_KEY_SECRET:
-        raise RuntimeError(
-            "Set OSS_ACCESS_KEY_ID and OSS_ACCESS_KEY_SECRET before uploading; --dry-run needs no credentials."
-        )
 
-    worker_state = local()
-
-    def get_bucket() -> object:
-        if not hasattr(worker_state, "bucket"):
-            auth = oss2.AuthV4(OSS_KEY_ID, OSS_KEY_SECRET)
-            worker_state.bucket = oss2.Bucket(
-                auth, OSS_ENDPOINT, OSS_BUCKET_NAME, region=OSS_REGION
-            )
-        return worker_state.bucket
-
-    def sync_path(path: Path) -> tuple[str, str]:
-        return upload_one(
-            get_bucket(), assets_dir, path, args.overwrite, args.private_records
-        )
-
+def upload_assets(args):
+    global ROOT, DEFAULT_ASSETS_DIR
+    ROOT = get_target_root()
+    DEFAULT_ASSETS_DIR = ROOT / 'modules'
+    if args.overwrite:
+        raise ValueError('Content-addressed objects cannot be overwritten')
+    directory = project_path(args.assets_dir, external=True) if args.assets_dir else DEFAULT_ASSETS_DIR
+    if not directory.is_dir():
+        raise ValueError('Assets directory does not exist')
+    files = visualization_files(directory)
+    if args.module:
+        parsed = uuid.UUID(args.module)
+        if str(parsed) != args.module or parsed.version != 4:
+            raise ValueError('Module must be a canonical UUID v4')
+        owned = ROOT / 'modules' / args.module / 'assets'
+        files = [p for p in files if p.is_relative_to(owned)]
+    if args.private_records and any(p.suffix.lower() != '.json' for p in files):
+        raise ValueError('Private playback records must be JSON')
+    if not files:
+        raise ValueError('No asset files found')
+    records, unique = [], {}
+    for file in files:
+        data = file.read_bytes()
+        digest = hashlib.sha256(data).hexdigest()
+        key = OSS_PREFIX + digest[:2] + '/' + digest
+        unique.setdefault(key, file)
+        aliases = object_relatives(ROOT, file) if directory == DEFAULT_ASSETS_DIR else [file.relative_to(directory).as_posix()]
+        for alias in aliases:
+            records.append({'path': alias, 'object_key': key, 'size': len(data),
+                'sha256': key.rsplit('/', 1)[-1], 'mime': mimetypes.guess_type(file.name)[0] or 'application/octet-stream'})
+    manifest = {'schema': 2, 'kind': 'asset-manifest', 'storage': 'sha256-v1', 'files': sorted(records, key=lambda r: r['path'])}
+    settings = None
+    if getattr(args, 'config', None):
+        settings = json.loads(project_path(args.config, external=True).read_text(encoding='utf-8-sig')).get('storage', {}).get('oss', {})
+    if args.dry_run:
+        return {'status': 'dry-run', 'objects': sorted(unique), 'files': len(files), 'unique_objects': len(unique), 'manifest': manifest}
+    if not settings or not all(settings.get(k) for k in ('endpoint', 'bucket', 'region', 'access_key_id', 'access_key_secret')):
+        raise ValueError('Pass --config pointing to the shared Shuku JSON with storage.oss settings')
+    import oss2
+    bucket = oss2.Bucket(oss2.AuthV4(settings['access_key_id'], settings['access_key_secret']),
+                         settings['endpoint'], settings['bucket'], region=settings['region'])
+    # Versioned buckets ignore forbid-overwrite; do not silently create duplicate object versions.
+    if bucket.get_bucket_versioning().status not in (None, '', 'Disabled'):
+        raise ValueError('CAS requires an unversioned bucket; no bucket settings were changed')
     uploaded = skipped = 0
-    errors = []
-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures = {pool.submit(sync_path, path): path for path in files}
-        for future in as_completed(futures):
-            try:
-                status, key = future.result()
-            except Exception as exc:
-                key = object_key(assets_dir, futures[future], args.private_records)
-                errors.append({"key": key, "error": str(exc)})
-                print(f"[failed] {key}: {exc}", file=sys.stderr)
-                continue
-            if status == "uploaded":
-                uploaded += 1
-            else:
-                skipped += 1
-            print(f"[{status}] {key}", file=sys.stderr)
-
-    return {
-        "status": "error" if errors else "ok",
-        "destination": destination,
-        "uploaded": uploaded,
-        "skipped": skipped,
-        "errors": errors,
-        "publicUrlPrefix": None if args.private_records else PUBLIC_BASE_URL + "/",
-    }
+    for key, file in unique.items():
+        status, _ = upload_one(bucket, directory, file, False, args.private_records, expected_key=key)
+        uploaded += status == 'uploaded'
+        skipped += status == 'skipped'
+    return {'status': 'ok', 'uploaded': uploaded, 'skipped': skipped, 'manifest': manifest,
+            'publicUrlPrefix': None, 'access': 'resolve logical paths through the version manifest'}
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv=None):
     args = build_parser().parse_args(argv)
     try:
         result = upload_assets(args)
         emit_result(result)
-        return 2 if result.get("errors") else 0
-    except (OSError, ValueError, RuntimeError, ImportError) as exc:
-        return report_error(exc)
+        return 0
+    except (OSError, ValueError, RuntimeError, ImportError) as error:
+        return report_error(error)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     raise SystemExit(main())
