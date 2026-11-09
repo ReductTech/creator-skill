@@ -2,7 +2,9 @@
 
 from pathlib import Path
 import json
+import os
 import sys
+from course_paths import modules_directory, outline_paths
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 SKILL = SCRIPTS.parent
@@ -12,7 +14,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 def get_target_root(config_file=None):
     """Read the single configured absolute directory; never infer a target."""
-    config = Path(config_file) if config_file is not None else TARGET_ROOT_CONFIG
+    config = Path(config_file) if config_file is not None else Path(os.environ.get("CREATOR_SKILL_TARGET_CONFIG") or TARGET_ROOT_CONFIG)
     try:
         document = json.loads(config.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError) as exc:
@@ -28,9 +30,6 @@ def get_target_root(config_file=None):
     if not root.is_dir():
         raise ValueError(f"targetRoot directory does not exist: {root}")
     root = root.resolve()
-    backend = str(root / "backend/src")
-    if backend not in sys.path:
-        sys.path.insert(0, backend)
     return root
 
 
@@ -61,7 +60,7 @@ def project_path(value, *, external=False):
 
 def read_modules(root=None):
     root = Path(root) if root is not None else get_target_root()
-    for path in sorted((root / "modules").glob("*/outlines.json")):
+    for path in outline_paths(root):
         document = json.loads(path.read_text(encoding="utf-8-sig"))
         if not isinstance(document, dict):
             raise ValueError(f"Invalid outline: {path}")

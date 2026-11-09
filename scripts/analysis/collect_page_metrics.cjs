@@ -4,6 +4,7 @@
  */
 const fs = require('node:fs');
 const path = require('node:path');
+const {modulesDirectory} = require('../common/_course_paths.cjs');
 let root;
 let ts;
 const cache = new Map();
@@ -154,7 +155,7 @@ function collect(record, name, inline, stack = new Set()) {
         if (/Provider$/.test(tag))
             return;
         const dep = imported(record, tag);
-        if (dep && /\.tsx?$/.test(dep.file) && dep.file.startsWith(path.join(root, 'modules')) && !dep.file.includes(path.sep + 'shared' + path.sep))
+        if (dep && /\.tsx?$/.test(dep.file) && dep.file.startsWith(modulesDirectory(root)) && !dep.file.includes(path.sep + 'shared' + path.sep))
             merge(collect(parse(dep.file), dep.name, null, stack));
         else if (/^[A-Z]/.test(tag) && record.definitions.has(tag) && tag !== name)
             merge(collect(record, tag, null, stack));
@@ -243,8 +244,8 @@ function collectMetrics(repository) {
     ts = require(path.join(root, 'node_modules/typescript'));
     cache.clear();
     const pages = [], modules = [];
-    for (const dir of fs.readdirSync(path.join(root, 'modules')).sort()) {
-        const directory = path.join(root, 'modules', dir), file = path.join(directory, 'outlines.json');
+    for (const dir of fs.readdirSync(modulesDirectory(root)).sort()) {
+        const directory = path.join(modulesDirectory(root), dir), file = path.join(directory, 'outlines.json');
         if (!fs.existsSync(file))
             continue;
         const outline = JSON.parse(fs.readFileSync(file, 'utf8'));

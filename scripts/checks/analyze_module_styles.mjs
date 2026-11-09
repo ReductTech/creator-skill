@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { getTargetRoot } from '../common/_target_root.mjs';
+import coursePaths from '../common/_course_paths.cjs';
 import { emitResult, isMain, parseOptions, printHelp, reportError } from '../common/_cli.mjs';
 export function buildParser() {
     return {
@@ -53,10 +54,7 @@ function classesFromSource(source) {
 }
 export function analyzeStyles(moduleName) {
     const REPOSITORY = getTargetRoot();
-    const moduleRoot = path.resolve(REPOSITORY, 'modules', moduleName);
-    if (path.dirname(moduleRoot) !== path.join(REPOSITORY, 'modules')) {
-        throw new Error('Module must be a direct child of modules/.');
-    }
+    const moduleRoot = coursePaths.resolveModule(REPOSITORY, moduleName);
     const pagesRoot = path.join(moduleRoot, 'pages');
     const pageFiles = pageSources(pagesRoot);
     const usage = new Map();

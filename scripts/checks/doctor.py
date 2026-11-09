@@ -13,7 +13,9 @@ import shutil
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import ROOT, emit_result, report_error
+from _common import get_target_root, modules_directory, emit_result, report_error
+
+ROOT = None
 
 GROUPS = {
     "core": [],
@@ -45,6 +47,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def diagnose(group: str, tool: str | None = None) -> list[dict]:
     """Return dependency availability without importing optional packages or models."""
+    root = ROOT or get_target_root()
     groups = (
         list(GROUPS)
         if group == "all"
@@ -56,7 +59,7 @@ def diagnose(group: str, tool: str | None = None) -> list[dict]:
             "available": sys.version_info >= (3, 10),
             "detail": sys.version.split()[0],
         },
-        {"name": "repository modules", "available": (ROOT / "modules").is_dir()},
+        {"name": "repository modules", "available": modules_directory(root).is_dir()},
         {"name": "Node", "available": bool(shutil.which("node"))},
     ]
     packages = {name for key in groups for name in GROUPS[key]}
@@ -82,8 +85,9 @@ def diagnose(group: str, tool: str | None = None) -> list[dict]:
     if "capture" in groups:
         checks.append(
             {
-                "name": "Vite",
-                "available": (ROOT / "node_modules/vite/bin/vite.js").is_file(),
+                "name": "completed course build",
+                "available": (root / "dist").is_dir(),
+                "detail": "default targetRoot/dist; external build output can be passed with --build-output",
             }
         )
         locations = [

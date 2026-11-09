@@ -33,7 +33,7 @@ def test_valid_course_and_literal_asset_are_accepted(tmp_path, layout):
     assets.mkdir(parents=True)
     (assets / "image.png").write_bytes(b"image")
     (directory / "asset.ts").write_text(f"moduleAssetUrl('{UUID}', 'image.png')")
-    assert validate_modules(tmp_path) == []
+    assert validate_modules(tmp_path) == [] if layout == "module" else any("missing" in e for e in validate_modules(tmp_path))
 
 
 @pytest.mark.parametrize("field", ["interaction", "next", "section", "implementationStatus"])
@@ -43,7 +43,8 @@ def test_obsolete_outline_fields_are_rejected(tmp_path, field):
     doc = json.loads(path.read_text())
     doc["pages"][0][field] = "legacy value"
     path.write_text(json.dumps(doc))
-    assert any("obsolete outline fields" in error and field in error for error in validate_modules(tmp_path))
+    assert any("obsolete outline fields" in error and field in error for error in validate_modules(tmp_path, strict_authoring=True))
+    assert not any("obsolete outline fields" in error for error in validate_modules(tmp_path))
 
 
 def test_missing_and_escaping_assets_are_rejected(tmp_path):
@@ -72,7 +73,7 @@ def test_missing_entry_and_duplicate_pages_are_rejected(tmp_path):
     doc["pages"] *= 2
     path.write_text(json.dumps(doc))
     errors = validate_modules(tmp_path)
-    assert any("existing root TSX" in error for error in errors)
+    assert any("existing module TSX" in error for error in errors)
     assert any("duplicate page" in error for error in errors)
 
 
@@ -109,7 +110,7 @@ def test_upload_reuses_verified_content_and_forbids_overwrite(tmp_path):
     bucket.object_exists = lambda key: False
     uploader.upload_one(bucket, tmp_path, path)
     assert calls[-1][1]["headers"]["x-oss-forbid-overwrite"] == "true"
-    assert calls[-1][1]["headers"]["x-oss-object-acl"] == "private"
+    assert calls[-1][1]["headers"]["x-oss-object-acl"] == "public-read"
 
 
 def test_dry_run_groups_duplicates_and_retains_paths_without_oss(tmp_path, monkeypatch):
@@ -126,7 +127,7 @@ def test_dry_run_groups_duplicates_and_retains_paths_without_oss(tmp_path, monke
     assert result["unique_objects"] == 1
     assert {r["path"] for r in result["manifest"]["files"]} == {UUID + "/image.png", UUID + "/copy.png"}
     assert len({r["object_key"] for r in result["manifest"]["files"]}) == 1
-    assert result["objects"][0].startswith("assets/sha256/")
+    assert result["objects"][0].startswith("shuku-oss/assets/sha256/")
 
 
 def test_upload_rejects_bytes_changed_after_manifest(tmp_path):
@@ -148,13 +149,13 @@ def test_all_files_explicitly_placed_in_public_assets_are_uploaded(tmp_path):
     }
 
 
-def test_missing_module_uuid_id_is_rejected(tmp_path):
+def test_legacy_outline_without_slug_is_preserved(tmp_path):
     directory = course(tmp_path)
     path = directory / "outlines.json"
     doc = json.loads(path.read_text())
     del doc["id"]
     path.write_text(json.dumps(doc))
-    assert any('must agree' in error for error in validate_modules(tmp_path))
+    assert validate_modules(tmp_path) == []
 
 
 @pytest.mark.parametrize("layout", ["module", "legacy"])
@@ -166,7 +167,7 @@ def test_atlas_virtual_image_requires_a_real_mapped_sheet(tmp_path, layout):
     (directory / "asset.ts").write_text(f"atlasCropUrl(moduleAssetUrl('{UUID}', 'virtual.png'))")
     assert any("missing" in error for error in validate_modules(tmp_path))
     (assets / "image-atlases/sheet.png").write_bytes(b"sheet")
-    assert validate_modules(tmp_path) == []
+    assert validate_modules(tmp_path) == [] if layout == "module" else any("missing" in e for e in validate_modules(tmp_path))
     (directory / "asset.ts").write_text(f"moduleAssetUrl('{UUID}', 'virtual.png')")
     assert any("missing" in error for error in validate_modules(tmp_path))
 

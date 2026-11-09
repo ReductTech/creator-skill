@@ -15,9 +15,9 @@ import re
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import emit_result, report_error, require_target_root
+from _common import modules_directory, emit_result, report_error, require_target_root
 from module_assets import asset_directory, asset_relative
-from module.module_identity import ROOT, IdentityError, register_identity
+from course_identity import IdentityError, register_identity
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -25,13 +25,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--repository",
         type=Path,
-        default=ROOT,
+        default=None,
         help="repository root; default this checkout",
     )
     parser.add_argument(
         "--module",
         help="directory name, module slug or UUID; identity uniqueness is always checked globally",
     )
+    parser.add_argument("--strict-authoring",action="store_true",help="Apply legacy CIDL authoring field restrictions; default preserves existing IDL metadata")
     return parser
 
 
@@ -40,11 +41,11 @@ def contained_file(base: Path, relative: str) -> bool:
     return path.is_relative_to(base.resolve()) and path.is_file()
 
 
-def validate_modules(repository: Path, requested: str | None = None) -> list[str]:
+def validate_modules(repository: Path, requested: str | None = None, *, strict_authoring=False) -> list[str]:
     errors: list[str] = []
     seen: dict[str, Path] = {}
     loaded = []
-    paths = sorted((repository / "modules").glob("*/outlines.json"))
+    paths = sorted(modules_directory(repository).glob("*/outlines.json"))
     if not paths:
         return [f"No module outlines found under {repository / 'modules'}"]
     for path in paths:
@@ -55,8 +56,6 @@ def validate_modules(repository: Path, requested: str | None = None) -> list[str
             if "moduleIdentity" not in document:
                 raise IdentityError("Missing moduleIdentity")
             module_id = register_identity(document["moduleIdentity"], path, seen)
-            if path.parent.name != module_id or document.get('id') != module_id:
-                errors.append(f'{path}: directory UUID, outlines.id and moduleIdentity.id must agree')
             loaded.append((path, document, module_id))
         except (OSError, UnicodeError, ValueError) as exc:
             errors.append(f"{path}: {exc}")
@@ -65,7 +64,7 @@ def validate_modules(repository: Path, requested: str | None = None) -> list[str
         for item in loaded
         if requested is None
         or requested.lower()
-        in {item[0].parent.name.lower(), str(item[1].get("id", "")).lower(), str(item[1].get('alias', '')).lower(), item[2]}
+        in {item[0].parent.name.lower(), str(item[1].get("id", "")).lower(), item[2],str(item[1].get("alias", "")).lower()}
     ]
     if requested and not selected:
         errors.append(f"Unknown module: {requested}")
@@ -84,25 +83,24 @@ def validate_modules(repository: Path, requested: str | None = None) -> list[str
                 errors.append(f"{label}: missing nonempty {key}")
         if doc.get("path") != "/modules/" + directory.name.lower():
             errors.append(f"{label}: path must match /modules/{directory.name.lower()}")
-        entries = [doc.get("entry")]
+        entries = [doc.get("entry")] if doc.get("entry") else []
         ppt = doc.get("ppt")
         if ppt is not None:
             if not isinstance(ppt, dict):
                 errors.append(f"{label}: ppt must be an object")
             else:
-                entries.append(ppt.get("entry"))
+                if ppt.get("entry"): entries.append(ppt["entry"])
         for entry in entries:
             if (
                 not isinstance(entry, str)
-                or Path(entry).name != entry
                 or not entry.endswith(".tsx")
                 or not contained_file(directory, entry)
             ):
                 errors.append(
-                    f"{label}: entry must name an existing root TSX file: {entry!r}"
+                    f"{label}: entry must name an existing module TSX file: {entry!r}"
                 )
         pages = doc.get("pages")
-        if not isinstance(pages, list) or not pages:
+        if not isinstance(pages, list) or (not pages and entries):
             errors.append(f"{label}: pages must be a nonempty array")
         else:
             page_ids = set()
@@ -111,7 +109,7 @@ def validate_modules(repository: Path, requested: str | None = None) -> list[str
                     errors.append(f"{label}: page {number} must be an object")
                     continue
                 obsolete = sorted(set(page) & {"interaction", "next", "section", "implementationStatus"})
-                if obsolete:
+                if obsolete and strict_authoring:
                     errors.append(f"{label}: page {number} contains obsolete outline fields: {', '.join(obsolete)}; keep design and progress notes in _scratchpad/")
                 page_id = page.get("id")
                 if not isinstance(page_id, str) or not page_id.strip():
@@ -130,7 +128,11 @@ def validate_modules(repository: Path, requested: str | None = None) -> list[str
                 continue
             if source.suffix not in {".ts", ".tsx", ".css"}:
                 continue
-            text = source.read_text(encoding="utf-8-sig")
+            try:
+                text = source.read_text(encoding="utf-8-sig")
+            except UnicodeError:
+                errors.append(f"{source}: source file must be UTF-8")
+                continue
             if re.search(
                 r"(?:from\s*|import\s*\(|fetch\s*\()\s*['\"][^'\"]*modules-legacy", text
             ):
@@ -141,18 +143,25 @@ def validate_modules(repository: Path, requested: str | None = None) -> list[str
                         f"{source}: assetId must be {module_id}, got {asset_id}"
                     )
             for match in re.finditer(
-                r"moduleAssetUrl\(\s*['\"]([^'\"]+)['\"]\s*,\s*['\"]([^'\"]+)['\"]",
+                r"moduleAssetUrl\(\s*(?:(?:['\"]([^'\"]+)['\"]|moduleIdentity\.id)\s*,\s*)?['\"]([^'\"]+)['\"]\s*\)",
                 text,
             ):
                 asset_id, relative = match.groups()
+                asset_id = asset_id or module_id
+                if asset_id == module_id:
+                    try:
+                        asset_root = asset_directory(repository, module_id)
+                        relative_path = asset_relative(repository, module_id, relative)
+                    except (OSError, ValueError) as exc:
+                        errors.append(f"{source}: missing or escaping asset: {relative}; {exc}")
+                        continue
                 if asset_id != module_id:
                     errors.append(
                         f"{source}: moduleAssetUrl UUID must be {module_id}, got {asset_id}"
                     )
-                elif not contained_file(asset_directory(repository, module_id), asset_relative(repository,module_id,relative)):
+                elif not contained_file(asset_root, relative_path):
                     # Atlas consumers use virtual image names; validate the referenced sheet instead.
                     mapped = False
-                    asset_root = asset_directory(repository, module_id)
                     if re.search(
                         r"atlasCropUrl\(\s*$",
                         text[max(0, match.start() - 40) : match.start()],
@@ -181,12 +190,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        errors = validate_modules(require_target_root(args.repository), args.module)
-    except (OSError, UnicodeError) as exc:
+        errors = validate_modules(require_target_root(args.repository), args.module,strict_authoring=args.strict_authoring)
+    except (OSError, UnicodeError, ValueError) as exc:
         return report_error(exc)
     emit_result(
         {
             "errors": errors,
+            "attribution": "unverified: no before/after baseline supplied",
+            "coverage": {"staticMetadata": True, "literalReferences": True, "rendering": False},
+            "unverified": ["Dynamic resource expressions", "Rendered layout and interactions", "Whether an issue predates this change"],
+            "profile": "strict-cidl-authoring" if args.strict_authoring else "compatible-idl",
+            "notes": "Outline-only drafts are validated as metadata and do not become buildable or published courses.",
             "limitations": "Dynamic resource expressions and rendering require separate checks.",
         },
         status="failed" if errors else "passed",

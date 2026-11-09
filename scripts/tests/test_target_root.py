@@ -92,6 +92,7 @@ def test_node_tool_uses_the_same_target(tmp_path):
     target = tmp_path / "课程 工程"
     pages = target / "modules/Demo/pages"
     pages.mkdir(parents=True)
+    (pages.parent / 'outlines.json').write_text(json.dumps({'id':'demo'}),encoding='utf-8')
     (pages / "Demo.tsx").write_text('export const Demo = () => <div className="demo-panel" />;', encoding="utf-8")
     skill = prepare_skill(tmp_path, "skill", target)
     result = run(skill, tmp_path, "check.styles", "--module", "Demo")

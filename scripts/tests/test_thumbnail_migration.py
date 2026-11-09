@@ -17,7 +17,6 @@ def test_migration_preserves_new_capture_and_maps_legacy_paths(tmp_path):
     (assets.parent / 'outlines.json').write_text(json.dumps({'moduleIdentity': {'id': 'uuid'}}))
     (shared.parent / 'asset-index.json').write_text(json.dumps({
         'roots': {'legacy': 'modules/Example/assets'}, 'formats': {}}))
-    (shared / 'asset-formats.json').write_text('{}')
     result = migrate(tmp_path)
     assert result == {'thumbnailCount': 2, 'converted': 1, 'removedOldFiles': 2}
     assert (thumbs / 'one.jpg').read_bytes() == fresh
@@ -25,7 +24,5 @@ def test_migration_preserves_new_capture_and_maps_legacy_paths(tmp_path):
     assert not list(thumbs.glob('*.png'))
     with Image.open(thumbs / 'two.jpg') as image:
         assert image.format == 'JPEG' and image.size == (320, 180) and image.getpixel((0, 0)) == (255, 255, 255)
-    mapping = json.loads((shared / 'asset-formats.json').read_text())
-    assert mapping['legacy/scenedeck-thumbnails/one.png'] == 'scenedeck-thumbnails/one.jpg'
-    assert mapping['uuid/scenedeck-thumbnails/two.png'] == 'scenedeck-thumbnails/two.jpg'
+    assert sorted(p.name for p in shared.glob('*.json')) == []
     assert migrate(tmp_path)['converted'] == 0

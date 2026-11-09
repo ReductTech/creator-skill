@@ -85,7 +85,7 @@
 git clone https://github.com/ReductTech/creator-skill.git creator-skill
 ```
 
-首次使用时，由 AI 助手根据你指定的课程工程绝对路径，在 Skill 根目录创建本地配置 `target-root.json`。文件不随仓库提供，并已加入 `.gitignore`。格式只有一个字段：
+仅讨论内容、主线或设计，以及查看工具清单与帮助时，无需配置目标。首次需要访问工程时，由 AI 助手根据你指定的课程工程绝对路径，在 Skill 根目录创建本地配置 `target-root.json`。文件不随仓库提供，并已加入 `.gitignore`。格式只有一个字段：
 
 ```json
 {
@@ -95,7 +95,7 @@ git clone https://github.com/ReductTech/creator-skill.git creator-skill
 
 上面的路径仅为格式示例，实际创建时使用你指定的已存在目录；Windows 路径推荐使用 `/`。未配置或路径无效时工程工具会报错，不会猜测目标，也不会自动创建目录。配置确定后沿用，工具不再以 Skill 所在目录或 `IDL_REPOSITORY_ROOT` 推算工程位置。
 
-目标工程需要具有 `modules/`、公共组件和 React 构建配置。如果选择把 Skill 放在工程内部，布局可以如下；分开放置时也读取同一份配置。
+目标工程支持 `modules/<课程>/` 和根目录直接放置 `<课程>/` 两种结构；制作与构建还需配套公共组件和 React 构建环境。如果选择把 Skill 放在工程内部，布局可以如下；分开放置时也读取同一份配置。
 
 预期位置如下：
 
@@ -208,3 +208,9 @@ creator-skill/
 ---
 
 <p align="center"><strong>从知识出发，让表达可以被体验。</strong></p>
+
+## 与术库的关系
+
+本仓库是创作规范、工具和行为测试的唯一维护位置。Shuku 通过外部路径调用同一套工具，不再维护另一份 Skill。平台可用 `CREATOR_SKILL_ROOT` 或 `authoring_tools.skill_root` 指定安装位置；每次平台检查使用独立临时目标配置，保持本地 `target-root.json` 绑定不变。发布镜像内只保存由本仓库冻结源码生成的运行产物。
+
+逐页确认与每页 ImageGen 设计图是必需流程，见 [流程共用说明](references/workflow/common.md) 和 [页面设计指导](references/design/design.md)。

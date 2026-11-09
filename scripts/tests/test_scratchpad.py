@@ -87,7 +87,7 @@ def report_data(tmp_path, monkeypatch):
     for name in ("First", "Second"):
         directory = tmp_path / "modules" / name
         directory.mkdir(parents=True)
-        (directory / "outlines.json").write_text(json.dumps({"id": name.lower()}))
+        (directory / "outlines.json").write_text(json.dumps({"id": name.lower(), "moduleIdentity": {"id": name.lower()}}))
         modules.append({"directory": name, "id": name.lower(), "title": name})
         pages.append(
             {

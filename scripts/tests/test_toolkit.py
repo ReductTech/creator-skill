@@ -136,11 +136,17 @@ def test_real_capture_uses_existing_engine_for_default_and_click_states(tmp_path
     finally:server.shutdown();server.server_close();thread.join(timeout=5)
 
 
-def test_generated_scaffold_typechecks_against_real_shared(tmp_path):
+def test_generated_scaffold_distinguishes_project_baseline_from_new_errors(tmp_path):
     from module.init_module import plan_module
     _,files=plan_module(tmp_path,'2e5c4732-a40a-4d20-b954-a61507aabc75',OUTLINE)
     result=subprocess.run(['node',str(Path(__file__).with_name('typecheck_scaffold.mjs'))],input=json.dumps(files),text=True,capture_output=True,cwd=ROOT,timeout=60)
-    assert result.returncode==0,result.stdout+result.stderr
+    report=json.loads(result.stdout)
+    assert report['environmentErrors']==[],report
+    assert report['newIssues']==[],report
+    assert report['coverage']['baselineCompared']
+    assert report['status']==('blocked' if report['existingIssues'] else 'passed')
+    assert result.returncode==(2 if report['existingIssues'] else 0)
+
 
 
 def test_initializer_asset_failure_does_not_register_partial_course(tmp_path):
@@ -149,8 +155,8 @@ def test_initializer_asset_failure_does_not_register_partial_course(tmp_path):
     assert not (tmp_path/'modules/2e5c4732-a40a-4d20-b954-a61507aabc75').exists()
 
 
-def test_legacy_capture_help_forwards():
+def test_capture_entrypoint_is_owned_by_the_independent_skill():
     import os
     environment={**os.environ,'PYTHONPATH':str(ROOT/'backend/src')}
-    result=subprocess.run([sys.executable,'-m','idl_backend.tools.content.generate_scenedeck_thumbnails','--help'],cwd=ROOT,env=environment,text=True,capture_output=True,timeout=10)
+    result=subprocess.run([sys.executable,str(Path(__file__).resolve().parents[1]/'tools.py'),'capture.thumbnails','--help'],cwd=ROOT,env=environment,text=True,capture_output=True,timeout=10)
     assert result.returncode==0,result.stderr

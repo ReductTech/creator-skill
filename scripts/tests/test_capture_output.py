@@ -9,31 +9,11 @@ from PIL import Image
 from media import capture_slides as capture
 
 
-def test_capture_mounts_current_module_without_app_router(tmp_path, monkeypatch):
-    module = tmp_path / "modules/Example"
-    module.mkdir(parents=True)
-    (module / "ExamplePpt.tsx").write_text("export function ExamplePpt() {}")
-    (module / "outlines.json").write_text(json.dumps({"ppt": {"entry": "ExamplePpt.tsx"}}))
-    monkeypatch.setattr(capture, "ROOT", tmp_path)
-    scripts = []
-    routes = []
-
+def test_built_capture_never_mounts_source(tmp_path):
     class Context:
-        def add_init_script(self, script):
-            scripts.append(script)
-        def route(self, pattern, handler):
-            routes.append((pattern, handler))
-
-    context = Context()
-    capture.configure_module_capture(context, module, "http://localhost:5173")
-    assert routes[0][0] == 'http://localhost:5173/__creator_skill__/capture-entry.mjs'
-    assert routes[1][0].fullmatch(capture.capture_url('http://localhost:5173', 'example', 'one'))
-    assert '"entry": "/modules/Example/ExamplePpt.tsx"' in scripts[0]
-    assert '"component": "ExamplePpt"' in scripts[0]
-    assert "/src/main.tsx" not in scripts[0]
-    (module / "outlines.json").write_text(json.dumps({"ppt": {"entry": "../../outside.tsx"}}))
-    with pytest.raises(ValueError, match="inside"):
-        capture.configure_module_capture(Context(), module, "http://localhost:5173")
+        def route(self,*args):pytest.fail('Must not mount source')
+        def add_init_script(self,*args):pytest.fail('Must not inject source entry')
+    capture.configure_module_capture(Context(),tmp_path,'http://localhost:5180')
 
 
 def setup_capture(tmp_path, monkeypatch):
@@ -87,17 +67,16 @@ def test_publish_after_close_respects_module_format_mapping(tmp_path, monkeypatc
         assert sheet.size == (1600, 252)
 
 
-def test_thumbnail_mapping_cannot_write_outside_thumbnail_directory(tmp_path, monkeypatch):
+def test_obsolete_thumbnail_mapping_is_ignored(tmp_path, monkeypatch):
     setup_capture(tmp_path, monkeypatch)
     index = tmp_path / "modules/shared/asset-index.json"
     index.parent.mkdir(parents=True)
     index.write_text(json.dumps({"formats": {"uuid/scenedeck-thumbnails/one.png": "../../escaped.jpg"}}))
     args = capture.build_parser().parse_args(["--module", "fixture", "--format", "thumbnails"])
     result = capture.capture_module(args)
-    assert len(result["errors"]) == 1
-    assert "escapes" in result["errors"][0]["error"]
+    assert result["errors"] == []
     assert not (tmp_path / "escaped.jpg").exists()
-    assert len(result["files"]) == 1
+    assert len(result["files"]) == 2
 
 
 def test_single_nonfirst_page_does_not_replace_home_cover(tmp_path, monkeypatch):

@@ -159,27 +159,8 @@ def main():
         else:
             converted = convert(p, args.quality, args.dry_run)
             rows.append({**converted, 'resize': resized})
-    # The shared URL helper consumes exact conversions, including dynamic filenames.
-    # Transparent/unconverted PNGs are never added to this mapping.
-    if not args.dry_run and any(row['status'] == 'converted' for row in rows):
-        index = root / 'modules/shared/asset-index.json'
-        if index.is_file():
-            document = json.loads(index.read_text(encoding='utf-8'))
-            for outline in (root/'modules').glob('*/outlines.json'):
-                identity=json.loads(outline.read_text(encoding='utf-8-sig')).get('moduleIdentity',{})
-                if identity.get('id'):
-                    document['roots'][identity['id']]=(outline.parent/'assets').relative_to(root).as_posix()
-            for row in rows:
-                if row['status'] != 'converted':
-                    continue
-                source, target = Path(row['source']).resolve(), Path(row['target']).resolve()
-                for uid, relative in document['roots'].items():
-                    base = (root / relative).resolve()
-                    if source.is_relative_to(base):
-                        document['formats'][uid+'/'+source.relative_to(base).as_posix()] = target.relative_to(base).as_posix()
-            index.write_text(json.dumps(document, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
-            (root/'modules/shared/react/asset-formats.json').write_text(
-                json.dumps(document['formats'], ensure_ascii=False, separators=(',',':'))+'\n', encoding='utf-8')
+    # Keep originals and report generated JPEGs. Resource references are explicit;
+    # never register filename aliases or mutate repository-wide mapping files.
     text = json.dumps(rows, ensure_ascii=False, indent=2)
     if args.report:
         args.report.write_text(text + '\n', encoding='utf-8')

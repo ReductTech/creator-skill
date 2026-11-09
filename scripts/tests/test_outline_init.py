@@ -54,7 +54,7 @@ def test_dry_run_does_not_create_module(tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
-@pytest.mark.parametrize("directory", ["../Other", "a/b", "a\\b", "semantic-name", ".."])
+@pytest.mark.parametrize("directory", ["../Other", "a/b", "a\\b", ".."])
 def test_invalid_directory_cannot_write_elsewhere(tmp_path, directory):
     with pytest.raises(ValueError):
         ensure_outline(tmp_path, directory)

@@ -4,7 +4,7 @@
 
 ## 发现与调用
 
-先按 `SKILL.md` 中的模板，根据用户指定的目录创建本地 `target-root.json`，唯一字段为 `targetRoot`。该文件被 Git 忽略，不随仓库提供。工具以配置的目录作为工程根目录和执行工作目录；`IDL_REPOSITORY_ROOT` 不再覆盖此配置。不要在执行任务时改动配置。
+工具发现、`describe`、`--help` 和 Skill 自身检查无需目标配置。实际工程操作前，按 `SKILL.md` 的模板根据用户指定目录创建本地 `target-root.json`，唯一字段为 `targetRoot`。该文件被 Git 忽略，不随仓库提供。工具以配置的目录作为工程根目录和执行工作目录；`IDL_REPOSITORY_ROOT` 不再覆盖此配置。不要在执行任务时改动配置。
 
 下例假定 Skill 位于工程内的 `creator-skill/`。独立安装时，将 `creator-skill/scripts/tools.py` 换成该脚本的实际绝对路径；无需移动或复制 Skill。`<工具 ID>` 指清单中的命令名称，例如 `capture.slides`；`describe` 展示工具信息，不执行任务：
 
@@ -28,7 +28,7 @@ python creator-skill/scripts/tools.py capture.slides --help
 |---|---|---|
 | `module/` | `module.identity`、`module.init` | 模块身份与初始大纲 |
 | `checks/` | `check.module`、`check.bounds`、`check.course`、`check.styles`、`assets.inspect`、`check.skill`、`environment.doctor` | 模块、页面、资源、Skill 与环境检查 |
-| `checks/` | `check.asset-imports` | 资源引用检查；现有实现需迁移到静态相对引用规范，不能继续禁止合法静态导入 |
+| `checks/` | `check.asset-imports` | 只读检查本地媒体引用是否存在、是否越出工程；课程素材按 moduleAssetUrl 规范引用 |
 | `media/` | `extract.pptx`、`capture.slides`、`capture.thumbnails`、`capture.inspect`、`assets.upload`、`media.remove-green` | 原稿提取、截图、上传与视频处理 |
 | `analysis/` | `analyze.pages` | 源码和缩略图统计 |
 | `common/` | 内部辅助文件 | 路径、输出与命令行共用逻辑 |
@@ -63,7 +63,7 @@ python creator-skill/scripts/tools.py extract.pptx "原稿.pptx" --module Digita
 
 ### 截图和缩略图
 
-以下命令的模块参数应替换为任务目标 UUID 或已登记 alias；`--slide` 使用实际场景 ID，可通过 `capture.inspect` 查询。省略 `--slide` 会捕获整套课件。新的 IDL 课程仓库先执行构建，截图工具默认启动临时 dist 静态服务，也可指定 `--base-url http://127.0.0.1:5180`；按构建 catalog 定位 UUID 入口，不回退加载源码。原站 Vite 模式仅供旧工程使用。
+以下命令的模块参数应替换为目标 UUID、目录名或已登记 alias；`--slide` 使用实际场景 ID，可通过 `capture.inspect` 查询。省略 `--slide` 会捕获整套课件。截图读取已完成的构建产物，不启动源码 Vite、不注入源码页面。默认从 `targetRoot/dist` 启动临时的清单校验服务；Shuku 构建目录在工程外时传 `--build-output <构建输出目录>`，已有构建预览服务可传 `--base-url <服务地址>`。只有清单内且校验通过的构建文件会被交付。
 
 **仅更新缩略图，直接执行一条命令：**
 
@@ -71,7 +71,7 @@ python creator-skill/scripts/tools.py extract.pptx "原稿.pptx" --module Digita
 python creator-skill/scripts/tools.py capture.thumbnails --module AI-Practice-Education
 ```
 
-优先复用 5173 端口上经握手确认属于当前仓库的 Vite；没有匹配服务时自动启动并关闭精简的临时服务。临时服务不启动全站离线构建、下载准备或 Cloud 注入，并使用独立依赖缓存，避免干扰正在开发的页面。其他端口可用 `--base-url` 明确指定。页 ID 已知时用 `--slide <ID>` 只更新受影响页；不必先运行 `capture.inspect`、扫描脚本源码或检查全部依赖。只有缺依赖或命令失败时再按具体错误诊断。
+工具只使用已构建的课件，任务结束后自动关闭自己启动的临时服务；显式传入的预览服务保持运行。页 ID 已知时用 `--slide <ID>` 只更新受影响页，不必先扫描全部场景。缺少构建、素材或浏览器依赖时按具体错误处理。
 
 默认复用一次加载的课件，每次切页重新挂载页面以重置状态；等待字体、图片、可见的 `aria-busy` 和 `data-capture-ready` 就绪，不为每页固定停留数秒。**常规生成不要传 `--settle-ms 6500`**；只有明确需要某个等待时刻的截图才指定 `--settle-ms`。异步生成内容或自动播放页面应在实际内容容器暴露 `data-capture-ready={是否完成}`，不要让通用截图脚本识别课程专属选择器。默认加载/就绪超时 15 秒，可用 `--timeout-ms` 调整；渲染异常直接报告原因。
 
@@ -82,7 +82,7 @@ python creator-skill/scripts/tools.py capture.thumbnails --module AI-Practice-Ed
 检查 `generationStatus` 和生成数量后打开总览核对。`generationStatus: ok` 表示图片已写入；`checksStatus: failed` / 退出码 `1` 表示另有布局检查发现，不等于没有生成图片，**不要因此反复重跑整套**。保留并按范围核对这些发现；只有执行错误、缺页或图像错误才补采相关页。缩略图维护不默认制作 ZIP、额外逐页截图或执行全仓库测试；修改了工具本身才运行工具回归测试。
 
 ```powershell
-python creator-skill/scripts/tools.py capture.slides --module AI-Learning-Exploration --slide opening --page-directory OpeningPage --base-url http://127.0.0.1:5173
+python creator-skill/scripts/tools.py capture.slides --module <UUID> --slide opening --page-directory OpeningPage --build-output D:/Builds/Shuku
 python creator-skill/scripts/tools.py capture.thumbnails --module Policy-Gradient --slide play-maze
 python creator-skill/scripts/tools.py capture.inspect --module Policy-Gradient
 ```
@@ -91,9 +91,9 @@ python creator-skill/scripts/tools.py capture.inspect --module Policy-Gradient
 
 `capture.thumbnails` 生成正式播放器缩略图，默认保存到 `modules/<模块目录名>/assets/scenedeck-thumbnails/<页ID>.jpg`（320×180 渐进式 JPEG，质量 75、4:4:4 采样），只接受默认状态；其 `--output` 仅可选择正式缩略图目录内的位置。`capture.slides --format both` 从一次采集中同时写入评估目录和正式缩略图目录。评估截图仍为 1600×900 PNG。采集到当前运行时第一页时，自动另外生成 `assets/course-covers/<第一页ID>.jpg`（800×450，质量 80），供首页使用；封面直接由完整页面采样，不放大小缩略图。智能体只需指定模块，可选指定页 ID，无需填写尺寸和质量；已有图片对应当前实现和状态时直接复用。
 
-浏览器使用隔离的无头上下文，不读取用户浏览器配置。复用已有 Vite 时不关闭用户的服务；仅临时启动的服务会在任务结束后停止。
+浏览器使用隔离的无头上下文，不读取用户浏览器配置。显式提供的服务不由工具关闭；仅临时启动的产物服务会在任务结束后停止。
 
-截图入口在隔离浏览器内直接挂载目标模块 `outlines.json` 的 `ppt.entry`，复用真实课件组件、Shared 样式与资源，不依赖应用旧的 `/scenedeck/` 路由，也不另建页面副本。工具及浏览器启动辅助文件均位于 `creator-skill/scripts/`；后端同名旧命令只保留兼容转发。整批采集结束、关闭浏览器后才写入图片，避免更新资源触发 Vite 热刷新而打断后续页面。
+截图入口在隔离浏览器内读取课件构建产物，使用真实运行时暴露的场景元数据，不挂载源码或创建页面副本。工具及浏览器启动辅助文件均位于 `creator-skill/scripts/`，不依赖旧后端兼容命令。整批采集结束、关闭浏览器后才写入图片，避免更新资源打断后续页面。
 
 `--actions` 接收按 slide ID 分组的 JSON 文件路径，支持 `click`、`fill`、`press` 和有上限的 `wait`。例如文件内容为 `{"play-maze":[{"action":"click","selector":"button[data-example]"}]}`。选择器必须来自实际页面；只执行任务已授权的操作，不能随便点击训练或发布按钮。传入 `--actions` 时同时传入非 `default` 的 `--state`，如 `--state answered`，避免覆盖默认状态。复查截图覆盖对应状态文件，检查时必须重新读取。
 
@@ -114,7 +114,7 @@ python creator-skill/scripts/tools.py capture.inspect --module Policy-Gradient
 python creator-skill/scripts/tools.py check.course --module Policy-Gradient --base-url http://127.0.0.1:5173
 ```
 
-通过 Vite 的真实模块导出读取 PPT 场景与讲稿，并在隔离上下文临时展开 Guide，比较页 ID 和顺序。标题、讲稿差异单列为警告，不擅自改写；Guide 未暴露可读页序时返回未完成检查，不假称一致。
+通过已构建运行时的捕获元数据读取 PPT 场景与讲稿，并在隔离上下文临时展开 Guide，比较页 ID 和顺序。标题、讲稿差异单列为警告，不擅自改写；Guide 未暴露可读页序时返回未完成检查，不假称一致。
 
 `--save-snapshot modules/<模块目录名>/_scratchpad/snapshots/course.json` 可保存本次真实快照，返回实际保存路径；后续用 `--snapshot` 离线比较。离线比较不能证明当前页面未变化。运行检查可能加载页面本身的默认行为，需在适用的本地环境执行。
 
@@ -171,8 +171,12 @@ node --test creator-skill/scripts/tests/ppt_bounds.test.mjs
 python creator-skill/scripts/media/capture_all_thumbnails.py --base-url http://localhost:5173
 ```
 
-旧缩略图格式迁移：`python creator-skill/scripts/media/migrate_thumbnail_jpg.py`。保留已生成 JPG，转换缩略图目录内的旧格式，验证后移除旧文件，并同步旧地址兼容映射；普通教学图片和评估截图不受影响。
+旧缩略图格式迁移：`python creator-skill/scripts/media/migrate_thumbnail_jpg.py`。保留已生成 JPG，转换缩略图目录内的旧格式，验证后移除旧文件，不再生成或更新旧地址映射；使用前确认旧格式引用已同步修改；普通教学图片和评估截图不受影响。
 
 ### 大纲必填字段
 
 `python creator-skill/scripts/tools.py check.outlines` 静态验证所有模块大纲每页的 `id`、`title`、`snippet` 非空且 ID 唯一，不启动服务。加 `--module <目录名>` 限定模块；`--fix` 优先从现有场景补 ID，保留已存在的 ID，不编造题目或讲稿。未实现页面生成一次性的稳定 ID。
+
+## 可选 Shuku 计算工具
+
+`export.gradcam.face`、`export.gradcam.celebrity`、`export.gradcam.pretrained` 和 `model.emnist.train` 委托已安装的 Shuku `backend[authoring-compute]` 运行时。缺少运行时会明确报错，不搜索其他仓库。用 `--config <Shuku配置JSON>` 明确指定计算配置，先以 `--plan` 查看输出和依赖；必须用 `--asset-root <targetRoot内的素材根目录>` 明确指定输出，禁止安装环境中的默认素材目录覆盖独立目标，数据和模型目录可另行指定。计算配置不替代本 Skill 的 `target-root.json`，真实训练和下载遵循任务授权。

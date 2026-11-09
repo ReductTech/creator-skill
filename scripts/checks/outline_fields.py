@@ -12,7 +12,7 @@ import re
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import ROOT, require_target_root, report_error
+from _common import modules_directory, require_target_root, report_error
 
 def source_ids(directory):
     result = {}
@@ -37,9 +37,9 @@ def source_ids(directory):
 def process(repository, fix=False, module=None):
     errors, changes = [], []
     modules = pages_total = 0
-    for path in sorted((repository / "modules").glob("*/outlines.json")):
+    for path in sorted(modules_directory(repository).glob("*/outlines.json")):
         doc = json.loads(path.read_text(encoding="utf-8-sig"))
-        if module and module not in (path.parent.name, doc.get("id"), doc.get("moduleIdentity", {}).get("id")):
+        if module and module not in (path.parent.name, doc.get("id"), doc.get("alias"), doc.get("moduleIdentity", {}).get("id")):
             continue
         modules += 1
         pages = doc.get("pages")
@@ -88,7 +88,7 @@ def process(repository, fix=False, module=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repository", type=Path, default=ROOT)
+    parser.add_argument("--repository", type=Path, default=None)
     parser.add_argument("--module")
     parser.add_argument("--fix", action="store_true", help="Fill missing IDs; never invent title/snippet prose")
     args = parser.parse_args()

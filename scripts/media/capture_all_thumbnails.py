@@ -11,7 +11,8 @@ from media import capture_slides
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--base-url', help='reuse the matching local Vite server')
+    parser.add_argument('--base-url', help='existing completed-course preview service')
+    parser.add_argument('--build-output', type=Path, help='completed build output directory; default targetRoot/dist')
     parser.add_argument('--timeout-ms', type=int, default=30000)
     args = parser.parse_args()
     reports = []
@@ -19,6 +20,8 @@ def main():
     for index, (_, module, _) in enumerate(modules, 1):
         print(f'[{index}/{len(modules)}] {module}', file=sys.stderr, flush=True)
         command = ['--module', module, '--format', 'thumbnails', '--timeout-ms', str(args.timeout_ms)]
+        if args.build_output:
+            command += ['--build-output', str(args.build_output)]
         if args.base_url:
             command += ['--base-url', args.base_url]
         try:

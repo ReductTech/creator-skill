@@ -91,12 +91,9 @@ def test_legacy_signature_is_ignored_and_removed_without_changing_uuid(modules):
     assert json.loads(path.read_text())["moduleIdentity"] == {"version": 1, "id": MODULE_ID}
 
 
-def test_semantic_directory_and_mismatched_identity_are_rejected(modules):
+def test_existing_semantic_directory_keeps_its_stable_identity(modules):
     path = outline(modules, "Semantic", module_identity={"version": 1, "id": MODULE_ID})
     original = path.read_bytes()
-    with pytest.raises(identity.IdentityError, match="directory must be a UUID"):
-        identity.process_outlines()
+    assert identity.process_outlines(check_only=True) == 0
+    assert identity.process_outlines() == 0
     assert path.read_bytes() == original
-    path.parent.rename(modules / "ac969225-1922-4734-9c2f-cd5a54d7833e")
-    with pytest.raises(identity.IdentityError, match="disagree"):
-        identity.process_outlines()

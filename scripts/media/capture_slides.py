@@ -5,7 +5,7 @@ Reads: The selected module and requested browser states.
 Writes: Evaluation PNGs remain 1600x900. Requested JPG thumbnails default to
 320x180 in assets/scenedeck-thumbnails; the runtime first slide also gets an
 800x450 JPG in assets/course-covers. No size/quality arguments are needed.
-Owns its browser/Vite.
+Owns its browser and completed-artifact preview server.
 Thumbnail runs also save a report and batch contact sheet in module _scratchpad/thumbnails.
 """
 
@@ -17,23 +17,21 @@ import io
 import json
 import os
 import re
-import shutil
-import socket
-import subprocess
 import sys
-import tempfile
 import time
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
-from urllib.error import URLError
 from urllib.parse import urlencode, urlparse, parse_qs, urljoin
 from urllib.request import urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
 from module_assets import asset_directory
-from _common import ROOT, emit_result, report_error, scratchpad_path, project_path
+from _common import get_target_root, read_modules, resolve_module as resolve_course, emit_result, report_error, scratchpad_path, project_path
 
-MODULES = ROOT / "modules"
+ROOT = None
+
+def repository_root():
+    return ROOT or get_target_root()
 SLIDE_SIZE = (1600, 900)
 
 
@@ -45,6 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--module", required=True, help="module directory, deck ID or UUID"
     )
+    parser.add_argument("--build-output", type=Path, help="completed build directory; default targetRoot/dist; may be outside the course source")
     parser.add_argument("--slide", help="one slide ID; default all slides")
     parser.add_argument("--page-directory", help="semantic directory under pages/ for single-slide intermediate outputs")
     parser.add_argument(
@@ -74,7 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="image directory relative to cwd, within module _scratchpad (screenshots/both) or official thumbnail directory (thumbnails)",
     )
     parser.add_argument(
-        "--base-url", help="built preview URL; defaults to a temporary dist-only preview for the IDL course repository"
+        "--base-url", help="built preview service URL; omit to serve completed artifacts locally"
     )
     parser.add_argument(
         "--inspect",
@@ -110,15 +109,12 @@ def load_dependencies():
 
 def available_modules() -> list[tuple[Path, str, str]]:
     modules: list[tuple[Path, str, str]] = []
-    for directory in MODULES.iterdir():
-        outline = directory / "outlines.json"
-        if not directory.is_dir() or not outline.is_file():
-            continue
-        metadata = json.loads(outline.read_text(encoding="utf-8"))
+    for directory, metadata in read_modules(repository_root()):
+        outline = directory / 'outlines.json'
         if metadata.get("ppt", {}).get("entry"):
             asset_id = metadata.get("moduleIdentity", {}).get("id")
             if not asset_id:
-                raise ValueError(f"Missing module UUID in {outline.relative_to(ROOT)}")
+                raise ValueError(f"Missing module UUID in {outline.relative_to(repository_root())}")
             modules.append(
                 (directory, metadata.get("id", directory.name.lower()), asset_id)
             )
@@ -126,71 +122,25 @@ def available_modules() -> list[tuple[Path, str, str]]:
 
 
 def resolve_module(requested: str) -> tuple[Path, str, str]:
-    for directory, deck_id, asset_id in available_modules():
-        alias = json.loads((directory / 'outlines.json').read_text(encoding='utf-8-sig')).get('alias', '')
-        if requested.lower() in {deck_id.lower(), directory.name.lower(), asset_id, alias.lower()}:
-            return directory, deck_id, asset_id
-    known = ", ".join(deck_id for _, deck_id, _ in available_modules())
-    raise ValueError(f"Unknown PPT module: {requested}. Available: {known}")
-
-
-def free_port() -> int:
-    with socket.socket() as address:
-        address.bind(("127.0.0.1", 0))
-        return address.getsockname()[1]
+    directory, metadata = resolve_course(requested, repository_root())
+    if not metadata.get('ppt', {}).get('entry'):
+        raise ValueError(f'Module has no PPT entry: {requested}')
+    asset_id = metadata.get('moduleIdentity', {}).get('id')
+    if not asset_id:
+        raise ValueError(f'Missing module UUID: {requested}')
+    return directory, metadata.get('id', directory.name.lower()), asset_id
 
 
 @contextmanager
-def vite_server(log_directory: Path | None = None):
-    node = shutil.which("node")
-    vite = ROOT / "node_modules" / "vite" / "bin" / "vite.js"
-    if not node or not vite.is_file():
-        raise RuntimeError(
-            "Node/Vite is unavailable. Run npm install in the repository first."
-        )
-    port = free_port()
-    if log_directory:
-        log_directory.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8", dir=log_directory) as log:
-        process = subprocess.Popen(
-            [
-                node,
-                str(vite),
-                "--mode",
-                "preview",
-                "--host",
-                "127.0.0.1",
-                "--port",
-                str(port),
-                "--strictPort",
-            ],
-            cwd=ROOT,
-            env={**os.environ, "IDL_CAPTURE_ONLY": "1", "IDL_REPOSITORY_ROOT": str(ROOT)},
-            stdout=log,
-            stderr=subprocess.STDOUT,
-        )
-        base_url = f"http://127.0.0.1:{port}"
-        try:
-            for _ in range(150):
-                if process.poll() is not None:
-                    break
-                try:
-                    # Probe Vite itself; the app index eagerly warms every course.
-                    with urlopen(base_url + "/@vite/client", timeout=1) as response:
-                        if response.status == 200:
-                            yield base_url
-                            return
-                except (URLError, TimeoutError):
-                    time.sleep(0.2)
-            log.seek(0)
-            raise RuntimeError("Vite did not start:\n" + log.read()[-4000:])
-        finally:
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
+def vite_server(log_directory=None, output_root=None):
+    """Compatibility name: serve completed artifacts, never launch source Vite."""
+    from artifact_capture_server import artifact_server
+    with artifact_server(output_root or repository_root() / 'dist') as address:
+        _BUILD_OUTPUTS[address] = Path(output_root or repository_root() / 'dist')
+        try:yield address
+        finally:_BUILD_OUTPUTS.pop(address,None)
+
+_BUILD_OUTPUTS = {}
 
 
 def launch_browser(playwright):
@@ -208,7 +158,7 @@ def launch_browser(playwright):
 
 def built_entry(base_url: str, deck_id: str) -> str | None:
     """Resolve this checkout's fixed build; never infer a source route for IDL."""
-    catalog = ROOT / 'dist/catalog.json'
+    catalog = _BUILD_OUTPUTS.get(base_url.rstrip('/'), repository_root() / 'dist') / 'catalog.json'
     if not catalog.is_file():
         return None
     document = json.loads(catalog.read_text(encoding='utf-8'))
@@ -231,35 +181,9 @@ def capture_url(base_url: str, deck_id: str, slide_id: str | None = None) -> str
 
 
 def configure_module_capture(context, directory: Path, base_url: str) -> None:
-    """Mount the real module in this isolated browser, without the app's old router.
-
-    Only our context receives this document; real component code, styles and
-    assets come from Vite without mounting the application's Cloud shell.
-    """
-    outline_path = directory / "outlines.json"
-    if not outline_path.is_file():
-        return  # Older callers may supply their own capture fixture.
-    context._idl_reuse_capture = True
-    outline = json.loads(outline_path.read_text(encoding="utf-8-sig"))
-    if built_entry(base_url, outline.get('id', '')):
+    """The completed Shuku runtime owns capture metadata; never mount source."""
+    if hasattr(context, "new_page"):
         context._idl_reuse_capture = True
-        return
-    if (ROOT / 'scripts/preview.mjs').is_file() and directory.resolve().is_relative_to((ROOT / 'modules').resolve()):
-        raise ValueError('Build this module first; capture does not fall back to IDL source routes')
-    entry = (directory / outline["ppt"]["entry"]).resolve()
-    if not entry.is_relative_to(directory.resolve()) or not entry.is_file():
-        raise ValueError(f"PPT entry must be an existing file inside {directory}")
-    entry_url = "/" + entry.relative_to(ROOT).as_posix()
-    component_name = entry.stem
-    context.add_init_script("window.__IDL_CAPTURE_ENTRY__=" + json.dumps(
-        {"entry": entry_url, "component": component_name}
-    ) + ";")
-    document = (Path(__file__).resolve().parents[1] / "common/_capture_entry.html").read_text(encoding="utf-8")
-    bootstrap = (Path(__file__).resolve().parents[1] / "common/_capture_entry.mjs").read_text(encoding="utf-8")
-    context.route(base_url.rstrip("/") + "/__creator_skill__/capture-entry.mjs",
-                  lambda route: route.fulfill(status=200, content_type="application/javascript", body=bootstrap))
-    context.route(re.compile(re.escape(base_url.rstrip("/")) + r"/scenedeck/\?.*$"),
-                  lambda route: route.fulfill(status=200, content_type="text/html", body=document))
 
 
 def open_capture(context, url: str):
@@ -433,51 +357,13 @@ def safe_slide_id(value):
 
 
 @contextmanager
-def built_preview(log_directory=None):
-    """Own a temporary server serving only this repository's dist."""
-    if not (ROOT / 'dist/catalog.json').is_file():
-        raise RuntimeError('Run npm run build before capturing the course')
-    node = shutil.which('node')
-    if not node:
-        raise RuntimeError('Node.js is unavailable')
-    port = free_port()
-    address = f'http://127.0.0.1:{port}'
-    process = subprocess.Popen([node, str(ROOT / 'scripts/preview.mjs'), '--port', str(port)],
-        cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
-    try:
-        for _ in range(100):
-            if process.poll() is not None:
-                raise RuntimeError('Built preview server exited')
-            try:
-                with urlopen(address + '/catalog.json', timeout=.5) as response:
-                    if json.load(response).get('kind') == 'idl-built-catalog':
-                        break
-            except (OSError, ValueError):
-                time.sleep(.1)
-        else:
-            raise RuntimeError('Built preview server did not become ready')
-        yield address
-    finally:
-        process.terminate()
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=5)
-
-
-@contextmanager
-def browser_session(base_url=None, reset_storage=True, scratchpad=None):
+def browser_session(base_url=None, reset_storage=True, scratchpad=None, build_output=None):
     """One isolated browser context; never touches the user's browser profile."""
     load_dependencies()
-    use_built = (ROOT / 'scripts/preview.mjs').is_file()
-    address = base_url or (None if use_built else running_vite())
-    if address and not base_url:
-        print(f"Reusing Vite for this repository: {address}", file=sys.stderr, flush=True)
+    address = base_url
     with (
         (
-            nullcontext(address.rstrip("/")) if address else built_preview(scratchpad) if use_built else vite_server(scratchpad)
+            nullcontext(address.rstrip("/")) if address else vite_server(scratchpad, build_output)
         ) as address,
         sync_playwright() as playwright,
     ):
@@ -505,7 +391,7 @@ def running_vite() -> str | None:
     try:
         with urlopen(address + "/__creator_capture__/info", timeout=.5) as response:
             info = json.load(response)
-        if info.get("kind") == "creator-capture" and Path(info["root"]).resolve() == ROOT.resolve():
+        if info.get("kind") == "creator-capture" and Path(info["root"]).resolve() == repository_root().resolve():
             return address
     except (OSError, ValueError, KeyError):
         pass
@@ -569,7 +455,8 @@ def capture_module(args: argparse.Namespace, context_setup=None) -> dict:
     from media.thumbnail_profiles import save_thumbnail, save_cover
     files, errors, checks, captured, cover_files = [], [], [], [], []
     with browser_session(
-        args.base_url, scratchpad=scratchpad_path(directory, default="", page_directory=page_directory)
+        args.base_url, scratchpad=scratchpad_path(directory, default="", page_directory=page_directory),
+        build_output=project_path(args.build_output, external=True) if args.build_output else None
     ) as (context, base_url):
         browser_ready = time.perf_counter()
         # Test fixtures and compatibility callers can supply minimal contexts.
@@ -646,16 +533,6 @@ def capture_module(args: argparse.Namespace, context_setup=None) -> dict:
                         raise ValueError(f"Thumbnail path escapes output directory: {target}")
                 else:
                     target = scratchpad_path(directory, target, default="")
-                index_path = ROOT / "modules/shared/asset-index.json"
-                formats = json.loads(index_path.read_text(encoding="utf-8")) if index_path.is_file() else None
-                key = asset_id + "/" + target.relative_to(directory / "assets").as_posix() if screenshots.is_relative_to(thumbnail_root) else None
-                legacy_key = key[:-4] + ".png" if key else None
-                mapped = (formats["formats"].get(key) or formats["formats"].get(legacy_key)) if formats and key else None
-                if mapped:
-                    target = (directory / "assets" / mapped).resolve()
-                    if not target.is_relative_to(thumbnail_root) or target.suffix.lower() not in {".jpg", ".jpeg"}:
-                        raise ValueError(f"Thumbnail format mapping escapes its directory or is not JPEG: {target}")
-                    target = target.with_suffix(".jpg")
                 target.parent.mkdir(parents=True, exist_ok=True)
                 if is_thumbnail:
                     save_thumbnail(image, target)

@@ -149,7 +149,7 @@
       "path": "scripts/media/upload-assets-oss.py",
       "runtime": "python",
       "description": "按 SHA-256 去重上传素材，返回逻辑路径清单",
-      "effects": "真实上传需 --config 统一 Shuku JSON；对象不可覆盖，复用前校验；--dry-run 无网络；不删除对象",
+      "effects": "真实上传需 --config 统一 Shuku JSON；公共对象进入统一哈希目录，拒绝覆盖；--dry-run 无网络；不删除对象",
       "dependencies": [
         "oss2"
       ],
@@ -222,6 +222,62 @@
       "effects": "默认只读，不启动浏览器或服务；--fix 仅补缺失 ID，保留已有 ID 与文案",
       "dependencies": [],
       "arguments": []
+    },
+    {
+      "id": "export.gradcam.face",
+      "category": "models",
+      "path": "scripts/models/compute_tools.py",
+      "runtime": "python",
+      "description": "导出人脸教学 Grad-CAM 与真实梯度记录",
+      "effects": "读取 shuku.json；按配置写教学素材/模型/数据；--plan 只读且不联网；执行可能耗时或下载官方数据/权重",
+      "dependencies": [
+        "backend[authoring-compute]"
+      ],
+      "arguments": [
+        "gradcam-face"
+      ]
+    },
+    {
+      "id": "export.gradcam.celebrity",
+      "category": "models",
+      "path": "scripts/models/compute_tools.py",
+      "runtime": "python",
+      "description": "导出署名照片教学 Grad-CAM",
+      "effects": "读取 shuku.json；按配置写教学素材/模型/数据；--plan 只读且不联网；执行可能耗时或下载官方数据/权重",
+      "dependencies": [
+        "backend[authoring-compute]"
+      ],
+      "arguments": [
+        "gradcam-celebrity"
+      ]
+    },
+    {
+      "id": "export.gradcam.pretrained",
+      "category": "models",
+      "path": "scripts/models/compute_tools.py",
+      "runtime": "python",
+      "description": "导出官方预训练模型 Grad-CAM 并验证 ONNX 一致性",
+      "effects": "读取 shuku.json；按配置写教学素材/模型/数据；--plan 只读且不联网；执行可能耗时或下载官方数据/权重",
+      "dependencies": [
+        "backend[authoring-compute]"
+      ],
+      "arguments": [
+        "gradcam-pretrained"
+      ]
+    },
+    {
+      "id": "model.emnist.train",
+      "category": "models",
+      "path": "scripts/models/compute_tools.py",
+      "runtime": "python",
+      "description": "训练 EMNIST MobileNet V3；数据和检查点外置",
+      "effects": "读取 shuku.json；按配置写教学素材/模型/数据；--plan 只读且不联网；执行可能耗时或下载官方数据/权重",
+      "dependencies": [
+        "backend[authoring-compute]"
+      ],
+      "arguments": [
+        "emnist-train"
+      ]
     }
   ]
 }

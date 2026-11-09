@@ -49,8 +49,9 @@ def main(argv=None):
     if not executable:print('Node.js is unavailable; run environment.doctor.',file=sys.stderr);return 2
     command=[executable,str(SKILL/tool['path']),*tool.get('arguments',[]),*argv[1:]]
     try:
-        root = SKILL if key == 'check.skill' else get_target_root()
-        if key != 'check.skill':
+        help_only = any(arg in {'--help', '-h'} for arg in argv[1:])
+        root = SKILL if key == 'check.skill' or help_only else get_target_root()
+        if key != 'check.skill' and not help_only:
             for index, argument in enumerate(argv[1:], 1):
                 option, separator, value = argument.partition('=')
                 if option in {'--repository', '--root'}:

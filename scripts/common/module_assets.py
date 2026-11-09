@@ -1,13 +1,19 @@
 """Resolve module-owned files while retaining stable OSS UUID namespaces."""
 import json
 from pathlib import Path
+try:
+    from .course_paths import modules_directory
+except ImportError:
+    from course_paths import modules_directory
 
 
 def asset_roots(root):
     root = Path(root)
     index = root / 'modules/shared/asset-index.json'
-    roots = json.loads(index.read_text(encoding='utf-8'))['roots'] if index.is_file() else {}
-    for outline in (root / 'modules').glob('*/outlines.json'):
+    roots = json.loads(index.read_text(encoding='utf-8')).get('roots',{}) if index.is_file() else {}
+    current=root/'asset-index.json'
+    if current.is_file():roots.update(json.loads(current.read_text(encoding='utf-8')).get('roots',{}))
+    for outline in modules_directory(root).glob('*/outlines.json'):
         uid = json.loads(outline.read_text(encoding='utf-8-sig')).get('moduleIdentity', {}).get('id')
         if uid:
             roots[uid] = (outline.parent / 'assets').relative_to(root).as_posix()
@@ -17,10 +23,8 @@ def asset_roots(root):
 def asset_directory(root, uid):
     root = Path(root).resolve()
     relative = asset_roots(root).get(uid)
-    target = (root / relative).resolve() if relative else root / 'assets' / uid
-    legacy = root / 'assets' / uid
-    if not target.exists() and legacy.is_dir():
-        target = legacy
+    if not relative:raise ValueError('Unknown course UUID: '+str(uid))
+    target = (root / relative).resolve()
     if not target.is_relative_to(root):
         raise ValueError('Asset directory leaves repository')
     return target
@@ -28,7 +32,7 @@ def asset_directory(root, uid):
 
 def object_relative(root, file):
     root, file = Path(root).resolve(), Path(file).resolve()
-    # Prefer canonical ownership; aliases can point into a legacy subtree.
+    # Resolve the registered course ownership directly.
     for uid, relative in asset_roots(root).items():
         directory = (root / relative).resolve()
         if file.is_relative_to(directory):
@@ -44,6 +48,8 @@ def object_relatives(root, file):
 
 
 def asset_relative(root, uid, name):
-    index = Path(root) / 'modules/shared/asset-index.json'
-    formats = json.loads(index.read_text(encoding='utf-8'))['formats'] if index.is_file() else {}
-    return formats.get(uid+'/'+name, name)
+    from pathlib import PurePosixPath
+    path=PurePosixPath(name)
+    if path.is_absolute() or any(part in ('', '.', '..') for part in name.split('/')) or any(char in name for char in ':?#') or '\\' in name:
+        raise ValueError('Use a relative resource path')
+    return name

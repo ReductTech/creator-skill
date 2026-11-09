@@ -1,0 +1,7 @@
+{
+  "prefix": "shuku-oss/assets/sha256",
+  "extensions": {
+    ".jpeg": ".jpg",
+    ".mjs": ".js"
+  }
+}

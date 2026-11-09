@@ -12,7 +12,7 @@ import json
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import ROOT, resolve_module, emit_result, report_error
+from _common import get_target_root, resolve_module, emit_result, report_error
 from module_assets import asset_directory
 from checks.validate_module import validate_modules
 
@@ -68,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        result = inspect_assets(ROOT, args.module, args.duplicates)
+        result = inspect_assets(get_target_root(), args.module, args.duplicates)
         emit_result(result, status="failed" if result["errors"] else "passed")
         return 1 if result["errors"] else 0
     except (ValueError, OSError) as exc:

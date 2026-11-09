@@ -15,14 +15,14 @@ import tempfile
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import ROOT, read_modules, emit_result, report_error, require_target_root
+from _common import modules_directory, read_modules, emit_result, report_error, require_target_root
 from module.module_identity import new_identity, register_identity
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--directory", help="canonical module UUID; generate a new UUID when omitted"
+        "--directory", help="module directory name; generate a new UUID when omitted"
     )
     parser.add_argument(
         "--title",
@@ -31,7 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--repository",
         type=Path,
-        default=ROOT,
+        default=None,
         help="must match targetRoot in the Skill's target-root.json",
     )
     parser.add_argument(
@@ -48,13 +48,9 @@ def ensure_outline(
     """Create the canonical outline once, without reading or rewriting an existing one."""
     root = Path(root).resolve()
     directory = directory or str(uuid.uuid4())
-    try:
-        parsed = uuid.UUID(directory)
-    except ValueError as exc:
-        raise ValueError("Module directory must be a UUID") from exc
-    if str(parsed) != directory or parsed.version != 4:
-        raise ValueError("Module directory must be a canonical UUID v4")
-    modules = (root / "modules").resolve()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", directory):
+        raise ValueError("Invalid module directory name")
+    modules = modules_directory(root)
     target = modules / directory
     if (
         not modules.is_relative_to(root)
@@ -82,7 +78,7 @@ def ensure_outline(
         "description": "",
         "path": "/modules/" + directory.lower(),
         "pages": [],
-        "moduleIdentity": {"version": 1, "id": directory},
+        "moduleIdentity": ({"version": 1, "id": directory} if re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", directory) else new_identity({})),
     }
     content = json.dumps(document, ensure_ascii=False, indent=2) + "\n"
     target.mkdir(parents=True, exist_ok=True)
@@ -117,13 +113,9 @@ def ensure_outline(
 def plan_module(root, directory, outline):
     """Legacy scaffold helper; not used by the module.init command."""
     directory = directory or str(uuid.uuid4())
-    try:
-        parsed = uuid.UUID(directory)
-    except ValueError as exc:
-        raise ValueError("Module directory must be a UUID") from exc
-    if str(parsed) != directory or parsed.version != 4:
-        raise ValueError("Module directory must be a canonical UUID v4")
-    target = root / "modules" / directory
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", directory):
+        raise ValueError("Invalid module directory name")
+    target = modules_directory(root) / directory
     if target.exists():
         raise ValueError(f"Module already exists: {target}")
     doc = json.loads(json.dumps(outline))
@@ -164,7 +156,7 @@ def plan_module(root, directory, outline):
             "path": "/modules/" + directory.lower(),
             "entry": "GuidePage.tsx",
             "ppt": {"entry": "CoursePpt.tsx", "path": "/scenedeck/", "player": False},
-            "moduleIdentity": {"version": 1, "id": directory},
+            "moduleIdentity": ({"version": 1, "id": directory} if re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", directory) else new_identity({})),
         }
     )
     if any(
@@ -225,7 +217,7 @@ def initialize(root, directory, outline, dry_run=False):
     if not dry_run:
         work = root / "work"
         work.mkdir(exist_ok=True)
-        (root / "modules").mkdir(exist_ok=True)
+        modules_directory(root).mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="module-init-", dir=work) as temporary:
             stage = Path(temporary).resolve()
             if not stage.is_relative_to(work.resolve()):
@@ -234,7 +226,7 @@ def initialize(root, directory, outline, dry_run=False):
                 (stage / name).write_text(content, encoding="utf-8")
             (stage / "assets").mkdir()
             # On Windows, rename fails if another process created the destination.
-            stage.rename(root / "modules" / directory)
+            stage.rename(modules_directory(root) / directory)
     return {
         "module": directory,
         "uuid": doc["moduleIdentity"]["id"],

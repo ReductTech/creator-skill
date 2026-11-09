@@ -2,7 +2,7 @@
 """Compare outline order and notes against Guide and 术库.
 
 Reads: The selected outline and runtime pages, or a saved snapshot.
-Writes: Only --save-snapshot writes a file; a temporary isolated browser/Vite may be used.
+Writes: Only --save-snapshot writes a file; a temporary isolated browser and completed-artifact server may be used.
 """
 
 from pathlib import Path
@@ -11,17 +11,18 @@ import json
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import ROOT, resolve_module, emit_result, report_error, scratchpad_path, project_path
+from _common import resolve_module, emit_result, report_error, scratchpad_path, project_path
 from media.capture_slides import browser_session, capture_url
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--build-output", type=Path, help="completed build directory; default targetRoot/dist")
     parser.add_argument(
         "--module", required=True, help="module directory, slug or UUID"
     )
     parser.add_argument(
-        "--base-url", help="running Vite URL; omit to start a temporary Vite"
+        "--base-url", help="completed-course preview service URL; omit to serve local build artifacts"
     )
     parser.add_argument(
         "--snapshot",
@@ -88,20 +89,9 @@ def runtime_snapshot(context, base_url, outline):
             timeout=60000,
         )
         page.locator("[data-scene-deck-capture]").wait_for(timeout=60000)
-        if entry:
-            snapshot = page.evaluate('window.__IDL_CAPTURE_COURSE__')
-            if not snapshot:
-                raise ValueError('Rebuild this course to expose the capture metadata')
-        else:
-            snapshot = page.evaluate(
-            """async path => {
-            const {activeModules}=await import('/src/app/modules.tsx');
-            const module=activeModules.find(item=>item.path===path);
-            if(!module?.pptDeck) throw Error('No runtime deck metadata for this module');
-            return {scenes:module.pptDeck.scenes.map(scene=>({id:scene.id,title:scene.title,notesText:(module.getPptNotes?.(scene.id) || []).map(note=>note.text).join(' ')}))};
-        }""",
-            outline["path"],
-        )
+        snapshot = page.evaluate('window.__IDL_CAPTURE_COURSE__')
+        if not snapshot:
+            raise ValueError('Rebuild this course to expose the capture metadata')
         page.goto(
             (entry + '?mode=guide') if entry else base_url + outline["path"], wait_until="domcontentloaded", timeout=60000
         )
@@ -147,6 +137,7 @@ def main(argv: list[str] | None = None) -> int:
             with browser_session(
                 args.base_url,
                 reset_storage=False,
+                build_output=project_path(args.build_output, external=True) if args.build_output else None,
                 scratchpad=scratchpad_path(directory, default=""),
             ) as (
                 context,

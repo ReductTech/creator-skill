@@ -1,6 +1,6 @@
 # 工具脚本规范
 
-目标工程根目录只从 Skill 根目录的本地 `target-root.json` 读取。Python 使用 `_common.get_target_root()`／`project_path()`，Node 使用 `common/_target_root.mjs` 的 `getTargetRoot()`；相对工程路径以配置为基准，不使用当前工作目录、脚本父目录层数或旧环境变量推算。Skill 自己的文档、模板、检查器和浏览器启动文件按脚本自身位置读取。旧的 `--root`／`--repository` 参数只能确认同一目标，不能覆盖配置。
+目标工程根目录从明确指定的 `target-root.json` 读取，独立使用默认位于 Skill 根目录；平台可显式指定本次调用的配置文件。Python 使用 `_common.get_target_root()`／`project_path()`，Node 使用 `common/_target_root.mjs` 的 `getTargetRoot()`；相对工程路径以配置为基准，不使用当前工作目录、脚本父目录层数或旧环境变量推算。Skill 自己的文档、模板、检查器和浏览器启动文件按脚本自身位置读取。旧的 `--root`／`--repository` 参数只能确认同一目标，不能覆盖配置。
 
 用于维护 `scripts/` 中供智能体调用的工具。按用途分为 `module/`、`checks/`、`media/`、`analysis/`、`common/`、`tests/`，模板单独放在 `templates/`，不再增加更深层级。统一入口、清单与依赖文件保留在根目录；测试和内部辅助文件不强套命令行模板。
 
@@ -35,8 +35,20 @@
 
 路径边界、已有文件保护、覆盖条件和资源清理由代码执行，并用行为测试验证。保持已有业务能力、命令名称与必要的转发入口；调用参数以脚本的 `--help` 为准。
 
-生成中间产物的工具通过 `--module` 确定归属。逐页结果写入 `pages/<语义页目录>/_scratchpad/`，课程整体原稿与汇总结果写入模块级 `_scratchpad/`；显式路径相对当前工作目录解析。Python 复用 `resolve_module()` 与 `scratchpad_path()`；逐页默认路径通过 `page_directory` 参数指定。输出路径在启动浏览器、渲染或写文件之前校验；多文件输出逐个检查路径，拒绝跨模块、跨指定页目录或符号链接逃逸。正式大纲、实现和发布资源按对应工具的职责保存。
+生成中间产物的工具通过 `--module` 确定归属。逐页结果写入 `pages/<语义页目录>/_scratchpad/`，课程整体原稿与汇总结果写入模块级 `_scratchpad/`；显式工程路径相对配置的目标工程解析。Python 复用 `resolve_module()` 与 `scratchpad_path()`；逐页默认路径通过 `page_directory` 参数指定。输出路径在启动浏览器、渲染或写文件之前校验；多文件输出逐个检查路径，拒绝跨模块、跨指定页目录或符号链接逃逸。正式大纲、实现和发布资源按对应工具的职责保存。
 
 `catalog.json` 只维护工具索引、运行环境、依赖、执行效果和别名所需的固定参数，不再重复维护完整参数用法。通用调用方式见[工具索引](../tools.md)。
 
 页面几何与渲染字数逻辑共用 `common/_page_checks.js`，由 `capture.slides` 和 `check.bounds` 在浏览器中执行；交互继续复用截图动作格式，不增加评分框架。源码统计保持近似口径，与实际状态统计分开标记。
+
+## 唯一创作实现与 Shuku 调用
+
+创作规则、工具和行为测试只在外部 `creator-skill` 仓库维护。Shuku 不再保留 `tooling/authoring/` 或根目录 `scripts/` 中的创作副本，只通过 `shared/creator_skill.py` 调用这里的入口。平台运行时、存储和编译服务继续属于 Shuku。
+
+独立使用默认读取 Skill 的 `target-root.json`。平台为每次调用创建临时的同结构 JSON，通过 `CREATOR_SKILL_TARGET_CONFIG` 指定；不改本地绑定，也不把临时配置写入课程。Python 与 Node 共用各自的课程发现函数，支持 `modules/<课程>/` 和平铺 `<课程>/`，混合布局明确报错。课程选择支持目录名、ID、alias 与 UUID。
+
+公共素材上传协议在本仓库维护，Shuku 旧上传入口仅转发；平台的私有代码存储与权限交付由 Shuku 管理。真实上传需显式配置和任务授权，dry-run 不读取凭据或联系 OSS。Worker 镜像从外部 Skill 的冻结源码构建，发布记录版本并把其字节纳入镜像缓存键；不能重新引入手工同步的副本。
+
+## 检查结果归因
+
+报告区分本次新问题、工程基线已有问题、环境错误与未验证范围。只有执行了同条件的基线对照才能标记“已有问题”；无法判断时注明未验证，不凭文件名推断。既有错误保持可见并阻止声称工程整体通过；不为消除红灯跳过相关检查。模板类型检查使用同一依赖集合独立编译基线，再与生成文件一起编译，分别报告两者。

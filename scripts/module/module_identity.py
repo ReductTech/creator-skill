@@ -15,45 +15,17 @@ from pathlib import Path
 import sys
 import tempfile
 import uuid
-from typing import Any
+import re
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import get_target_root, emit_result, report_error
-IDENTITY_FIELD = "moduleIdentity"
-IDENTITY_VERSION = 1
-
-
-class IdentityError(ValueError):
-    """Raised for missing, malformed, or duplicate module identities."""
-
-
-def validate_identity(identity: Any, outline_path: Path) -> str:
-    if (
-        not isinstance(identity, dict)
-        or not {"version", "id"} <= identity.keys()
-        or identity.keys() - {"version", "id", "signature"}
-    ):
-        raise IdentityError(f"{outline_path}: Invalid moduleIdentity structure.")
-    if type(identity["version"]) is not int or identity["version"] != IDENTITY_VERSION:
-        raise IdentityError(f"{outline_path}: Invalid identity version.")
-    module_id = identity["id"]
-    try:
-        parsed = uuid.UUID(module_id) if isinstance(module_id, str) else None
-    except ValueError as exc:
-        raise IdentityError(f"{outline_path}: Invalid module UUID.") from exc
-    if parsed is None or str(parsed) != module_id or parsed.version != 4:
-        raise IdentityError(f"{outline_path}: Invalid module UUID; expected a canonical lowercase UUID v4.")
-    # Legacy signatures are ignored and removed by the generation command.
-    return module_id
-
-
-def register_identity(identity: Any, outline_path: Path, seen: dict[str, Path]) -> str:
-    module_id = validate_identity(identity, outline_path)
-    if module_id in seen:
-        raise IdentityError(f"Duplicate course UUID {module_id}: {seen[module_id]} and {outline_path}")
-    seen[module_id] = outline_path
-    return module_id
-
+from _common import modules_directory, get_target_root, emit_result, report_error
+from course_identity import (
+    IDENTITY_FIELD,
+    IDENTITY_VERSION,
+    IdentityError,
+    register_identity,
+    validate_identity,
+)
 
 ROOT = None
 MODULES_DIR = None
@@ -103,7 +75,7 @@ def process_outlines(
     check_only: bool = False, results: list[dict] | None = None
 ) -> int:
     root = ROOT or get_target_root()
-    modules_dir = MODULES_DIR or root / "modules"
+    modules_dir = MODULES_DIR or modules_directory(root)
     paths = sorted(modules_dir.glob("*/outlines.json"))
     if not paths:
         raise IdentityError(f"No module outlines found: {modules_dir}")
@@ -120,18 +92,6 @@ def process_outlines(
         if has_identity:
             register_identity(document[IDENTITY_FIELD], path, seen)
         loaded.append((path, document, has_identity))
-
-    for path, document, has_identity in loaded:
-        try:
-            directory_id = str(uuid.UUID(path.parent.name))
-        except ValueError as exc:
-            raise IdentityError('Module directory must be a UUID; migrate existing directory references first: ' + str(path)) from exc
-        if directory_id != path.parent.name or uuid.UUID(directory_id).version != 4:
-            raise IdentityError('Module directory must be a canonical UUID v4')
-        if has_identity and document[IDENTITY_FIELD]['id'] != directory_id:
-            raise IdentityError('Directory UUID and moduleIdentity.id disagree: ' + str(path))
-        if has_identity and document.get('id') != directory_id:
-            raise IdentityError('outlines.id must equal the module UUID: ' + str(path))
 
     if check_only:
         for path, _, has_identity in loaded:
@@ -159,9 +119,8 @@ def process_outlines(
             del identity["signature"]
             action = "Normalized module identity"
         else:
-            document[IDENTITY_FIELD] = {"version": IDENTITY_VERSION, "id": path.parent.name}
-            document["id"] = path.parent.name
-            document["path"] = "/modules/" + path.parent.name
+            document[IDENTITY_FIELD] = ({"version": IDENTITY_VERSION, "id": path.parent.name}
+                if re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", path.parent.name) else new_identity(seen))
             register_identity(document[IDENTITY_FIELD], path, seen)
             action = "Generated UUID"
         serialized = json.dumps(document, ensure_ascii=False, indent=2) + "\n"

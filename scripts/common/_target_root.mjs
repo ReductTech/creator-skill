@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export function getTargetRoot(configFile = new URL('../../target-root.json', import.meta.url)) {
+export function getTargetRoot(configFile = process.env.CREATOR_SKILL_TARGET_CONFIG || new URL('../../target-root.json', import.meta.url)) {
   let document;
   try {
     document = JSON.parse(fs.readFileSync(configFile, 'utf8').replace(/^\uFEFF/, ''));

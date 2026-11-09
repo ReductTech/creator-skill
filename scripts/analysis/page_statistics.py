@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
 from module_assets import asset_directory
-from _common import ROOT, emit_result, report_error, resolve_module, scratchpad_path, require_target_root, project_path
+from _common import modules_directory, emit_result, report_error, resolve_module, scratchpad_path, require_target_root, project_path
 
 HTML_TEMPLATE = r"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -83,7 +83,7 @@ renderRows();preview(Math.max(0,P.findIndex(p=>p.preview)));
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--root", type=Path, default=ROOT, help="repository root; default this checkout"
+        "--root", type=Path, default=None, help="repository root; default this checkout"
     )
     parser.add_argument(
         "--module", help="Module directory, ID or UUID; default all PPT modules"
