@@ -87,7 +87,7 @@ def test_nested_entry_and_new_asset_helper_forms(tmp_path, flat):
     (folder / 'pages/Page.tsx').write_text("moduleAssetUrl('image.png'); moduleAssetUrl(moduleIdentity.id, 'image.png');")
     outline = {'id': MID, 'title': 'Course', 'path': '/modules/' + MID,
                'moduleIdentity': {'version': 1, 'id': MID}, 'ppt': {'entry': 'pages/Page.tsx'},
-               'pages': [{'id': 'one', 'title': 'One', 'snippet': 'Narration'}]}
+               'pages': [{'id': 'f2ac1473-665f-46f8-bcb1-53c9438f6482', 'title': 'One', 'snippet': 'Narration'}]}
     (folder / 'outlines.json').write_text(json.dumps(outline))
     assert validate_modules(tmp_path) == []
     assert asset_directory(tmp_path, MID) == folder / 'assets'

@@ -66,7 +66,7 @@ def test_page_scratchpad_rejects_escape_and_other_page(tmp_path):
 
 def test_module_check_ignores_scratch_sources(tmp_path):
     initialize(
-        tmp_path, "2e5c4732-a40a-4d20-b954-a61507aabc75", {"title": "Demo", "pages": [{"id": "one", "title": "One", "snippet": "Narration"}]}
+        tmp_path, "2e5c4732-a40a-4d20-b954-a61507aabc75", {"title": "Demo", "pages": [{"id": "f2ac1473-665f-46f8-bcb1-53c9438f6482", "title": "One", "snippet": "Narration"}]}
     )
     scratch = tmp_path / "modules/2e5c4732-a40a-4d20-b954-a61507aabc75/_scratchpad"
     scratch.mkdir()

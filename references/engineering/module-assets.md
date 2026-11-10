@@ -2,7 +2,7 @@
 
 ## 模块 UUID
 
-新建模块默认使用目录 `modules/<UUID>/`，`outlines.json.id` 与 `moduleIdentity.id` 必须等于目录 UUID（标准小写 UUID v4）。标题与 `alias` 可读，改标题、内容、页序不改变 UUID。页面 `id`、文件名和语义页目录保持原样，不引入单页 UUID 或版本链。
+新建模块默认使用目录 `modules/<UUID>/`，`outlines.json.id` 与 `moduleIdentity.id` 必须等于目录 UUID（标准小写 UUID v4）。标题与 `alias` 可读，改标题、内容、页序不改变 UUID。每页 `pages[].id` 使用独立的标准小写 UUID，新增页面生成 UUID v4；保留已有合法页面 UUID。文件名与语义页目录无需使用 UUID。不增加独立的 `uuid` 页面字段或版本链。
 
 ```json
 {"id":"2e5c4732-a40a-4d20-b954-a61507aabc75","moduleIdentity":{"version":1,"id":"2e5c4732-a40a-4d20-b954-a61507aabc75"}}
@@ -13,6 +13,35 @@
 复制为独立新模块时分配新的目录 UUID，同步大纲 id、moduleIdentity.id、path 和运行时 assetId，再核对引用。不要沿用源模块身份。素材文件可以保留原名与字节，上传后自然复用同一 SHA-256 对象。Git 记录整个模块的版本，UUID 不代替 Git 提交。
 
 已有语义目录和稳定身份由 Shuku 兼容检查保留，不为对齐 Skill 擅自重命名；新课程继续默认使用 UUID 目录。工程也可采用根目录直接放置 `<UUID>/outlines.json` 的平铺布局。
+
+## Shared 风格 UUID
+
+Shared 作为风格包时，在包根目录的 `style.json` 中用 `id` 保存风格 UUID。工程常见位置为 `modules/shared/style.json`；平铺工程也可使用 `shared/style.json`。字段名是 `id`，不另加 `uuid` 字段，也不把目录改名为 UUID。风格 UUID 与课程 UUID、页面 UUID 分开管理，不互相代用。
+
+```json
+{
+  "schema": 1,
+  "id": "58ce8cde-ea71-4afb-bb25-6cbaad0203ea",
+  "name": "我的独立风格",
+  "protocol": 1,
+  "bootstrap": "index.ts"
+}
+```
+
+以上 UUID 仅用于说明格式，不能直接作为新风格身份。创建独立风格时用 `str(uuid.uuid4())` 生成一次标准小写、带连字符的 UUID v4，并保存到 `style.json.id`。`bootstrap` 和可选的 `presentation` 指向包内实际存在的入口，按实际工程填写，不照抄不存在的文件。
+
+| 操作 | UUID 规则 |
+| --- | --- |
+| 原样使用平台默认 Shared | 保留默认 UUID `76018445-20ab-4dd9-9543-385d177eb159`；未随 ZIP 携带默认包时由 Shuku 补齐 |
+| 同一套风格修复、调整或升级 | 保留原 UUID；改名、移动目录或再次打包也不重新生成 |
+| 多门课程复用同一套风格 | 复用风格 UUID，各课程仍保留各自的课程 UUID |
+| 从默认或其他风格复制出独立新风格 | 分配新的风格 UUID，不沿用原风格身份；即使暂时字节相同，也按独立风格处理 |
+
+同一份源码中，同一个风格 UUID 只登记一个风格包。存在 `course-styles.json` 时，对应 `styles[].id` 必须与包内 `style.json.id` 一致，`styles[].path` 指向该包目录；`default_style` 和课程大纲中显式填写的 `style_id` 引用对应 UUID。更换为独立新风格时同步这些引用，不改变课程身份；同一风格更新时保留这些身份引用。风格归属或使用权限冲突按平台报错处理，不覆盖他人的风格登记。
+
+风格身份采用 UUID 约定：同一 UUID 就按同一套风格处理，不根据名称、目录、代码差异或 SHA-256 自动判断它是否已经变成另一套风格。同一 UUID 下修改内容是否兼容，由创作者自行维护并承担影响；Skill 不额外设计内容比对、风格分叉确认或要求用户在网页上重复选择。创作者决定另立一套风格时，才按上表分配新 UUID。风格包需保留完整的自定义组件及依赖，平台默认补全不能替代缺失的自定义代码。
+
+这个约定只限定风格身份判断。平台原有的 SHA-256 资源去重、完整性校验、构建快照与历史版本保留继续生效；不让创作者手工计算风格哈希或维护 `style_revision`，也不为本规则新增后端判定机制。
 
 ## 正式资源与中间产物
 

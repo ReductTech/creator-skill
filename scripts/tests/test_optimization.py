@@ -29,7 +29,7 @@ def test_discovery_creation_validation_capture_and_node_styles_agree(tmp_path, i
     doc = {'id': MID, 'alias': 'friendly', 'title': 'Demo', 'path': '/modules/' + MID,
            'moduleIdentity': {'version': 1, 'id': MID},
            'ppt': {'entry': 'pages/Opening/Opening.tsx'},
-           'pages': [{'id': 'opening', 'title': 'Opening', 'snippet': 'Narration'}]}
+           'pages': [{'id': 'f2ac1473-665f-46f8-bcb1-53c9438f6482', 'title': 'Opening', 'snippet': 'Narration'}]}
     (folder / 'outlines.json').write_text(json.dumps(doc))
     assert modules_directory(tmp_path) == base
     assert list(read_modules(tmp_path))[0][0] == folder

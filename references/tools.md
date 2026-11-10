@@ -175,7 +175,7 @@ python creator-skill/scripts/media/capture_all_thumbnails.py --base-url http://l
 
 ### 大纲必填字段
 
-`python creator-skill/scripts/tools.py check.outlines` 静态验证所有模块大纲每页的 `id`、`title`、`snippet` 非空且 ID 唯一，不启动服务。加 `--module <目录名>` 限定模块；`--fix` 优先从现有场景补 ID，保留已存在的 ID，不编造题目或讲稿。未实现页面生成一次性的稳定 ID。
+`python creator-skill/scripts/tools.py check.outlines` 静态验证所有模块大纲每页的 `id`、`title`、`snippet` 非空且页面 ID 为标准小写 UUID、唯一，不启动服务。加 `--module <目录名>` 限定模块；`--fix` 优先从现有场景补 ID，保留已存在的 ID，不编造题目或讲稿。未实现页面生成一次性的 UUID v4；已有非法 ID 报错，`--fix` 不静默改写它或源码引用；缺失 ID 只复用合法场景 UUID。
 
 ## 可选 Shuku 计算工具
 

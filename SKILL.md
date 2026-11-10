@@ -58,11 +58,12 @@ description: 在当前仓库中规划、设计、实现、修改和评估 React 
 ## 工程约束
 
 - 使用 React，沿用当前仓库的技术栈和模块入口，默认复用 modules\shared 下的工程脚手架。
+- 创建、复制或修改 Shared 风格包时，先读 [Shared 风格 UUID 规则](references/engineering/module-assets.md#shared-风格-uuid)。风格身份只按 `style.json.id` 判断；独立新风格生成新 UUID，同一风格更新保留 UUID，兼容性由创作者负责，不增加基于 SHA-256 的风格冲突判定或网页确认流程。
 - 页面使用 1600×900 固定画布，由外层等比例缩放。
 - 第一页不使用 `ContentBlock`，单独设计封面。其余页面默认使用 Shared `ContentBlock` 及其标准标题区，设计示意图阶段就遵守；只有用户明确要求其他版式时，才在指定范围内更换。视觉样例默认指导标题区以下的内容构图。
 - 独立文字使用 Shared `Typography` 或已封装它的组件。
 - 模块大纲位于 `modules/<模块目录名>/outlines.json`。
-- 大纲每页必须包含非空字符串 `id`（稳定页面 ID）、`title`（题目）和 `snippet`（演讲稿）；ID 与 PPT scene.id、Guide step.id 一致，不增加其他页面字段。用户尚未提供的内容不自行补全。结构要求见[大纲](references/design/course-outline.md)。
+- 大纲每页必须包含非空字符串 `id`（稳定页面 UUID，必须是带连字符的标准小写 UUID；新增用 UUID v4）、`title`（题目）和 `snippet`（演讲稿）；ID 与 PPT scene.id、Guide step.id 一致，不增加其他页面字段。用户尚未提供的内容不自行补全。结构要求见[大纲](references/design/course-outline.md)。
 - 每页独占 `modules/<模块目录名>/pages/<语义页目录>/`，页面组件与同名样式放在该目录，不平铺在 `pages/` 下。该页的设计图、prompt、检查截图及临时脚本放在页目录内的 `_scratchpad/`；课程整体的原稿、大纲备份和汇总记录放在模块级 `_scratchpad/`。两级临时目录均由 Git 忽略，正式资源按工程约定保存。
 - 页目录与 `_scratchpad/` 按实际制作需要创建，不根据大纲预建未开始页面的空目录或占位文件。
 - 正式资源保存到所属课程的 `assets/`，统一使用 `moduleAssetUrl('images/example.jpg')`；参数相对于本课程 assets，不含电脑路径、域名或部署目录。课程身份由平台构建注入；已有 `moduleAssetUrl(moduleIdentity.id, relativePath)` 保持可用。CSS、Canvas、WebGL、音视频与 JSON 加载也复用此入口生成地址。详见[模块身份与资源](references/engineering/module-assets.md)。
@@ -78,7 +79,7 @@ description: 在当前仓库中规划、设计、实现、修改和评估 React 
 | 设计或调整页面内容、构图与交互 | [页面设计指导](references/design/design.md) |
 | 分析原稿及转换范围 | [参考与转换](references/workflow/reference-adaptation.md) |
 | 编写或修改 React 页面 | [工程实现](references/engineering/implementation.md) |
-| 创建或调整模块身份、资源 | [模块身份与资源](references/engineering/module-assets.md) |
+| 创建或调整模块身份、Shared 风格身份、资源 | [模块身份与资源](references/engineering/module-assets.md) |
 | 检查实现并交付 | [基础检查与验收](references/eval/checks.md) |
 
 ## 按问题选读

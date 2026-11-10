@@ -17,7 +17,7 @@ from checks.inspect_assets import inspect_assets
 from _common import get_target_root
 ROOT=get_target_root()
 SKILL=Path(__file__).resolve().parents[2]
-OUTLINE={"title":"Example","pages":[{"id":"one","title":"First","snippet":"Notes"}]}
+OUTLINE={"title":"Example","pages":[{"id":"f2ac1473-665f-46f8-bcb1-53c9438f6482","title":"First","snippet":"Notes"}]}
 
 
 def test_catalog_entries_exist_and_ids_are_unique():
@@ -61,11 +61,11 @@ def test_initializer_rejects_duplicate_pages_and_copied_identity(tmp_path):
 
 
 def test_consistency_detects_ppt_guide_and_notes_drift():
-    valid={'scenes':[{'id':'one','title':'First','notesText':'Notes'}],'guideIds':['one']}
+    valid={'scenes':[{'id':'f2ac1473-665f-46f8-bcb1-53c9438f6482','title':'First','notesText':'Notes'}],'guideIds':['f2ac1473-665f-46f8-bcb1-53c9438f6482']}
     assert compare_course(OUTLINE,valid)=={'errors':[],'warnings':[]}
     drift={'scenes':[{'id':'different','title':'First'}],'guideIds':['other']}
     assert len(compare_course(OUTLINE,drift)['errors'])==2
-    notes={'scenes':[{'id':'one','title':'Changed','notesText':'Different notes'}],'guideIds':['one']}
+    notes={'scenes':[{'id':'f2ac1473-665f-46f8-bcb1-53c9438f6482','title':'Changed','notesText':'Different notes'}],'guideIds':['f2ac1473-665f-46f8-bcb1-53c9438f6482']}
     assert len(compare_course(OUTLINE,notes)['warnings'])==2
 
 

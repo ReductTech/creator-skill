@@ -13,6 +13,16 @@ class IdentityError(ValueError):
     """Raised for missing, malformed, or duplicate module identities."""
 
 
+def is_canonical_uuid(value: Any) -> bool:
+    """Match the platform page identity contract; existing UUID versions are allowed."""
+    if not isinstance(value, str):
+        return False
+    try:
+        return str(uuid.UUID(value)) == value
+    except ValueError:
+        return False
+
+
 def validate_identity(identity: Any, outline_path: Path) -> str:
     if (
         not isinstance(identity, dict)

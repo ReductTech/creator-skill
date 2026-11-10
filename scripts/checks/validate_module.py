@@ -17,7 +17,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
 from _common import modules_directory, emit_result, report_error, require_target_root
 from module_assets import asset_directory, asset_relative
-from course_identity import IdentityError, register_identity
+from course_identity import IdentityError, register_identity, is_canonical_uuid
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -114,6 +114,8 @@ def validate_modules(repository: Path, requested: str | None = None, *, strict_a
                 page_id = page.get("id")
                 if not isinstance(page_id, str) or not page_id.strip():
                     errors.append(f"{label}: page {number} has no valid id")
+                elif not is_canonical_uuid(page_id):
+                    errors.append(f"{label}: page {number} id must be a canonical UUID: {page_id}")
                 elif page_id in page_ids:
                     errors.append(f"{label}: duplicate page id {page_id}")
                 else:

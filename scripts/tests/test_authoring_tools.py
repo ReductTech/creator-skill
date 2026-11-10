@@ -21,7 +21,7 @@ def course(root, name=UUID, module_id=UUID):
     (directory / "Guide.tsx").write_text("export function Guide() { return null; }")
     outline = {"id": name.lower(), "title": "Example", "path": "/modules/" + name.lower(),
                "entry": "Guide.tsx", "moduleIdentity": {"version": 1, "id": module_id},
-               "pages": [{"id": "01", "title": "Question", "snippet": "Narration"}]}
+               "pages": [{"id": "f2ac1473-665f-46f8-bcb1-53c9438f6482", "title": "Question", "snippet": "Narration"}]}
     (directory / "outlines.json").write_text(json.dumps(outline))
     return directory
 
@@ -210,3 +210,15 @@ def test_default_upload_discovers_module_assets_and_preserves_uuid(tmp_path, mon
         uploader.object_key(directory, directory / "assets/images/picture.jpg"),
         uploader.object_key(shared, shared / "assets/common.svg"),
     }
+
+
+@pytest.mark.parametrize("page_id", ["creator-workflow", "01", "F2AC1473-665F-46F8-BCB1-53C9438F6482", "f2ac1473665f46f8bcb153c9438f6482"])
+def test_module_rejects_noncanonical_page_uuid(tmp_path, page_id):
+    directory = course(tmp_path)
+    path = directory / "outlines.json"
+    doc = json.loads(path.read_text())
+    doc["pages"][0]["id"] = page_id
+    path.write_text(json.dumps(doc))
+    before = path.read_bytes()
+    assert any("canonical UUID" in error for error in validate_modules(tmp_path))
+    assert path.read_bytes() == before

@@ -2,10 +2,10 @@
 """Validate page id/title/snippet in every module outline; --fix fills missing IDs only.
 
 No browser, server, imports of lesson code or network. Existing IDs and prose are
-never overwritten. Unimplemented pages receive a persistent title-derived ID.
+never overwritten. Unimplemented pages receive a persistent UUID v4.
 """
 import argparse
-import hashlib
+from uuid import uuid4
 import json
 from pathlib import Path
 import re
@@ -13,6 +13,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
 from _common import modules_directory, require_target_root, report_error
+from course_identity import is_canonical_uuid
 
 def source_ids(directory):
     result = {}
@@ -63,8 +64,10 @@ def process(repository, fix=False, module=None):
                     if ids and index < max(ids):
                         errors.append(label + ": scene ID cannot be resolved safely")
                         continue
-                    digest = hashlib.sha256(str(page.get("title", "")).encode()).hexdigest()[:12]
-                    value = "page-" + digest
+                    value = str(uuid4())
+                if not is_canonical_uuid(value):
+                    errors.append(label + ": scene ID must be a canonical UUID; migrate source references explicitly")
+                    continue
                 if value in used:
                     errors.append(label + ": generated ID collides: " + value)
                     continue
@@ -77,6 +80,8 @@ def process(repository, fix=False, module=None):
                     errors.append(label + ": missing nonempty " + key)
             value = page.get("id")
             if isinstance(value, str):
+                if not is_canonical_uuid(value):
+                    errors.append(label + ": page id must be a canonical UUID: " + value)
                 if value in seen:
                     errors.append(label + ": duplicate id " + value)
                 seen.add(value)
