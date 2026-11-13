@@ -25,6 +25,8 @@ Shuku 不接受非 UUID 课程目录。旧语义目录需显式迁移目录、id
 
 ## Shared 风格 UUID
 
+本 Skill 的 Shared 为只读依赖，不允许修改；允许原样复制并保留 UUID。以下风格身份规则用于理解和校验已有风格包，不构成修改 Shared、创建分叉或覆盖现有包的授权。
+
 Shared 作为风格包时，在包根目录的 `style.json` 中用 `id` 保存风格 UUID。工程常见位置为 `modules/shared/style.json`；平铺工程也可使用 `shared/style.json`。字段名是 `id`，不另加 `uuid` 字段，也不把目录改名为 UUID。风格 UUID 与课程 UUID、页面 UUID 分开管理，不互相代用。
 
 ```json
