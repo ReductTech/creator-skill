@@ -7,7 +7,7 @@ from media import capture_slides as capture
 
 HTML = '''<!doctype html><style>html,body{margin:0}main{width:1600px;height:900px}</style>
 <script>
-window.__IDL_CAPTURE_NAVIGATE__ = id => {
+const navigate = id => {
   const color = id === 'two' ? 'green' : 'red';
   document.body.innerHTML = `<main class="ppt-slide-surface" data-scene-deck-capture
     data-deck-id="fixture" data-scene-id="${id || 'one'}" data-scene-ids='["one","two"]'
@@ -16,7 +16,8 @@ window.__IDL_CAPTURE_NAVIGATE__ = id => {
   const ready = document.querySelector('[data-capture-ready]');
   setTimeout(() => ready.dataset.captureReady = 'true', 350);
 };
-addEventListener('DOMContentLoaded', () => window.__IDL_CAPTURE_NAVIGATE__(new URLSearchParams(location.search).get('slide')));
+addEventListener('DOMContentLoaded', () => navigate(new URLSearchParams(location.search).get('page')));
+addEventListener('message', e => {if(e.source===parent&&e.data?.channel==='shuku-player-v1'&&e.data.action==='navigate')navigate(e.data.page);});
 </script>'''
 
 
@@ -27,7 +28,7 @@ def runtime():
             self.send_response(200)
             self.send_header('Content-Type', 'text/html')
             self.end_headers()
-            content = HTML if '/error/' not in self.path else '<script>window.__IDL_CAPTURE_ERROR__="Intentional render failure"</script>'
+            content = HTML if '/error/' not in self.path else '<script>window.__SHUKU_CAPTURE_ERROR__="Intentional render failure"</script>'
             self.wfile.write(content.encode())
 
         def log_message(self, *args):

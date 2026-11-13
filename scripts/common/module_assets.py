@@ -9,13 +9,18 @@ except ImportError:
 
 def asset_roots(root):
     root = Path(root)
-    index = root / 'modules/shared/asset-index.json'
-    roots = json.loads(index.read_text(encoding='utf-8')).get('roots',{}) if index.is_file() else {}
-    current=root/'asset-index.json'
-    if current.is_file():roots.update(json.loads(current.read_text(encoding='utf-8')).get('roots',{}))
+    from course_metadata import RULES
+    for name in RULES['retired_resource_manifests']:
+        if (root / name).exists():
+            raise ValueError(f'{name}: resource indexes and filename mappings are unsupported; use course-local assets with their actual filenames')
+    roots = {}
     for outline in modules_directory(root).glob('*/outlines.json'):
-        uid = json.loads(outline.read_text(encoding='utf-8-sig')).get('moduleIdentity', {}).get('id')
-        if uid:
+        doc = json.loads(outline.read_text(encoding='utf-8-sig'))
+        if not isinstance(doc, dict):
+            raise ValueError(f'{outline}: outline must be an object')
+        identity = doc.get('moduleIdentity')
+        uid = identity.get('id') if isinstance(identity, dict) else None
+        if isinstance(uid, str) and uid:
             roots[uid] = (outline.parent / 'assets').relative_to(root).as_posix()
     return roots
 

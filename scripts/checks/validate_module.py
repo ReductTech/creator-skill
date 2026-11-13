@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check module metadata, entries, identities and literal asset references.
 
-Reads: Module outlines, source files and asset indexes.
+Reads: Module outlines, source files and course-local assets.
 Writes: None. Does not compile TypeScript or verify rendered pages.
 """
 
@@ -16,7 +16,8 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
 from _common import modules_directory, emit_result, report_error, require_target_root
-from module_assets import asset_directory, asset_relative
+from module_assets import asset_roots, asset_directory, asset_relative
+from course_metadata import module_errors, RULES
 from course_identity import IdentityError, register_identity, is_canonical_uuid
 
 
@@ -32,7 +33,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--module",
         help="directory name, module slug or UUID; identity uniqueness is always checked globally",
     )
-    parser.add_argument("--strict-authoring",action="store_true",help="Apply legacy CIDL authoring field restrictions; default preserves existing IDL metadata")
     return parser
 
 
@@ -41,8 +41,12 @@ def contained_file(base: Path, relative: str) -> bool:
     return path.is_relative_to(base.resolve()) and path.is_file()
 
 
-def validate_modules(repository: Path, requested: str | None = None, *, strict_authoring=False) -> list[str]:
+def validate_modules(repository: Path, requested: str | None = None) -> list[str]:
     errors: list[str] = []
+    try:
+        asset_roots(repository)
+    except (ValueError, OSError) as exc:
+        return [str(exc)]
     seen: dict[str, Path] = {}
     loaded = []
     paths = sorted(modules_directory(repository).glob("*/outlines.json"))
@@ -78,63 +82,23 @@ def validate_modules(repository: Path, requested: str | None = None, *, strict_a
     for path, doc, module_id in selected:
         directory = path.parent
         label = directory.name
-        for key in (("id", "title") if "id" in doc else ("title",)):
-            if not isinstance(doc.get(key), str) or not doc[key].strip():
-                errors.append(f"{label}: missing nonempty {key}")
-        if doc.get("path") != "/modules/" + directory.name.lower():
-            errors.append(f"{label}: path must match /modules/{directory.name.lower()}")
-        entries = [doc.get("entry")] if doc.get("entry") else []
-        ppt = doc.get("ppt")
-        if ppt is not None:
-            if not isinstance(ppt, dict):
-                errors.append(f"{label}: ppt must be an object")
-            else:
-                if ppt.get("entry"): entries.append(ppt["entry"])
-        for entry in entries:
-            if (
-                not isinstance(entry, str)
-                or not entry.endswith(".tsx")
-                or not contained_file(directory, entry)
-            ):
-                errors.append(
-                    f"{label}: entry must name an existing module TSX file: {entry!r}"
-                )
-        pages = doc.get("pages")
-        if not isinstance(pages, list) or (not pages and entries):
-            errors.append(f"{label}: pages must be a nonempty array")
-        else:
-            page_ids = set()
-            for number, page in enumerate(pages, 1):
-                if not isinstance(page, dict):
-                    errors.append(f"{label}: page {number} must be an object")
-                    continue
-                obsolete = sorted(set(page) & {"interaction", "next", "section", "implementationStatus"})
-                if obsolete and strict_authoring:
-                    errors.append(f"{label}: page {number} contains obsolete outline fields: {', '.join(obsolete)}; keep design and progress notes in _scratchpad/")
-                page_id = page.get("id")
-                if not isinstance(page_id, str) or not page_id.strip():
-                    errors.append(f"{label}: page {number} has no valid id")
-                elif not is_canonical_uuid(page_id):
-                    errors.append(f"{label}: page {number} id must be a canonical UUID: {page_id}")
-                elif page_id in page_ids:
-                    errors.append(f"{label}: duplicate page id {page_id}")
-                else:
-                    page_ids.add(page_id)
-                if not isinstance(page.get("title"), str) or not page["title"].strip():
-                    errors.append(f"{label}: page {number} has no title")
-                if not isinstance(page.get("snippet"), str) or not page["snippet"].strip():
-                    errors.append(f"{label}: page {number} has no snippet")
+        errors.extend(module_errors(doc, label, complete=True,
+                                    exists=lambda entry: contained_file(directory, entry)))
         local_assets = directory / "assets"
         for source in directory.rglob("*"):
             if "_scratchpad" in source.relative_to(directory).parts:
                 continue
-            if source.suffix not in {".ts", ".tsx", ".css"}:
+            if source.suffix not in {".ts", ".tsx", ".js", ".jsx", ".mjs", ".css"}:
                 continue
             try:
                 text = source.read_text(encoding="utf-8-sig")
             except UnicodeError:
                 errors.append(f"{source}: source file must be UTF-8")
                 continue
+            if re.search(r"\b(?:moduleAssetUrl|moduleJson)(?:<[^>]+>)?\(\s*(?:['\"][^'\"]+['\"]|moduleIdentity\.id)\s*,", text):
+                errors.append(f'{source}: asset helpers require one course-local path; explicit module IDs are unsupported')
+            if re.search(r'\bVITE_(?:LLM_SERVICE_URL|ASSET_BASE_URL)\b|\b__DL_TELEMETRY__\b', text):
+                errors.append(f'{source}: retired runtime globals and environment variables are unsupported')
             if re.search(
                 r"(?:from\s*|import\s*\(|fetch\s*\()\s*['\"][^'\"]*modules-legacy", text
             ):
@@ -192,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        errors = validate_modules(require_target_root(args.repository), args.module,strict_authoring=args.strict_authoring)
+        errors = validate_modules(require_target_root(args.repository), args.module)
     except (OSError, UnicodeError, ValueError) as exc:
         return report_error(exc)
     emit_result(
@@ -201,9 +165,9 @@ def main(argv: list[str] | None = None) -> int:
             "attribution": "unverified: no before/after baseline supplied",
             "coverage": {"staticMetadata": True, "literalReferences": True, "rendering": False},
             "unverified": ["Dynamic resource expressions", "Rendered layout and interactions", "Whether an issue predates this change"],
-            "profile": "strict-cidl-authoring" if args.strict_authoring else "compatible-idl",
+            "profile": "shuku-course-preflight",
             "notes": "Outline-only drafts are validated as metadata and do not become buildable or published courses.",
-            "limitations": "Dynamic resource expressions and rendering require separate checks.",
+            "limitations": "Static preflight only; use course.pack with the selected Shuku for platform admission/build, and inspect rendering separately.",
         },
         status="failed" if errors else "passed",
     )

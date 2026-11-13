@@ -1,104 +1,53 @@
 ---
 name: creator-skill
-description: 在当前仓库中规划、设计、实现、修改和评估 React PPT 演示。包括仅在聊天中讨论汇报主线、设计或修改大纲与口播讲稿，以及从主题或材料创作演示、将既有 PPT/PDF/截图改编为 React 演示、继续开发或修复已有模块。支持教学、科研和商业汇报；不用于普通网站开发或一般文档编辑。
+description: 规划、设计、制作或修改 React 交互演示，包括主线、大纲、口播、从零创作与 PPT/PDF 改编，以及 Shuku 课件检查和源码 ZIP 交付。适用于教学、科研和商业汇报，不用于普通网站或一般文档。
 ---
 
-# React PPT 创作
+# React 演示创作
 
-## 开始任务
+## 开始与续作
 
-先判断当前任务是否需要访问工程。仅在聊天中讨论主题、主线、大纲、讲稿或设计建议时，直接按对应规范讨论，不要求用户先配置目录，不创建文件。
+先确定目标、已有成果和当前阶段。仅讨论主线、大纲、讲稿或设计时，无需工程配置或创建文件；工程操作按下方配置定位课程。
 
-需要读取、修改课程文件或执行工程工具时，按下方“目标工程配置”定位目标。纯工具发现、`--help` 和 Skill 自身检查无需目标配置。
+- 创作、改编与续作：读[流程共用说明](references/workflow/common.md)，再选[从零创作](references/workflow/from-scratch.md)或[参考改编](references/workflow/reference-adaptation.md)。修改已有模块沿用原流程，从当前阶段接续。
+- 仅维护缩略图：直接读[截图和缩略图](references/tools.md#截图和缩略图)，不重走创作流程。
+- 按下表读取当前动作所需资料；仍在上下文中的内容不重复读，不预读整个参考目录。已有确认、检查和产物仅在仍对应当前版本与范围时复用。
 
-仅生成或更新已有页面的缩略图时，直接按[缩略图快捷流程](references/tools.md#截图和缩略图)执行；这是资源维护，不重走大纲、设计与确认流程，也不预读设计资料或重写临时截图脚本。
+## 工程定位
 
-1. 确定目标模块、用户要求和已有成果。
-2. 必须读取[流程共用说明](references/workflow/common.md)，再判断任务模式，读取对应 Workflow。
-3. 确定当前阶段，从该阶段继续；复用已有大纲、设计、代码和确认结果。
-4. 按当前动作读取必要资料，不预读整个参考目录。
+工程操作前读本 Skill 的本地 `target-root.json`：`{"targetRoot":"用户指定的课程工程绝对路径"}`。首次按用户提供的有效目录创建，缺少目录时询问；该文件由 Git 忽略。后续沿用，不按 cwd、Skill 位置或旧环境变量猜测或切换工程。
 
-涉及汇报主线、章节、开场、内容取舍或大纲时，执行[大纲](references/design/course-outline.md)规范；仅在聊天中讨论、尚不修改文件，也属于该动作。已读过且仍在上下文中的资料无需反复读取，但每轮须按用户最新要求判断当前交付是主线讨论、章节结构还是逐页题目与演讲稿，不能用“已读取”代替执行。
+`CREATOR_SKILL_TARGET_CONFIG` 可指定本次调用专用配置，仍只含 `targetRoot`，不改变本地绑定。工具发现、`--help` 与 Skill 自身检查无需目标配置。构建和打包另以 `--shuku-root` 显式指定 Shuku，不能把它当成课程根目录。
 
-| 任务模式 | 适用情况 | Workflow |
-|---|---|---|
-| 从零创作 | 从主题、文字、论文或其他材料组织演示 | [从零创作](references/workflow/from-scratch.md) |
-| 参考改编 | 以既有 PPT、PDF 或逐页截图作为创作依据 | [参考改编](references/workflow/reference-adaptation.md) |
+## 关键约束
 
-任务只分为上述两种模式。继续制作、修改或修复已有模块时，沿用原 Workflow 的制作与确认流程，从当前阶段接续，不因模块或 React 文件已经存在而切换模式。
+- 每页围绕一个主要信息或问题，视觉和交互承担解释功能。教学方法、习题与 Guide 按任务需要采用。
+- 每页按“ImageGen 设计图 → 用户确认 → React 实现与自检 → 用户验收”推进，当前页验收后进入下一页。已有有效确认继续沿用；确认范围、局部修改与用户明确调整流程的规则见[共用说明](references/workflow/common.md#设计实现与确认)。
+- 生图前读设计指导并实际查看相关成对正反例，把借鉴与避让决策写入提示词；工具边界见[页面设计指导](references/design/design.md#视觉设计图的工具约束)。
+- React 使用 1600×900 固定画布、外层等比例缩放。第一页独立设计封面，其余页默认使用 Shared `ContentBlock` 标准标题区；独立文字用 `Typography`。用户明确指定的版式按指定范围执行。
+- 所有课件的设计示意图与正式页面画布均不添加页码、总页数或页序角标；每次生图提示词明确写“不添加页码”，参考原稿和样例中的页码也不保留。
+- 课程目录 UUID、`outlines.json.id`、`moduleIdentity.id` 相等；`moduleIdentity` 只含 `version`、`id`。每页登记非空 `id`、`title`、`snippet`，页面 UUID 稳定且与 PPT、Guide、讲稿一致，新增用 UUID v4。大纲不增加其他页面字段，不编造用户尚未提供的内容。
+- 页面放 `pages/<语义页目录>/<同名组件及样式>`，按实际制作进度建目录。逐页中间产物放页内 `_scratchpad/`，整体原稿和记录放模块级 `_scratchpad/`；正式素材放课程 `assets/`。
+- 视觉组件从 `@shuku/course-style/react` 导入；资源、请求与状态从 `@shuku/course-runtime/react/...` 导入。`moduleAssetUrl('真实相对路径')` 与 `moduleJson('真实相对路径')` 仅接受一个参数；不从 Shared 导入内核接口，不维护历史资源映射。
+- 初始化用户工程时，直接将本 Skill 根目录的完整 `shared/` 复制到目标工程的 `modules/shared/`（平铺布局用 `shared/`）；目标已有 Shared 时复用，不覆盖。路径、风格登记与 UUID 规则见[复制内置 Shared](references/engineering/module-assets.md#复制内置-shared)。
+- 课程源码与风格在课程工程，正式构建与运行时在 Shuku。制作时可用内置 Player Preview 预览源码；交付展示和截图验收仍使用平台构建产物，本地预览不能代替最终 ZIP 验收。
 
-## 目标工程配置
-
-执行工程操作前，读取本 Skill 根目录的本地配置 `target-root.json`。该文件由 `.gitignore` 排除，不随仓库提供。首次使用时，根据用户指定的目标工程绝对路径创建它，格式只有一个字段：
-
-```json
-{
-  "targetRoot": "用户指定的目标工程绝对路径"
-}
-```
-
-必须将模板中的文字替换为实际路径，不创建空配置或把示例路径当成目标。用户尚未指定有效目录时，先询问目标目录，再创建文件。所有课程读写和工具调用以 `targetRoot` 为准，不根据 Skill 安装位置、当前工作目录或旧环境变量猜测目标。后续任务读取并沿用已有配置，不自行切换根目录；Skill 自身的文档、样例和脚本仍相对本 Skill 定位。
-
-平台调用可用 `CREATOR_SKILL_TARGET_CONFIG` 指定本次调用专用的 `target-root.json`，仍只含 `targetRoot`。它不修改独立 Skill 的本地绑定，不能用旧的工程根目录环境变量或任意 `--root` 绕过该配置。
-
-## 执行原则
-
-- 每页明确主要信息或核心问题，内容与整份演示的目标一致。
-- 图形、图片、动画和交互应承担表达或解释功能。
-- 每一页都必须先用 ImageGen 生成视觉设计图并经用户确认，参考改编也适用。工具边界统一见[视觉设计图的工具约束](references/design/design.md#视觉设计图的工具约束)。
-- 生成视觉设计图前，必须读取[页面设计指导](references/design/design.md)，实际打开相关成对视觉正反例，并将借鉴与避让的具体设计决策写入生图提示词；不能仅写“参考样例”或凭印象指定风格。
-- 逐页完成设计确认、实现自检和用户验收，当前页验收后再进入下一页；确认范围统一见[流程共用说明](references/workflow/common.md#设计实现与确认)。
-- 沿用已有确认与授权；局部修改只处理受影响内容及必要依赖。
-- 仅在缺失信息会实质改变方向且无法合理推断时询问用户。
-- 教学方法、习题、Guide 和讲稿按任务需要采用，不作为所有演示的必备内容。
-- 页面制作与修改后执行基础检查；仅在用户明确要求打分、评分或执行 Rubric 时加载评分说明。“检查”“看看问题”“优化”不自动触发评分，评分不替代基础检查或用户验收。
-
-完整执行与确认规则见[流程共用说明](references/workflow/common.md)。
-
-## 工程约束
-
-- 使用 React，沿用当前仓库的技术栈和模块入口，默认复用 modules\shared 下的工程脚手架。
-- 创建、复制或修改 Shared 风格包时，先读 [Shared 风格 UUID 规则](references/engineering/module-assets.md#shared-风格-uuid)。风格身份只按 `style.json.id` 判断；独立新风格生成新 UUID，同一风格更新保留 UUID，兼容性由创作者负责，不增加基于 SHA-256 的风格冲突判定或网页确认流程。
-- 页面使用 1600×900 固定画布，由外层等比例缩放。
-- 第一页不使用 `ContentBlock`，单独设计封面。其余页面默认使用 Shared `ContentBlock` 及其标准标题区，设计示意图阶段就遵守；只有用户明确要求其他版式时，才在指定范围内更换。视觉样例默认指导标题区以下的内容构图。
-- 独立文字使用 Shared `Typography` 或已封装它的组件。
-- 模块大纲位于 `modules/<模块目录名>/outlines.json`。
-- 大纲每页必须包含非空字符串 `id`（稳定页面 UUID，必须是带连字符的标准小写 UUID；新增用 UUID v4）、`title`（题目）和 `snippet`（演讲稿）；ID 与 PPT scene.id、Guide step.id 一致，不增加其他页面字段。用户尚未提供的内容不自行补全。结构要求见[大纲](references/design/course-outline.md)。
-- 每页独占 `modules/<模块目录名>/pages/<语义页目录>/`，页面组件与同名样式放在该目录，不平铺在 `pages/` 下。该页的设计图、prompt、检查截图及临时脚本放在页目录内的 `_scratchpad/`；课程整体的原稿、大纲备份和汇总记录放在模块级 `_scratchpad/`。两级临时目录均由 Git 忽略，正式资源按工程约定保存。
-- 页目录与 `_scratchpad/` 按实际制作需要创建，不根据大纲预建未开始页面的空目录或占位文件。
-- 正式资源保存到所属课程的 `assets/`，统一使用 `moduleAssetUrl('images/example.jpg')`；参数相对于本课程 assets，不含电脑路径、域名或部署目录。课程身份由平台构建注入；已有 `moduleAssetUrl(moduleIdentity.id, relativePath)` 保持可用。CSS、Canvas、WebGL、音视频与 JSON 加载也复用此入口生成地址。详见[模块身份与资源](references/engineering/module-assets.md)。
-- 禁止生成、读取或维护历史格式映射文件。路径必须对应真实文件名，不能靠别名修复缺失资源。平台处理图片后计算最终字节 SHA-256、上传 OSS 并自动注入当前构建的资源地址；源码只保留相对资源路径，用户不填写哈希或 OSS 域名。版本内自动生成的交付清单不提交到课程仓库，不需要创作者维护。
 ## 按动作读取
 
-执行相应动作前，读取对应资料。
-
-| 动作 | 资料 |
+| 当前动作 | 资料 |
 |---|---|
-| 讨论主线、章节与开场，或生成、修改大纲（含纯聊天） | [大纲](references/design/course-outline.md) |
-| 撰写或精简逐页演讲稿，优化口播、配音与文本转语音 | [口播写作与文本转语音优化](references/design/spoken-narration.md) |
-| 设计或调整页面内容、构图与交互 | [页面设计指导](references/design/design.md) |
-| 分析原稿及转换范围 | [参考与转换](references/workflow/reference-adaptation.md) |
-| 编写或修改 React 页面 | [工程实现](references/engineering/implementation.md) |
-| 创建或调整模块身份、Shared 风格身份、资源 | [模块身份与资源](references/engineering/module-assets.md) |
-| 检查实现并交付 | [基础检查与验收](references/eval/checks.md) |
+| 主线、章节、开场、大纲（含纯聊天） | [大纲](references/design/course-outline.md) |
+| 逐页讲稿、口播或 TTS | [口播](references/design/spoken-narration.md) |
+| 页面构图与交互设计 | [设计](references/design/design.md) |
+| React 实现、入口与布局 | [工程实现](references/engineering/implementation.md) |
+| 课程/风格 UUID、素材、OSS | [身份与资源](references/engineering/module-assets.md) |
+| 本地开发预览、安装或构建播放器 | [Player Preview](player-preview/README.md) |
+| 页面检查与验收 | [基础检查](references/eval/checks.md) |
+| 构建、源码 ZIP 与上传交付 | [交付](references/engineering/delivery.md) |
+| 执行工具、参数与依赖 | [工具索引](references/tools.md)，优先 `describe <ID>` 与 `<ID> --help` |
+| 习题 / 大模型 / GPU | [习题](references/design/quiz.md) / [大模型](references/computing/llm.md) / [计算](references/computing/gpu.md) |
+| 用户明确要求评分 / 个人偏好 | [Rubric](references/eval/rubric-evaluation.md) / [偏好](references/preferences.md) |
 
-## 按问题选读
+## 完成
 
-仅加载与当前问题有关的资料。
-
-| 问题 | 资料 |
-|---|---|
-| 习题与答案反馈 | [习题设计](references/design/quiz.md) |
-| 用户明确要求页面质量评分 | [Rubric Evaluation](references/eval/rubric-evaluation.md) |
-| 准备执行创作工具命令（含大纲初始化），或查询工具、依赖与命令 | [工具索引](references/tools.md)，执行前必读 |
-| 大模型调用 | [大模型调用](references/computing/llm.md) |
-| 模型与较重计算 | [模型计算](references/computing/gpu.md) |
-| 用户明确要求采用个人偏好 | [个人偏好](references/preferences.md) |
-
-## 完成与交付
-
-- 按改动范围检查内容、实际渲染和相关交互。
-- 实现后的视觉检查使用真实页面，设计示意图不能替代运行结果。
-- 修复已发现的重大内容、布局和交互问题，并复验。
-- 简要说明完成内容、实际验证结果及尚未解决的限制。
-- 未执行或受阻的检查如实标记，不声称通过。
+按影响范围检查真实渲染、内容与相关交互，修复后复验；不默认执行评分或全仓测试。交付简述完成内容、实际验证与剩余限制，未执行的检查标为未验证。

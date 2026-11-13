@@ -1,0 +1,19 @@
+{
+  "module_uuid_pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$",
+  "page_uuid_pattern": "^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$",
+  "identity_version": 1,
+  "identity_fields": ["id", "version"],
+  "max_courses": 200,
+  "max_pages": 10000,
+  "required_course_fields": ["id", "title"],
+  "required_page_fields": ["title", "snippet"],
+  "entry_extension": ".tsx",
+  "forbidden_source_roots": ["src/shuku", "backend", "web_agent", "creator-skill"],
+  "retired_resource_manifests": [
+    "asset-index.json",
+    "asset-formats.json",
+    "modules/shared/asset-index.json",
+    "shared/asset-index.json"
+  ],
+  "retired_page_fields": ["interaction", "next", "section", "implementationStatus", "uuid"]
+}

@@ -82,18 +82,19 @@ def test_duplicate_uuid_stops_without_writes(modules):
     assert missing.read_bytes() == original
 
 
-def test_legacy_signature_is_ignored_and_removed_without_changing_uuid(modules):
-    path = outline(modules, module_identity={"version": 1, "id": MODULE_ID, "signature": "invalid-old-signature"})
+def test_legacy_signature_is_rejected_without_silent_rewrite(modules):
+    path = outline(modules, module_identity={"version": 1, "id": MODULE_ID, "signature": "old"})
     original = path.read_bytes()
-    assert identity.process_outlines(check_only=True) == 0
+    for check_only in (True, False):
+        with pytest.raises(identity.IdentityError, match="Invalid moduleIdentity"):
+            identity.process_outlines(check_only=check_only)
     assert path.read_bytes() == original
-    assert identity.process_outlines() == 0
-    assert json.loads(path.read_text())["moduleIdentity"] == {"version": 1, "id": MODULE_ID}
 
 
-def test_existing_semantic_directory_keeps_its_stable_identity(modules):
+def test_semantic_directory_requires_explicit_migration(modules):
     path = outline(modules, "Semantic", module_identity={"version": 1, "id": MODULE_ID})
     original = path.read_bytes()
-    assert identity.process_outlines(check_only=True) == 0
-    assert identity.process_outlines() == 0
+    for check_only in (True, False):
+        with pytest.raises(identity.IdentityError, match="canonical UUID"):
+            identity.process_outlines(check_only=check_only)
     assert path.read_bytes() == original

@@ -41,6 +41,7 @@ def compare_course(outline: dict, snapshot: dict) -> dict:
     """Return order errors and note/title warnings for a captured runtime snapshot."""
     errors = []
     warnings = []
+    unverified = []
     expected = [page["id"] for page in outline["pages"]]
     scenes = snapshot.get("scenes")
     guide = snapshot.get("guideIds")
@@ -57,7 +58,9 @@ def compare_course(outline: dict, snapshot: dict) -> dict:
         errors.append(f"PPT order differs: expected {expected}, got {actual}")
     if len(set(actual)) != len(actual):
         errors.append("Duplicate PPT scene IDs")
-    if not isinstance(guide, list) or guide != expected:
+    if guide is None and snapshot.get('guideApplicable', True):
+        unverified.append('Guide does not expose readable page order')
+    elif snapshot.get('guideApplicable', True) and guide != expected:
         errors.append(
             f"Guide order differs or is unavailable: expected {expected}, got {guide}"
         )
@@ -75,7 +78,7 @@ def compare_course(outline: dict, snapshot: dict) -> dict:
             warnings.append(
                 f"{page['id']}: speaker notes differ from the outline or are unavailable"
             )
-    return {"errors": errors, "warnings": warnings}
+    return {"errors": errors, "warnings": warnings, **({'unverified':unverified} if unverified else {})}
 
 
 def runtime_snapshot(context, base_url, outline):
@@ -89,19 +92,31 @@ def runtime_snapshot(context, base_url, outline):
             timeout=60000,
         )
         page.locator("[data-scene-deck-capture]").wait_for(timeout=60000)
-        snapshot = page.evaluate('window.__IDL_CAPTURE_COURSE__')
+        snapshot = page.evaluate("""() => {
+            const node=document.querySelector('[data-scene-deck-capture]');
+            const catalog=globalThis.__SHUKU_PAGE_CATALOG__;
+            if(!node||!catalog)return null;
+            const ids=JSON.parse(node.dataset.sceneIds||'[]');
+            return {scenes:ids.map(id=>{const p=catalog.pages.find(p=>p.id===id);return {id,title:p?.title,notesText:p?.snippet};}),
+                    metadataSource:'Shuku frozen page catalog; not independent source-note validation'};
+        }""")
         if not snapshot:
             raise ValueError('Rebuild this course to expose the capture metadata')
+        if not outline.get('entry'):
+            return {**snapshot, 'guideIds':None, 'guideApplicable':False}
         page.goto(
             (entry + '?mode=guide') if entry else base_url + outline["path"], wait_until="domcontentloaded", timeout=60000
         )
         flow = page.locator(".edu-lesson-flow").first
-        flow.wait_for(timeout=15000)
+        page.locator('#root > :not([role="status"])').first.wait_for(timeout=15000)
+        if not flow.count():
+            ids = page.locator('[data-step-id]').evaluate_all("elements=>elements.map(element=>element.dataset.stepId)")
+            return {**snapshot, 'guideIds':ids or None}
         key = flow.get_attribute("data-state-key")
         if not key:
             raise ValueError("Guide does not expose a LessonFlow state key")
         page.evaluate(
-            """({key,ids})=>localStorage.setItem(key,JSON.stringify({visibleCount:1000000,completedIds:ids,completed:false}))""",
+            """({key,ids})=>localStorage.setItem('shuku-runtime-state:'+JSON.stringify([globalThis.__SHUKU_COURSE_ID__,key]),JSON.stringify({version:1,value:{visibleCount:1000000,completedIds:ids,completed:false}}))""",
             {"key": key, "ids": [p["id"] for p in outline["pages"]]},
         )
         page.reload(wait_until="domcontentloaded")
@@ -145,14 +160,16 @@ def main(argv: list[str] | None = None) -> int:
             ):
                 snapshot = runtime_snapshot(context, address, outline)
         result = compare_course(outline, snapshot)
+        if snapshot.get('metadataSource'):
+            result['coverage'] = {'metadataSource': snapshot['metadataSource'], 'independentSourceNotes': False}
         if saved:
             saved.parent.mkdir(parents=True, exist_ok=True)
             saved.write_text(
                 json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8"
             )
             result["snapshot"] = str(saved)
-        emit_result(result, status="failed" if result["errors"] else "passed")
-        return 1 if result["errors"] else 0
+        emit_result(result, status="failed" if result["errors"] else "unverified" if result.get('unverified') else "passed")
+        return 1 if result["errors"] else 2 if result.get('unverified') else 0
     except Exception as exc:
         return report_error(exc)
 

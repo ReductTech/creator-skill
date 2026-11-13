@@ -95,7 +95,9 @@ git clone https://github.com/ReductTech/creator-skill.git creator-skill
 
 上面的路径仅为格式示例，实际创建时使用你指定的已存在目录；Windows 路径推荐使用 `/`。未配置或路径无效时工程工具会报错，不会猜测目标，也不会自动创建目录。配置确定后沿用，工具不再以 Skill 所在目录或 `IDL_REPOSITORY_ROOT` 推算工程位置。
 
-目标工程支持 `modules/<课程>/` 和根目录直接放置 `<课程>/` 两种结构；制作与构建还需配套公共组件和 React 构建环境。如果选择把 Skill 放在工程内部，布局可以如下；分开放置时也读取同一份配置。
+目标工程支持 `modules/<UUID>/` 和根目录 `<UUID>/` 两种布局；统一 npm 依赖、运行时、预览与构建由 Shuku 提供。Skill 可独立安装，也可放在课程工程内；构建上传包须排除 Skill。
+
+本仓库根目录已附带完整 `shared/`。初始化用户工程时，AI 助手可直接复制到目标的 `modules/shared/`（平铺布局用 `shared/`），保留风格 UUID；已有 Shared 则复用。详见[复制内置 Shared](references/engineering/module-assets.md#复制内置-shared)。
 
 预期位置如下：
 
@@ -106,12 +108,12 @@ your-course-project/
 │   ├── target-root.json    # 首次使用时创建，Git 忽略
 │   ├── references/
 │   ├── assets/
+│   ├── shared/             # 可直接复制给目标工程的完整默认风格包
 │   └── scripts/
 ├── modules/
 │   ├── shared/             # 配套公共组件与播放器
-│   └── Your-Course/
-├── package.json
-└── vite.config.ts
+│   └── <课程UUID>/
+└── course-styles.json      # 风格登记（如有）
 ```
 
 ### 2. 让 AI 助手读取 Skill
@@ -153,14 +155,27 @@ python creator-skill/scripts/tools.py capture.slides --help
 
 工具覆盖模块初始化、资源检查、原稿提取、真实页面截图和布局校验等任务。详细参数与执行效果见[创作工具索引](references/tools.md)。
 
+### 4. 本地预览课件
+
+本仓库附带 `player-preview/`，使用 Node.js 24+。首次拉取后在本机安装依赖并构建：
+
+```powershell
+cd player-preview
+npm ci --cache .npm-cache
+npm run build
+npm run dev
+```
+
+打开 [本地预览](http://127.0.0.1:5174/) 或 [播放器演示](http://127.0.0.1:5174/?demo=1)。课件预览复用根目录的 `target-root.json`，并需要 Shuku 的课程运行时。路径配置、目录与常见问题见 [Player Preview 使用说明](player-preview/README.md)。依赖、缓存和 `dist/` 已由 `.gitignore` 排除，源码与 `package-lock.json` 保留，用户自行构建。
+
 ### 使用环境
 
-本仓库提供 **Skill、参考资料和辅助工具**；课程运行时、公共 React 组件、播放器及平台后端由配套工程提供。仅克隆本仓库不会启动一个独立课件网站。
+本仓库提供 **Skill、参考资料、辅助工具、默认 Shared 和本地播放器预览源码**；课程运行时和平台后端仍由 Shuku 提供。本地开发预览与官网上传发布分别执行。
 
 | 功能 | 所需环境 |
 | :--- | :--- |
 | 阅读与执行创作规范 | 支持工程文件读取与代码编辑的 AI 编程助手 |
-| 页面实现与预览 | 配套 React 工程、Node.js、项目依赖及公共组件 |
+| 页面实现与预览 | Node.js 24+、Player Preview、目标课程工程与 Shuku 课程运行时 |
 | Python 辅助工具 | Python 3.10+；额外依赖按工具需要安装 |
 | 页面截图 | Python Playwright、Chromium 和 Pillow |
 | PPTX 原稿导出 | Windows 与桌面版 Microsoft PowerPoint |
@@ -189,6 +204,8 @@ creator-skill/
 │   └── tools.md           # 工具发现与调用说明
 ├── assets/visual_samples/ # 成对视觉正反例
 ├── scripts/               # 工具、模板与回归测试
+├── shared/                # 完整默认风格包
+├── player-preview/        # 播放器与预览源码，使用者自行安装构建
 └── docs/                  # 对外展示与实际课件截图
 ```
 
@@ -203,6 +220,7 @@ creator-skill/
 | 设计页面与交互 | [页面设计指导](references/design/design.md) · [视觉案例](assets/visual_samples/) |
 | 编写 React 页面、管理素材 | [工程实现](references/engineering/implementation.md) · [资源约定](references/engineering/module-assets.md) |
 | 检查实际页面 | [基础检查与验收](references/eval/checks.md) |
+| 本地预览课件、构建播放器 | [Player Preview](player-preview/README.md) |
 | 查找工具与参数 | [创作工具索引](references/tools.md) |
 
 ---
@@ -211,6 +229,6 @@ creator-skill/
 
 ## 与术库的关系
 
-本仓库是创作规范、工具和行为测试的唯一维护位置。Shuku 通过外部路径调用同一套工具，不再维护另一份 Skill。平台可用 `CREATOR_SKILL_ROOT` 或 `authoring_tools.skill_root` 指定安装位置；每次平台检查使用独立临时目标配置，保持本地 `target-root.json` 绑定不变。发布镜像内只保存由本仓库冻结源码生成的运行产物。
+本仓库维护创作规范、辅助工具与测试。Shuku 使用自带 `tooling/authoring` 校验器与 `tooling/course-build` 构建器，不从外部 Skill 加载检查器。Skill 的静态预检不能代替当前平台验收；`course.pack --shuku-root <路径>` 使用该 Shuku 的真实导入校验与构建，全部成功才交付源码 ZIP。详见[构建与 ZIP 交付](references/engineering/delivery.md)。
 
 逐页确认与每页 ImageGen 设计图是必需流程，见 [流程共用说明](references/workflow/common.md) 和 [页面设计指导](references/design/design.md)。

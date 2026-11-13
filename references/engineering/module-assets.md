@@ -8,11 +8,20 @@
 {"id":"2e5c4732-a40a-4d20-b954-a61507aabc75","moduleIdentity":{"version":1,"id":"2e5c4732-a40a-4d20-b954-a61507aabc75"}}
 ```
 
-示例不能直接作为新课身份。`module.init --title "课程标题"` 自动分配 UUID，或用 `--directory <UUID>` 指定。只创建缺失大纲，不覆盖已有文件。`module.identity --check` 只读检查；不加 `--check` 可补齐缺失身份；UUID 目录使用目录 UUID，已有语义目录可生成稳定 UUID，冲突或重复时停止，不擅自重命名。
+示例不能直接作为新课身份。`module.init --title "课程标题"` 自动分配 UUID，或用 `--directory <UUID>` 指定。只创建缺失大纲，不覆盖已有文件。`module.identity --check` 只读检查；不加 `--check` 可补齐缺失身份；UUID 目录使用目录 UUID，只在 UUID 目录补齐缺失身份；非法或冲突时停止，不擅自改写稳定身份。
 
 复制为独立新模块时分配新的目录 UUID，同步大纲 id、moduleIdentity.id、path 和运行时 assetId，再核对引用。不要沿用源模块身份。素材文件可以保留原名与字节，上传后自然复用同一 SHA-256 对象。Git 记录整个模块的版本，UUID 不代替 Git 提交。
 
-已有语义目录和稳定身份由 Shuku 兼容检查保留，不为对齐 Skill 擅自重命名；新课程继续默认使用 UUID 目录。工程也可采用根目录直接放置 `<UUID>/outlines.json` 的平铺布局。
+Shuku 不接受非 UUID 课程目录。旧语义目录需显式迁移目录、id 与引用，保留合法的页面 UUID；不以兼容模式绕过。工程可使用 `modules/<UUID>/` 或根目录 `<UUID>/` 的单一布局。
+
+## 复制内置 Shared
+
+本 Skill 根目录自带完整的 `shared/` 风格包。初始化课程工程或目标缺少 Shared 时，智能体直接复制这份目录，不要求用户另外寻找、下载或手工复制。
+
+1. 以 `target-root.json.targetRoot` 为目标根目录。`modules/<UUID>/` 布局复制到 `<targetRoot>/modules/shared/`；已有平铺 `<UUID>/` 布局复制到 `<targetRoot>/shared/`；空工程默认采用 `modules/` 布局。
+2. 复制整个 `<Skill根目录>/shared/`，包括 `style.json`、`bootstrap.ts`、`react/`、`assets/`、`types/` 与 `vendor/`，保持目录层级。目标已有 Shared 或已登记同一风格 UUID 时复用现有包，不覆盖或重复登记。
+3. 原样使用内置包时保留 `style.json.id`，不因复制而生成新 UUID。不存在 `course-styles.json` 时，Shuku 可从标准位置的 `shared/style.json` 自动发现；已有登记文件时补齐对应 `styles[].id/path`，保留其他风格与既有选择。
+4. 课程组件通过 `@shuku/course-style/react` 使用复制后的 Shared；资源、请求与状态仍从 `@shuku/course-runtime/react/...` 导入。复制 Shared 不代替 Shuku 构建环境。独立新风格按下方 UUID 规则处理。
 
 ## Shared 风格 UUID
 
@@ -56,12 +65,12 @@ Shared 作为风格包时，在包根目录的 `style.json` 中用 `id` 保存�
 资源统一通过 `moduleAssetUrl` 管理。用户只写相对于本课程 `assets/` 的真实路径，不写 OSS 地址、SHA-256、电脑绝对路径、网站根路径或历史文件别名。
 
 ```tsx
-import { moduleAssetUrl } from '../shared/react';
+import { moduleAssetUrl } from '@shuku/course-runtime/react/assets';
 const imageUrl = moduleAssetUrl('images/example.jpg');
 export function Lesson() { return <img src={imageUrl} alt="模型结构" />; }
 ```
 
-课程上下文由构建器注入。现有双参数形式 `moduleAssetUrl(moduleIdentity.id, 'images/example.jpg')` 保持兼容，身份不是资源路径的一部分。深层组件仅调整 helper 的 import 路径。CSS 背景图使用 helper 生成地址后传入 CSS 自定义属性；Canvas、WebGL 与音视频也消费该 URL，不另建路径解析器。资源 JSON 按需 fetch 此地址，不打入 JS 包；可复用 `moduleJson` 的缓存、并发合并和重试。
+课程上下文由构建器注入。`moduleAssetUrl` 与 `moduleJson` 只接受一个课程内路径参数；旧显式模块 ID 必须改写。资源从 `@shuku/course-runtime/react/assets`、JSON 从 `@shuku/course-runtime/react/moduleJson` 导入；Shared 不再转发内核接口。CSS 背景图使用 helper 生成地址后传入 CSS 自定义属性；Canvas、WebGL 与音视频也消费该 URL，不另建路径解析器。资源 JSON 按需 fetch 此地址，不打入 JS 包；可复用 `moduleJson` 的缓存、并发合并和重试。
 
 禁止跨目录 `..`、磁盘路径、`file://`、手写 CDN 地址。新资源引用应使用固定相对路径；多个素材在代码数组中明确列出，不通过扩展名替换猜测文件。文件改名时修改引用本身，禁止建立格式映射兼容表。已有图片图集的坐标索引是内容数据，仍保留；不能以清理格式表为由删除图集裁剪、Canvas 或 WebGL 能力。
 
@@ -81,7 +90,7 @@ GPU 构建容器保持断网，上传发生在容器外的可信 Worker，不将
 
 ## 构建、去重与发布
 
-课程源码不再提供全局资源索引。平台从模块大纲发现课程与所属 assets，为每个构建版本自动生成产物清单。工具可读取已有的资源归属索引以兼容旧工程，但新课程不需要手写 UUID 到目录的登记，也不读取格式别名。
+课程源码不再提供全局资源索引。平台从模块大纲发现课程与所属 assets，为每个构建版本自动生成产物清单。根目录 `asset-index.json`、`asset-formats.json` 及 Shared 旧资源索引会被拒绝；归属由课程目录发现，不维护全局登记或格式别名。
 
 构建版本清单可记录 `path`、`sha256`、`size`、`mime`、`object_key`，用于去重、权限、完整性校验和恢复。这属于平台内部构建输出，不是全局映射表，也不是创作者的维护项。
 

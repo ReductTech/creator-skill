@@ -129,7 +129,9 @@ def test_built_capture_keeps_uuid_urls_and_never_mounts_source(tmp_path, monkeyp
     module.mkdir(parents=True)
     (module / "outlines.json").write_text(json.dumps({"id": uid}))
     (tmp_path / "dist").mkdir()
-    (tmp_path / "dist/catalog.json").write_text(json.dumps({"kind": "idl-built-catalog", "modules": [{"id": uid, "alias": "example", "base": uid + "/"}]}))
+    built = tmp_path / 'dist' / uid
+    built.mkdir()
+    (built / 'artifact-manifest.json').write_text(json.dumps({'module_id':uid, 'revision':'a'*64, 'files':[]}))
     monkeypatch.setattr(capture, "ROOT", tmp_path)
     class Context:
         def route(self, *args): pytest.fail("Built capture must not mount source routes")
@@ -137,5 +139,5 @@ def test_built_capture_keeps_uuid_urls_and_never_mounts_source(tmp_path, monkeyp
     capture.configure_module_capture(Context(), module, "http://localhost:5180")
     url = capture.capture_url("http://localhost:5180", uid, "opening")
     assert uid + "/index.html?" in url
-    assert "mode=ppt" in url and "slide=opening" in url
+    assert "mode=ppt" in url and "page=opening" in url and "slide=" not in url
     assert "/scenedeck/" not in url

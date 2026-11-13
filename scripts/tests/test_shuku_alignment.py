@@ -84,7 +84,7 @@ def test_nested_entry_and_new_asset_helper_forms(tmp_path, flat):
     (folder / 'pages').mkdir(parents=True)
     (folder / 'assets').mkdir()
     (folder / 'assets/image.png').write_bytes(b'image')
-    (folder / 'pages/Page.tsx').write_text("moduleAssetUrl('image.png'); moduleAssetUrl(moduleIdentity.id, 'image.png');")
+    (folder / 'pages/Page.tsx').write_text("moduleAssetUrl('image.png');")
     outline = {'id': MID, 'title': 'Course', 'path': '/modules/' + MID,
                'moduleIdentity': {'version': 1, 'id': MID}, 'ppt': {'entry': 'pages/Page.tsx'},
                'pages': [{'id': 'f2ac1473-665f-46f8-bcb1-53c9438f6482', 'title': 'One', 'snippet': 'Narration'}]}

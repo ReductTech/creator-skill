@@ -23,7 +23,7 @@ async function createTab(url, debugPort) {
 export async function auditSlide(id, { lessonUrl, debugPort, surfaceSelector, maxChars = null, timeout = 15000 }) {
     const url = new URL(lessonUrl);
     if (id !== null)
-        url.searchParams.set('slide', id);
+        url.searchParams.set('page', id);
     if (/\/scenedeck\/?$/.test(url.pathname)) url.searchParams.set('scenedeckCapture', '1');
     const tab = await createTab(url.toString(), debugPort);
     let socket;
@@ -63,7 +63,7 @@ export async function auditSlide(id, { lessonUrl, debugPort, surfaceSelector, ma
             mobile: false,
         });
         const checker = await readFile(new URL('../common/_page_checks.js', import.meta.url), 'utf8');
-        const expression = `(${checker})(${JSON.stringify({surfaceSelector, expectedId: id ?? url.searchParams.get('slide'), maxChars})})`;
+        const expression = `(${checker})(${JSON.stringify({surfaceSelector, expectedId: id ?? url.searchParams.get('page'), maxChars})})`;
         const deadline = Date.now() + timeout;
         let result;
         do {

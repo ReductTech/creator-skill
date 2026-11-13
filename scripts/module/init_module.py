@@ -48,8 +48,8 @@ def ensure_outline(
     """Create the canonical outline once, without reading or rewriting an existing one."""
     root = Path(root).resolve()
     directory = directory or str(uuid.uuid4())
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", directory):
-        raise ValueError("Invalid module directory name")
+    if not re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", directory):
+        raise ValueError("Invalid module directory name; use a canonical UUID v4")
     modules = modules_directory(root)
     target = modules / directory
     if (
@@ -113,8 +113,8 @@ def ensure_outline(
 def plan_module(root, directory, outline):
     """Legacy scaffold helper; not used by the module.init command."""
     directory = directory or str(uuid.uuid4())
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", directory):
-        raise ValueError("Invalid module directory name")
+    if not re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", directory):
+        raise ValueError("Invalid module directory name; use a canonical UUID v4")
     target = modules_directory(root) / directory
     if target.exists():
         raise ValueError(f"Module already exists: {target}")
@@ -169,12 +169,12 @@ def plan_module(root, directory, outline):
     if (target / "assets").exists():
         raise ValueError("Generated UUID asset directory already exists")
     guide = """import { useRef, type ReactNode } from 'react';
-import { Button, LessonFlow, ModuleShell } from '../shared/react';
-import { useSceneScale } from '../shared/react/presentation/canvas';
+import { Button, LessonFlow, ModuleShell } from '@shuku/course-style/react';
+import { useSceneScale } from '@shuku/course-style/react/presentation/canvas';
 import { scenes } from './course';
 import outline from './outlines.json';
-import '../shared/react/styles.css';
-import '../shared/react/presentation.css';
+import '@shuku/course-style/react/styles.css';
+import '@shuku/course-style/react/presentation.css';
 function Canvas({children}:{children:ReactNode}) {
   const ref=useRef<HTMLDivElement>(null); const scale=useSceneScale(ref);
   return <div ref={ref} style={{width:'100%',aspectRatio:'16 / 9',position:'relative'}}><div className="course-page-surface course-shell" style={{width:1600,height:900,transform:`scale(${scale})`,transformOrigin:'top left'}}>{children}</div></div>;
@@ -182,8 +182,8 @@ function Canvas({children}:{children:ReactNode}) {
 const steps=scenes.map((scene,index)=>({id:scene.id,completesLesson:index===scenes.length-1,render:(context:Parameters<typeof scene.render>[0])=><><Canvas>{scene.render(context)}</Canvas><Button onClick={context.complete}>继续</Button></>}));
 export function GuidePage(){return <ModuleShell title={outline.title} subtitle={outline.description || ''}><LessonFlow steps={steps} persistenceKey={outline.moduleIdentity.id+':guide'}/></ModuleShell>;}
 """
-    course = """import { ContentBlock } from '../shared/react';
-import type { SceneDefinition, SpeakerNote } from '../shared/react/presentation';
+    course = """import { ContentBlock } from '@shuku/course-style/react';
+import type { SceneDefinition, SpeakerNote } from '@shuku/course-style/react/presentation';
 import outline from './outlines.json';
 // Engineering scaffold only. Implement each page after its design is confirmed.
 export const scenes:SceneDefinition[]=outline.pages.map(page=>({id:page.id,title:page.title,section:'',render:()=> <ContentBlock title={page.title}/> }));
@@ -197,7 +197,7 @@ export function getPptNotes(id:string):SpeakerNote[]{const page=outline.pages.fi
         page.setdefault("snippet", "")
         if not isinstance(page["snippet"], str):
             raise ValueError("Page snippet must be a string")
-    ppt = """import { SceneDeck, type DeckDefinition } from '../shared/react/presentation';
+    ppt = """import { SceneDeck, type DeckDefinition } from '@shuku/course-style/react/presentation';
 import outline from './outlines.json';
 import { scenes, getPptNotes } from './course';
 export { getPptNotes };

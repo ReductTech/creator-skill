@@ -1,4 +1,5 @@
 import importlib.util
+import os
 import json
 from pathlib import Path
 import subprocess
@@ -69,6 +70,13 @@ def test_consistency_detects_ppt_guide_and_notes_drift():
     assert len(compare_course(OUTLINE,notes)['warnings'])==2
 
 
+def test_consistency_marks_unreadable_guide_as_unverified():
+    snapshot={'scenes':[{'id':OUTLINE['pages'][0]['id'],'title':'First','notesText':'Notes'}], 'guideIds':None}
+    report=compare_course(OUTLINE,snapshot)
+    assert report['errors']==[] and report['unverified']
+    assert compare_course(OUTLINE,{**snapshot,'guideApplicable':False})=={'errors':[],'warnings':[]}
+
+
 def test_asset_duplicates_are_reported_without_deleting(tmp_path):
     result=initialize(tmp_path,'2e5c4732-a40a-4d20-b954-a61507aabc75',OUTLINE)
     folder=tmp_path/'modules/2e5c4732-a40a-4d20-b954-a61507aabc75/assets'
@@ -136,6 +144,7 @@ def test_real_capture_uses_existing_engine_for_default_and_click_states(tmp_path
     finally:server.shutdown();server.server_close();thread.join(timeout=5)
 
 
+@pytest.mark.skipif(not os.environ.get('CREATOR_SKILL_TEST_SHUKU_ROOT'), reason='Explicit Shuku checkout required for current runtime aliases')
 def test_generated_scaffold_distinguishes_project_baseline_from_new_errors(tmp_path):
     from module.init_module import plan_module
     _,files=plan_module(tmp_path,'2e5c4732-a40a-4d20-b954-a61507aabc75',OUTLINE)

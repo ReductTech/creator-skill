@@ -27,10 +27,10 @@ def validate_identity(identity: Any, outline_path: Path) -> str:
     if (
         not isinstance(identity, dict)
         or not {"version", "id"} <= identity.keys()
-        or identity.keys() - {"version", "id", "signature"}
+        or identity.keys() - {"version", "id"}
     ):
         raise IdentityError(f"{outline_path}: Invalid moduleIdentity structure.")
-    if type(identity["version"]) is not int or identity["version"] != IDENTITY_VERSION:
+    if type(identity["version"]) not in (int, float) or identity["version"] != IDENTITY_VERSION:
         raise IdentityError(f"{outline_path}: Invalid identity version.")
     module_id = identity["id"]
     try:
@@ -39,7 +39,6 @@ def validate_identity(identity: Any, outline_path: Path) -> str:
         raise IdentityError(f"{outline_path}: Invalid module UUID.") from exc
     if parsed is None or str(parsed) != module_id or parsed.version != 4:
         raise IdentityError(f"{outline_path}: Invalid module UUID; expected a canonical lowercase UUID v4.")
-    # Legacy signatures are ignored and removed by the generation command.
     return module_id
 
 

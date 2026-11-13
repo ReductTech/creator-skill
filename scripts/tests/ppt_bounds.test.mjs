@@ -14,7 +14,8 @@ globalThis.fetch = async address => {
   if (url.pathname === '/json/new') {
     const target = new URL(decodeURIComponent(url.search.slice(1)));
     assert.equal(target.searchParams.get('deck'), 'demo');
-    assert.equal(target.searchParams.get('slide'), 'one');
+    assert.equal(target.searchParams.get('page'), 'one');
+    assert.equal(target.searchParams.has('slide'), false);
     return {ok:true,json:async()=>({id:'owned-tab',webSocketDebuggerUrl:'ws://mock'})};
   }
   assert.equal(url.pathname, '/json/close/owned-tab');

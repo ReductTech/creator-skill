@@ -32,7 +32,7 @@ def test_valid_course_and_literal_asset_are_accepted(tmp_path, layout):
     assets = directory / "assets" if layout == "module" else tmp_path / "assets" / UUID
     assets.mkdir(parents=True)
     (assets / "image.png").write_bytes(b"image")
-    (directory / "asset.ts").write_text(f"moduleAssetUrl('{UUID}', 'image.png')")
+    (directory / "asset.ts").write_text(f"moduleAssetUrl('image.png')")
     assert validate_modules(tmp_path) == [] if layout == "module" else any("missing" in e for e in validate_modules(tmp_path))
 
 
@@ -43,13 +43,12 @@ def test_obsolete_outline_fields_are_rejected(tmp_path, field):
     doc = json.loads(path.read_text())
     doc["pages"][0][field] = "legacy value"
     path.write_text(json.dumps(doc))
-    assert any("obsolete outline fields" in error and field in error for error in validate_modules(tmp_path, strict_authoring=True))
-    assert not any("obsolete outline fields" in error for error in validate_modules(tmp_path))
+    assert any("obsolete outline fields" in error and field in error for error in validate_modules(tmp_path))
 
 
 def test_missing_and_escaping_assets_are_rejected(tmp_path):
     directory = course(tmp_path)
-    (directory / "asset.ts").write_text(f"moduleAssetUrl('{UUID}', '../../outside.png')")
+    (directory / "asset.ts").write_text(f"moduleAssetUrl('../../outside.png')")
     (tmp_path / "outside.png").write_bytes(b"must not be accepted")
     assert any("escaping asset" in error for error in validate_modules(tmp_path))
 
@@ -73,8 +72,8 @@ def test_missing_entry_and_duplicate_pages_are_rejected(tmp_path):
     doc["pages"] *= 2
     path.write_text(json.dumps(doc))
     errors = validate_modules(tmp_path)
-    assert any("existing module TSX" in error for error in errors)
-    assert any("duplicate page" in error for error in errors)
+    assert any("Missing course entry" in error for error in errors)
+    assert any("Duplicate page" in error for error in errors)
 
 
 def test_module_local_assets_are_allowed_but_wrong_asset_id_is_rejected(tmp_path):
@@ -92,6 +91,17 @@ def test_skill_rejects_empty_description_and_broken_reference(tmp_path):
     path.write_text('---\nname: example\ndescription: ""\n---\n')
     assert not validate_skill(tmp_path)[0]
     path.write_text('---\nname: example\ndescription: Does something\n---\n[missing](missing.md)\n')
+    assert not validate_skill(tmp_path)[0]
+
+
+def test_skill_checks_source_docs_without_scanning_installed_dependencies(tmp_path):
+    (tmp_path / 'SKILL.md').write_text('---\nname: example\ndescription: Does something\n---\n')
+    dependency = tmp_path / 'player-preview/node_modules/package/README.md'
+    dependency.parent.mkdir(parents=True)
+    dependency.write_text('[upstream file](not-shipped.json)')
+    assert validate_skill(tmp_path)[0]
+    source = tmp_path / 'player-preview/README.md'
+    source.write_text('[missing source](missing.md)')
     assert not validate_skill(tmp_path)[0]
 
 
@@ -149,13 +159,13 @@ def test_all_files_explicitly_placed_in_public_assets_are_uploaded(tmp_path):
     }
 
 
-def test_legacy_outline_without_slug_is_preserved(tmp_path):
+def test_outline_without_id_is_rejected(tmp_path):
     directory = course(tmp_path)
     path = directory / "outlines.json"
     doc = json.loads(path.read_text())
     del doc["id"]
     path.write_text(json.dumps(doc))
-    assert validate_modules(tmp_path) == []
+    assert validate_modules(tmp_path)
 
 
 @pytest.mark.parametrize("layout", ["module", "legacy"])
@@ -164,11 +174,11 @@ def test_atlas_virtual_image_requires_a_real_mapped_sheet(tmp_path, layout):
     assets = directory / "assets" if layout == "module" else tmp_path / "assets" / UUID
     (assets / "image-atlases").mkdir(parents=True)
     (assets / "image-atlases/index.json").write_text(json.dumps({"virtual.png": {"sheet": "image-atlases/sheet.png"}}))
-    (directory / "asset.ts").write_text(f"atlasCropUrl(moduleAssetUrl('{UUID}', 'virtual.png'))")
+    (directory / "asset.ts").write_text(f"atlasCropUrl(moduleAssetUrl('virtual.png'))")
     assert any("missing" in error for error in validate_modules(tmp_path))
     (assets / "image-atlases/sheet.png").write_bytes(b"sheet")
     assert validate_modules(tmp_path) == [] if layout == "module" else any("missing" in e for e in validate_modules(tmp_path))
-    (directory / "asset.ts").write_text(f"moduleAssetUrl('{UUID}', 'virtual.png')")
+    (directory / "asset.ts").write_text(f"moduleAssetUrl('virtual.png')")
     assert any("missing" in error for error in validate_modules(tmp_path))
 
 
@@ -179,7 +189,7 @@ def test_module_assets_take_precedence_over_legacy_root(tmp_path):
     legacy = tmp_path / "assets" / UUID
     legacy.mkdir(parents=True)
     (legacy / "old.png").write_bytes(b"old")
-    (directory / "asset.ts").write_text(f"moduleAssetUrl('{UUID}', 'old.png')")
+    (directory / "asset.ts").write_text(f"moduleAssetUrl('old.png')")
     assert asset_directory(tmp_path, UUID) == directory / "assets"
     assert any("missing" in error for error in validate_modules(tmp_path))
     (directory / "assets/old.png").write_bytes(b"current")
@@ -195,10 +205,6 @@ def test_default_upload_discovers_module_assets_and_preserves_uuid(tmp_path, mon
     shared = tmp_path / "modules/shared"
     (shared / "assets").mkdir(parents=True)
     (shared / "assets/common.svg").write_bytes(b"shared")
-    (shared / "asset-index.json").write_text(json.dumps({
-        "roots": {UUID: "modules/" + UUID + "/assets", "shared": "modules/shared/assets"},
-        "formats": {},
-    }))
     monkeypatch.setattr(uploader, "get_target_root", lambda: tmp_path)
     monkeypatch.setattr(uploader, "DEFAULT_ASSETS_DIR", tmp_path / "modules")
     args = uploader.build_parser().parse_args(["--module", UUID, "--dry-run"])
@@ -206,9 +212,10 @@ def test_default_upload_discovers_module_assets_and_preserves_uuid(tmp_path, mon
     assert result["objects"] == [uploader.object_key(directory, directory / "assets/images/picture.jpg")]
     args.module = None
     result = uploader.upload_assets(args)
+    # Standalone upload discovers course-owned assets. Shared dependencies are
+    # delivered by the complete platform build, without a retired global index.
     assert set(result["objects"]) == {
         uploader.object_key(directory, directory / "assets/images/picture.jpg"),
-        uploader.object_key(shared, shared / "assets/common.svg"),
     }
 
 

@@ -157,23 +157,32 @@ def launch_browser(playwright):
 
 
 def built_entry(base_url: str, deck_id: str) -> str | None:
-    """Resolve this checkout's fixed build; never infer a source route for IDL."""
-    catalog = _BUILD_OUTPUTS.get(base_url.rstrip('/'), repository_root() / 'dist') / 'catalog.json'
-    if not catalog.is_file():
-        return None
-    document = json.loads(catalog.read_text(encoding='utf-8'))
-    if document.get('kind') != 'idl-built-catalog':
-        return None
-    for module in document.get('modules', []):
-        if deck_id in {module.get('id'), module.get('alias')}:
-            return urljoin(base_url.rstrip('/') + '/', module['base'] + 'index.html')
+    """Resolve current immutable manifests, not a retired global catalog."""
+    output = _BUILD_OUTPUTS.get(base_url.rstrip('/'), repository_root() / 'dist')
+    candidates = []
+    for manifest in (output / deck_id).glob('*/artifact-manifest.json'):
+        try:
+            info = json.loads(manifest.read_text(encoding='utf-8'))
+            if info.get('module_id') == deck_id and info.get('revision') == manifest.parent.name:
+                candidates.append((manifest.stat().st_mtime, manifest.parent))
+        except (OSError, ValueError):
+            continue
+    if not candidates:
+        manifest = output / deck_id / 'artifact-manifest.json'
+        if manifest.is_file():
+            info = json.loads(manifest.read_text(encoding='utf-8'))
+            if info.get('module_id') == deck_id:
+                candidates.append((manifest.stat().st_mtime, manifest.parent))
+    if candidates:
+        folder = max(candidates)[1]
+        return urljoin(base_url.rstrip('/') + '/', folder.relative_to(output).as_posix() + '/index.html')
     return None
 
 
 def capture_url(base_url: str, deck_id: str, slide_id: str | None = None) -> str:
     query = {"scenedeckCapture": "1", "deck": deck_id}
     if slide_id:
-        query["slide"] = slide_id
+        query["page"] = slide_id
     entry = built_entry(base_url, deck_id)
     if entry:
         query['mode'] = 'ppt'
@@ -197,18 +206,19 @@ def open_capture(context, url: str):
     timeout = getattr(context, "_idl_timeout_ms", 15000)
     try:
         query = parse_qs(urlparse(url).query)
-        slide = query.get("slide", [None])[0]
-        if reusable and page.evaluate("typeof window.__IDL_CAPTURE_NAVIGATE__ === 'function'"):
-            page.evaluate("slide => window.__IDL_CAPTURE_NAVIGATE__(slide)", slide)
+        slide = query.get("page", [None])[0]
+        current = page.locator('[data-scene-deck-capture]').get_attribute('data-scene-id') if reusable and page.locator('[data-scene-deck-capture]').count() else None
+        if reusable and slide and current != slide and urlparse(page.url)._replace(query='') == urlparse(url)._replace(query=''):
+            page.evaluate("page => window.postMessage({channel:'shuku-player-v1',action:'navigate',page}, '*')", slide)
         else:
             page.goto(url, wait_until="commit", timeout=timeout)
         page.bring_to_front()
         page.wait_for_function("""slide => {
-            if (window.__IDL_CAPTURE_ERROR__) return true;
+            if (window.__SHUKU_CAPTURE_ERROR__) return true;
             const node = document.querySelector('[data-scene-deck-capture]');
             return node && (!slide || node.dataset.sceneId === slide) && node.getBoundingClientRect().height > 0;
         }""", arg=slide, timeout=timeout)
-        error = page.evaluate("window.__IDL_CAPTURE_ERROR__ || null")
+        error = page.evaluate("window.__SHUKU_CAPTURE_ERROR__ || null")
         if error:
             raise RuntimeError(error)
         capture = page.locator("[data-scene-deck-capture]")
@@ -276,12 +286,12 @@ def capture_slide(
             # Small debounce covers mount effects; long work exposes a ready flag.
             page.wait_for_timeout(200)
             page.wait_for_function("""() => {
-                if (window.__IDL_CAPTURE_ERROR__) throw Error(window.__IDL_CAPTURE_ERROR__);
+                if (window.__SHUKU_CAPTURE_ERROR__) throw Error(window.__SHUKU_CAPTURE_ERROR__);
                 const surface = document.querySelector('[data-scene-deck-capture]');
                 const visible = e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
                 return ![...surface.querySelectorAll('[data-capture-ready="false"],[aria-busy="true"]')].some(visible);
             }""", timeout=timeout)
-        runtime_error = page.evaluate("window.__IDL_CAPTURE_ERROR__ || null")
+        runtime_error = page.evaluate("window.__SHUKU_CAPTURE_ERROR__ || null")
         if runtime_error:
             raise RuntimeError(runtime_error)
         if inspection is not None:

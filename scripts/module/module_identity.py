@@ -2,7 +2,7 @@
 """Validate module identities or generate missing UUIDs.
 
 Reads: All modules/*/outlines.json.
-Writes: Default mode fills missing identities and removes legacy signatures; --check is read-only.
+Writes: Default mode fills missing identities in UUID directories; --check is read-only.
 """
 
 from __future__ import annotations
@@ -93,6 +93,14 @@ def process_outlines(
             register_identity(document[IDENTITY_FIELD], path, seen)
         loaded.append((path, document, has_identity))
 
+    # Validate the whole plan before any writes; never manufacture a new identity for a semantic directory.
+    for path, document, _ in loaded:
+        directory = path.parent.name
+        if not re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", directory) or document.get('id') != directory:
+            raise IdentityError(f'{path}: Module directory and id must match a canonical UUID v4')
+        if document.get(IDENTITY_FIELD, {}).get('id', directory) != directory:
+            raise IdentityError(f'{path}: Module directory and moduleIdentity.id must match')
+
     if check_only:
         for path, _, has_identity in loaded:
             print(
@@ -111,13 +119,9 @@ def process_outlines(
     # Validate every existing identity before writing any file.
     for path, document, has_identity in loaded:
         if has_identity:
-            identity = document[IDENTITY_FIELD]
-            if "signature" not in identity:
-                if results is not None:
-                    results.append({"path": str(path), "status": "unchanged"})
-                continue
-            del identity["signature"]
-            action = "Normalized module identity"
+            if results is not None:
+                results.append({"path": str(path), "status": "unchanged"})
+            continue
         else:
             document[IDENTITY_FIELD] = ({"version": IDENTITY_VERSION, "id": path.parent.name}
                 if re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", path.parent.name) else new_identity(seen))

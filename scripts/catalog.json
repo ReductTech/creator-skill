@@ -32,12 +32,22 @@
       "arguments": []
     },
     {
+      "id": "course.pack",
+      "category": "module",
+      "path": "scripts/module/package_course.py",
+      "runtime": "python",
+      "description": "导出通过当前 Shuku 导入校验与真实构建的课程源码 ZIP",
+      "effects": "只读课程源码；在指定仓库外创建新 ZIP 和验证构建；不覆盖、不上传、不发布",
+      "dependencies": [],
+      "arguments": []
+    },
+    {
       "id": "capture.slides",
       "category": "capture",
       "path": "scripts/media/capture_slides.py",
       "runtime": "python",
       "description": "真实页面截图、基础边界检查与逐状态字数统计",
-      "effects": "启动隔离浏览器与可选临时 Vite；默认写模块 _scratchpad/screenshots；--format both 同时更新正式缩略图；可选动作按用户指定执行",
+      "effects": "启动隔离浏览器与可选临时构建产物服务；默认写模块 _scratchpad/screenshots；--format both 同时更新正式缩略图；可选动作按用户指定执行",
       "dependencies": [
         "playwright",
         "PIL"

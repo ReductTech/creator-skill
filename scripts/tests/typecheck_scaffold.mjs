@@ -10,7 +10,10 @@ try {
 let input='';for await(const chunk of process.stdin)input+=chunk;
 const files=JSON.parse(input);
 const root=getTargetRoot();
-ts=createRequire(path.join(root,'package.json'))('typescript');
+const shuku=process.env.CREATOR_SKILL_TEST_SHUKU_ROOT;
+if(Object.values(files).some(text=>text.includes('@shuku/'))&&!shuku)throw Error('Set CREATOR_SKILL_TEST_SHUKU_ROOT to typecheck current platform aliases');
+const tooling=shuku?path.join(shuku,'tooling/course-build'):root;
+ts=createRequire(path.join(tooling,'package.json'))('typescript');
 const virtualRoot=path.join(root,fs.existsSync(path.join(root,'modules'))?'modules':'.','__toolkit_scaffold_test__');
 const normalized=value=>path.resolve(value).replaceAll('\\','/');
 const virtual=new Map(Object.entries(files).map(([name,text])=>[normalized(path.join(virtualRoot,name)),text]));
@@ -19,6 +22,18 @@ const config=fs.existsSync(configFile)?ts.readConfigFile(configFile,ts.sys.readF
 if(config.error)throw Error(ts.flattenDiagnosticMessageText(config.error.messageText,'\n'));
 const parsed=ts.parseJsonConfigFileContent(config.config,ts.sys,root);
 const options={...parsed.options,noEmit:true,composite:false,incremental:false};
+if(shuku){
+ options.baseUrl=root;
+ options.typeRoots=[path.join(tooling,'node_modules/@types')];
+ options.paths={
+  '@shuku/course-style/*':[path.join(root,fs.existsSync(path.join(root,'modules'))?'modules/shared/*':'shared/*')],
+  '@shuku/course-runtime/*':[path.join(shuku,'packages/course-runtime/*')],
+  '@shuku/player':[path.join(shuku,'packages/player/src/index.ts')],
+  'react':[path.join(tooling,'node_modules/@types/react/index.d.ts')],
+  'react/*':[path.join(tooling,'node_modules/@types/react/*')],
+  '*':[path.join(tooling,'node_modules/*'),path.join(tooling,'node_modules/@types/*')],
+ };
+}
 const host=ts.createCompilerHost(options);
 const originalExists=host.fileExists.bind(host), originalRead=host.readFile.bind(host), originalSource=host.getSourceFile.bind(host);
 host.fileExists=name=>virtual.has(normalized(name))||originalExists(name);

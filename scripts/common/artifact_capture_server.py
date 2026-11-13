@@ -44,7 +44,7 @@ def artifact_server(output_root=None):
                         if info.get('module_id')!=mid:raise ValueError('Wrong module')
                     except (OSError,ValueError):self.send_error(404,'Build the selected course first');return
                     base=mid+'/'
-                values={'mode':'guide' if is_guide else 'ppt','scenedeckCapture':'1','slide':query.get('slide',[''])[0]}
+                values={'mode':'guide' if is_guide else 'ppt','scenedeckCapture':'1','page':query.get('page',[''])[0]}
                 self.send_response(302);self.send_header('Location','/'+base+'index.html?'+urlencode(values));self.end_headers();return
             parts=Path(decoded.lstrip('/')).parts
             if len(parts)<2 or any(part.startswith('.') or part=='..' for part in parts):self.send_error(404);return

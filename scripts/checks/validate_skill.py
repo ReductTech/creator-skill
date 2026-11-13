@@ -6,6 +6,7 @@ Writes: None. PyYAML is needed only when validation runs.
 """
 
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
@@ -140,15 +141,22 @@ def validate_skill(skill_path: Path | str) -> tuple[bool, str]:
         ):
             return False, "Skill instructions contain an unfinished TODO placeholder"
 
-    for document in skill_path.rglob("*.md"):
-        for target in re.findall(
-            r"\[[^\]]+\]\(([^)]+)\)", document.read_text(encoding="utf-8-sig")
-        ):
-            if "://" in target or target.startswith("#"):
+    generated = {'.git', 'node_modules', 'dist', '.npm-cache', '.vite', '.venv',
+                 '__pycache__', '.pytest_cache', '_scratchpad', 'coverage', 'playwright-report', 'test-results'}
+    for directory, children, files in os.walk(skill_path):
+        children[:] = [name for name in children if name not in generated]
+        for filename in files:
+            if not filename.endswith('.md'):
                 continue
-            linked = document.parent / target.split("#", 1)[0]
-            if not linked.exists():
-                return False, f"Broken reference in {document}: {target}"
+            document = Path(directory) / filename
+            for target in re.findall(
+                r"\[[^\]]+\]\(([^)]+)\)", document.read_text(encoding="utf-8-sig")
+            ):
+                if "://" in target or target.startswith("#"):
+                    continue
+                linked = document.parent / target.split("#", 1)[0]
+                if not linked.exists():
+                    return False, f"Broken reference in {document}: {target}"
     return True, "Skill frontmatter, placeholders and local links are valid."
 
 
