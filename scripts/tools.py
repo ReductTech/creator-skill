@@ -50,8 +50,8 @@ def main(argv=None):
     command=[executable,str(SKILL/tool['path']),*tool.get('arguments',[]),*argv[1:]]
     try:
         help_only = any(arg in {'--help', '-h'} for arg in argv[1:])
-        root = SKILL if key == 'check.skill' or help_only else get_target_root()
-        if key != 'check.skill' and not help_only:
+        root = SKILL if key in {'check.skill', 'scratchpad.clean'} or help_only else get_target_root()
+        if key not in {'check.skill', 'scratchpad.clean'} and not help_only:
             for index, argument in enumerate(argv[1:], 1):
                 option, separator, value = argument.partition('=')
                 if option in {'--repository', '--root'}:

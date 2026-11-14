@@ -41,7 +41,7 @@ def setup_capture(tmp_path, monkeypatch):
     return official
 
 
-def test_publish_after_close_respects_module_format_mapping(tmp_path, monkeypatch):
+def test_publish_after_close_uses_webp_and_ignores_legacy_mapping(tmp_path, monkeypatch):
     official = setup_capture(tmp_path, monkeypatch)
     index = tmp_path / "modules/shared/asset-index.json"
     index.parent.mkdir(parents=True)
@@ -49,15 +49,14 @@ def test_publish_after_close_respects_module_format_mapping(tmp_path, monkeypatc
     args = capture.build_parser().parse_args(["--module", "fixture", "--format", "thumbnails"])
     result = capture.capture_module(args)
     assert result["errors"] == []
-    assert set(p.name for p in official.iterdir()) == {"one.jpg", "two.jpg"}
-    with Image.open(official / "one.jpg") as saved:
-        assert saved.format == "JPEG" and saved.size == (320, 180)
-        assert saved.info.get("progressive")
-    with Image.open(official / "two.jpg") as saved:
-        assert saved.format == "JPEG"
-    with Image.open(tmp_path / 'assets/course-covers/one.jpg') as cover:
-        assert cover.format == 'JPEG' and cover.size == (800, 450)
-    assert not (tmp_path / 'assets/course-covers/two.jpg').exists()
+    assert set(p.name for p in official.iterdir()) == {"one.webp", "two.webp"}
+    with Image.open(official / "one.webp") as saved:
+        assert saved.format == "WEBP" and saved.size == (1600, 900)
+    with Image.open(official / "two.webp") as saved:
+        assert saved.format == "WEBP"
+    with Image.open(tmp_path / 'assets/course-covers/one.webp') as cover:
+        assert cover.format == 'WEBP' and cover.size == (1600, 900)
+    assert not (tmp_path / 'assets/course-covers/two.webp').exists()
     assert not (tmp_path / "_scratchpad/screenshots").exists()
     report = json.loads((tmp_path / '_scratchpad/thumbnails/report.json').read_text(encoding='utf-8'))
     assert report['generatedCount'] == report['requestedCount'] == 2

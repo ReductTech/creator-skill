@@ -90,7 +90,15 @@ export default defineConfig(({mode}) => {
           if (pathname.startsWith(prefix)) {
             const base = path.join(course.directory, 'assets');
             const file = path.resolve(base, pathname.slice(prefix.length));
-            if (file.startsWith(base + path.sep)) request.url = '/@fs/' + normalizePath(file) + url.search;
+            if (file.startsWith(base + path.sep) && fs.existsSync(file) && fs.statSync(file).isFile()) {
+              // Serve course assets directly: Windows drive URLs can otherwise
+              // fall through Vite's SPA fallback and return index.html as an image.
+              const mime = {'.webp':'image/webp','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.svg':'image/svg+xml','.json':'application/json','.glb':'model/gltf-binary'};
+              _response.setHeader('Content-Type', mime[path.extname(file).toLowerCase()] || 'application/octet-stream');
+              _response.setHeader('Cache-Control', 'no-cache');
+              _response.end(fs.readFileSync(file));
+              return;
+            }
             break;
           }
         }
@@ -105,6 +113,8 @@ export default defineConfig(({mode}) => {
     resolve: {
       dedupe: ['react', 'react-dom', 'lucide-react'],
       alias: [
+        {find: '@preview/survey-template', replacement: normalizePath(path.join(shukuRoot, 'packages/course-styles/default/react/learning/SurveyTemplate.tsx'))},
+        {find: '@preview/survey-example', replacement: normalizePath(path.join(shukuRoot, 'packages/course-styles/default/examples/survey/SurveyExample.tsx'))},
         {find: '@shuku/course-runtime', replacement: normalizePath(runtime)},
         {find: '@shuku/course-style', replacement: normalizePath(style)},
         {find: '@shuku/player', replacement: localPlayer},
@@ -114,7 +124,7 @@ export default defineConfig(({mode}) => {
     },
     server: {
       host: '127.0.0.1', port: 5174, strictPort: true,
-      fs: {strict: true, allow: [root, style, ...(coursesRoot ? [coursesRoot] : []), runtime, path.join(shukuRoot, 'packages/player')]},
+      fs: {strict: true, allow: [root, style, ...(coursesRoot ? [coursesRoot] : []), runtime, path.join(shukuRoot, 'packages/player'), path.join(shukuRoot, 'packages/course-styles/default')]},
       proxy: env.SHUKU_API_URL ? {'/api': {target: env.SHUKU_API_URL, changeOrigin: true}} : undefined,
     },
   };

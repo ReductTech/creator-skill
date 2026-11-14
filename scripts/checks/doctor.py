@@ -10,10 +10,11 @@ import argparse
 import importlib.util
 import os
 import shutil
+import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import get_target_root, modules_directory, emit_result, report_error
+from _common import SCRIPTS, get_target_root, modules_directory, emit_result, report_error
 
 ROOT = None
 
@@ -77,6 +78,23 @@ def diagnose(group: str, tool: str | None = None) -> list[dict]:
         if "ffmpeg" in selected["dependencies"] and "media" not in groups:
             groups.append("media")
     for name in sorted(packages):
+        if name == 'typescript':
+            node = shutil.which('node')
+            probe = SCRIPTS / 'media/rewrite_asset_paths.mjs'
+            available = False
+            detail = 'Install Player Preview dependencies with npm ci'
+            if node:
+                try:
+                    result = subprocess.run([node, '--input-type=module', '-e',
+                        'const m=await import(process.argv[1]); console.log(m.loadTypeScript(process.argv[2]).version);',
+                        probe.as_uri(), str(root)], capture_output=True, text=True, timeout=15)
+                    available = result.returncode == 0
+                    if available:
+                        detail = result.stdout.strip()
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+            checks.append({'name': name, 'available': available, 'detail': detail})
+            continue
         try:
             present = importlib.util.find_spec(name) is not None
         except (ImportError, ValueError):

@@ -5,7 +5,7 @@ import { DesignComparisonHeader } from '../../components/DesignComparisonHeader'
 import './OptionalInteractionPage.css';
 
 export function OptionalInteractionPage() {
-  return <ContentBlock headingLevel={1} className="cg-translation-page" title="让学习者亲手探索，观察并验证结果" subtitle="以拉普拉斯算子为例，比较两种交互设计。">
+  return <ContentBlock headingLevel={1} className="cg-translation-page cg-creator-typography" title="让学习者亲手探索，观察并验证结果" subtitle="以拉普拉斯算子为例，比较两种交互设计。">
     <div className="cg-translation-panels">
       <section className="cg-translation-panel cg-translation-conventional cg-design-comparison-panel">
         <DesignComparisonHeader description="调节参数，观察图形变化" />

@@ -1,4 +1,4 @@
-import bgAsset0 from '../../../../../assets/workflow/convolution-course/layerd_scene/bg.jpg';
+import bgAsset0 from '../../../../../assets/workflow/convolution-course/layerd_scene/bg.webp';
 import ufoAsset1 from '../../../../../assets/workflow/convolution-course/layerd_scene/ufo.png';
 import pillarAsset2 from '../../../../../assets/workflow/convolution-course/layerd_scene/pillar.png';
 import dark_foliageAsset3 from '../../../../../assets/workflow/convolution-course/layerd_scene/dark_foliage.png';

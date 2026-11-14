@@ -15,6 +15,10 @@ python run.py courses-build --module <UUID或alias>
 
 Skill `check.module` 是独立的静态预检；官网验收以当前 Shuku 的 `shuku-course` 校验器与真实构建为准。平台不再从外部 Skill 加载检查器，两者变更需做行为对照。
 
+## 交付和提交前清理
+
+保留正式设计与必要检查结论后，执行 `python <Skill绝对路径>/scripts/tools.py scratchpad.clean modules/<课程UUID> --apply` 清理本次课件中的所有 `_scratchpad`。检查或构建若新生成临时目录，完成核对后再次清理，再交付或 Git 提交；不能仅依赖 ZIP 排除或 `.gitignore`。范围与保护规则见[临时目录清理](../tools.md#临时目录清理)。
+
 ## 导出上传包
 
 官网 ZIP 导入接收带 `outlines.json` 的课程源码，不接收只有 dist 的包或普通 npm 项目。推荐调用：

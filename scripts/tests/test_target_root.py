@@ -135,11 +135,11 @@ def test_image_tool_does_not_search_parent_projects(tmp_path):
     parent_index.parent.mkdir(parents=True)
     original = json.dumps({'roots': {'demo': 'course/assets'}, 'formats': {}})
     parent_index.write_text(original, encoding='utf-8')
-    Image.frombytes('RGB', (128, 128), random.Random(0).randbytes(128*128*3)).save(assets / 'picture.png')
+    Image.frombytes('RGB', (1000, 500), random.Random(0).randbytes(1000*500*3)).save(assets / 'picture.png')
     skill = prepare_skill(tmp_path, 'skill', target)
     result = run(skill, tmp_path, 'assets.compress', 'assets', '--report', 'report.json')
     assert result.returncode == 0, result.stdout + result.stderr
-    assert (assets / 'picture.jpg').is_file()
+    assert (assets / 'picture.webp').is_file()
     assert (target / 'report.json').is_file()
     assert not (tmp_path / 'report.json').exists()
     assert parent_index.read_text(encoding='utf-8') == original

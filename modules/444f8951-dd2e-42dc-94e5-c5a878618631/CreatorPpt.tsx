@@ -1,6 +1,12 @@
+import { PiFocusPage } from './pages/PiFocusPage/PiFocusPage';
+import { PiCompositionPage } from './pages/PiCompositionPage/PiCompositionPage';
+import { PiHierarchyPage } from './pages/PiHierarchyPage/PiHierarchyPage';
+import { PiColorPage } from './pages/PiColorPage/PiColorPage';
+import { PiChartPage } from './pages/PiChartPage/PiChartPage';
 import {ShukuCoCreationLoop} from './pages/ShukuCoCreationLoop';
 import {ShukuWhyPage,ShukuParticipationPage,ShukuReviewPage,ShukuGrowthPage} from './pages/ShukuIntroPages';
 import './CreatorTypography.css';
+import './DesignComparisonTheme.css';
 import { TitlePage } from './pages/TitlePage';
 import { SceneDeck, type DeckDefinition } from "@shuku/course-style/react/presentation";
 import { LearningGoalPage } from './pages/LearningGoalPage';
@@ -41,6 +47,11 @@ export const deck: DeckDefinition = {
     { id: '0a3d818c-ae0c-432a-b244-5e9a6129ec22', title: outline.pages.find(page => page.id === '0a3d818c-ae0c-432a-b244-5e9a6129ec22')!.title, section: '教学设计示意', render: () => <OptionalInteractionPage /> },
     { id: '1ab0d195-ccc9-4bc8-ac9d-7d88e7240d74', title: outline.pages.find(page => page.id === '1ab0d195-ccc9-4bc8-ac9d-7d88e7240d74')!.title, section: '教学设计示意', render: () => <ProgressiveDisclosurePage /> },
     { id: 'ad7cdb0d-2834-48ba-a537-36e0b38a1e07', title: outline.pages.find(page => page.id === 'ad7cdb0d-2834-48ba-a537-36e0b38a1e07')!.title, section: '教学设计示意', render: () => <DiscoveryLearningPage /> },
+    { id: '10f545bb-1b25-49c7-b6f5-a2c9e5046cab', title: outline.pages.find(page => page.id === '10f545bb-1b25-49c7-b6f5-a2c9e5046cab')!.title, section: '视觉设计示例', render: () => <PiFocusPage /> },
+    { id: '8531d6ed-2b24-4164-980e-933cea01485a', title: outline.pages.find(page => page.id === '8531d6ed-2b24-4164-980e-933cea01485a')!.title, section: '视觉设计示例', render: () => <PiCompositionPage /> },
+    { id: '7807ce0b-86ba-45e9-aaa1-14b3f95554b4', title: outline.pages.find(page => page.id === '7807ce0b-86ba-45e9-aaa1-14b3f95554b4')!.title, section: '视觉设计示例', render: () => <PiHierarchyPage /> },
+    { id: 'd7a79b5d-75c6-4890-8d8f-b5b596c2e346', title: outline.pages.find(page => page.id === 'd7a79b5d-75c6-4890-8d8f-b5b596c2e346')!.title, section: '视觉设计示例', render: () => <PiColorPage /> },
+    { id: 'c4aa222a-9cbb-44b8-9641-08d506a1f64d', title: outline.pages.find(page => page.id === 'c4aa222a-9cbb-44b8-9641-08d506a1f64d')!.title, section: '视觉设计示例', render: () => <PiChartPage /> },
     { id: '4f7f611a-cb68-48f9-895a-ef3ca2aa73a0', title: outline.pages.find(page => page.id === '4f7f611a-cb68-48f9-895a-ef3ca2aa73a0')!.title, section: '术库 · 知识共创', render: () => <ShukuWhyPage /> },
     { id: 'b4c2ce9c-1fc2-4b62-bba5-4b93a43beee6', title: outline.pages.find(page => page.id === 'b4c2ce9c-1fc2-4b62-bba5-4b93a43beee6')!.title, section: '术库 · 知识共创', render: () => <ShukuParticipationPage /> },
     { id: '472981bb-4fb2-464b-993a-1229db64efea', title: outline.pages.find(page => page.id === '472981bb-4fb2-464b-993a-1229db64efea')!.title, section: '术库 · 知识共创', render: () => <ShukuReviewPage /> },
@@ -49,6 +60,11 @@ export const deck: DeckDefinition = {
   ],
 };
 const shukuPageSelectors: Record<string, string> = {
+  '10f545bb-1b25-49c7-b6f5-a2c9e5046cab': '.cg-pi-focus',
+  '8531d6ed-2b24-4164-980e-933cea01485a': '.cg-pi-composition',
+  '7807ce0b-86ba-45e9-aaa1-14b3f95554b4': '.cg-pi-hierarchy',
+  'd7a79b5d-75c6-4890-8d8f-b5b596c2e346': '.cg-pi-color',
+  'c4aa222a-9cbb-44b8-9641-08d506a1f64d': '.cg-pi-chart',
   '4f7f611a-cb68-48f9-895a-ef3ca2aa73a0': '.cg-shuku-why',
   'b4c2ce9c-1fc2-4b62-bba5-4b93a43beee6': '.cg-shuku-participation',
   '472981bb-4fb2-464b-993a-1229db64efea': '.cg-shuku-review',

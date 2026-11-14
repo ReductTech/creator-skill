@@ -42,6 +42,16 @@
       "arguments": []
     },
     {
+      "id": "scratchpad.clean",
+      "category": "module",
+      "path": "scripts/module/clean_scratchpads.py",
+      "runtime": "python",
+      "description": "递归清理指定课件或页面目录下的所有 _scratchpad",
+      "effects": "默认只预览；--apply 删除指定绝对路径下任意层级的所有 _scratchpad 及内容，无目录名排除、不自动备份；相对路径基于 targetRoot，链接/junction 不跟随",
+      "dependencies": [],
+      "arguments": []
+    },
+    {
       "id": "capture.slides",
       "category": "capture",
       "path": "scripts/media/capture_slides.py",
@@ -63,7 +73,7 @@
       "path": "scripts/media/capture_slides.py",
       "runtime": "python",
       "description": "生成 术库 缩略图",
-      "effects": "复用同仓库 Vite 或临时启动精简服务；默认生成 320×180 JPG 侧栏图；课件第一页自动同时生成 assets/course-covers 下的 800×450 JPG 封面，无需填写尺寸或质量；保存模块 _scratchpad/thumbnails 下的报告、耗时与整套总览",
+      "effects": "读取已构建课件；生成 1600×900 WebP q=20 缩略图，第一页同时生成相同规格的 assets/course-covers 封面；保存模块 _scratchpad/thumbnails 下的报告、耗时与整套总览",
       "dependencies": [
         "playwright",
         "PIL"
@@ -206,11 +216,21 @@
       "category": "assets",
       "path": "scripts/media/compress-images.py",
       "runtime": "python",
-      "description": "仅将静态不透明 PNG 转为更小的 JPG；透明和动画素材不变",
-      "effects": "保留原图和已有 JPG；更新精确格式映射；--dry-run 不写文件",
+      "description": "普通图片仅长边超过 900 时等比缩小为 WebP q=80；缩略图与封面为 1600×900 WebP q=20",
+      "effects": "普通小图保持原字节；保留 PNG/JPEG 源文件，原地处理 WebP 前备份；不改引用、不写格式映射；--dry-run 不写文件",
       "dependencies": [
         "Pillow"
       ],
+      "arguments": []
+    },
+    {
+      "id": "assets.rewrite",
+      "category": "assets",
+      "path": "scripts/media/rewrite_asset_paths.mjs",
+      "runtime": "node",
+      "description": "独立迁移素材引用路径，覆盖静态引用和常见动态拼接",
+      "effects": "默认只读预览；--apply 仅改指定课件的源码引用并备份；动态素材组不完整或存在歧义时整次不写入；不压缩、不改名、不删除素材，不改 Shared",
+      "dependencies": ["node", "typescript"],
       "arguments": []
     },
     {

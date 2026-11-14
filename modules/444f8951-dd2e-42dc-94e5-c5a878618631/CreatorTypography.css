@@ -5,6 +5,11 @@
   font-family: var(--ui-font-sans);
 }
 
+/* Hide ContentBlock's decorative top accent without shifting the course layout. */
+.cg-creator-typography.edu-content-block {
+  border-top-color: transparent;
+}
+
 /* Labels inside native/Shared controls retain the control's existing visual metrics. */
 .cg-creator-typography .cg-creator-control-copy {
   --ui-type-body-small-size: inherit;

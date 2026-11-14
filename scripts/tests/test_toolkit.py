@@ -128,11 +128,11 @@ def test_real_capture_uses_existing_engine_for_default_and_click_states(tmp_path
                     assert saved.size==(1600,900) and saved.getpixel((1000,500))==(0,0,255)
                 assert capture_slides.main(command+['--format','thumbnails'])==0
                 official=tmp_path/'assets/scenedeck-thumbnails'
-                with Image.open(official/'one.jpg') as saved:
-                    assert saved.size==(320,180) and saved.format=='JPEG'
+                with Image.open(official/'one.webp') as saved:
+                    assert saved.size==(1600,900) and saved.format=='WEBP'
                     assert saved.getpixel((200,100))[0]>250
-                with Image.open(tmp_path/'assets/course-covers/one.jpg') as cover:
-                    assert cover.size==(800,450) and cover.format=='JPEG'
+                with Image.open(tmp_path/'assets/course-covers/one.webp') as cover:
+                    assert cover.size==(1600,900) and cover.format=='WEBP'
                 assert not (official/'one/changed.png').exists()
                 assert capture_slides.main(command+['--format','both'])==0
                 assert capture_slides.main(command+['--format','thumbnails','--state','changed'])==2

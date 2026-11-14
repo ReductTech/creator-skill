@@ -13,6 +13,7 @@ function Catalog() {
     <header><span className="preview-eyebrow">术库 / 本地开发</span><h1>课程播放器预览</h1>
       <p>选择课程查看效果，或先打开播放器交互演示。</p>
       <a className="preview-demo" href="?demo=1">打开播放器交互演示 →</a>
+      <a className="preview-demo" style={{marginLeft: 24}} href="?demo=survey">预览问卷与调研 →</a>
     </header>
     <label className="preview-search">查找课程<input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="输入课程名称或 UUID" /></label>
     <p className="preview-count">共 {visible.length} 门课程</p>
@@ -58,7 +59,13 @@ async function openCourse(id: string) {
   } else throw Error('不支持的播放模式：' + mode);
 }
 
-if (params.has('demo')) {
+if (params.get('demo') === 'survey-template') {
+  document.title = '标准问卷控件 · 本地预览';
+  import('./survey-template-demo').then(({SurveyTemplateDemo}) => root.render(<SurveyTemplateDemo />));
+} else if (params.get('demo') === 'survey') {
+  document.title = '问卷与调研 · 本地效果预览';
+  import('./survey-demo').then(({SurveyDemo}) => root.render(<SurveyDemo />));
+} else if (params.has('demo')) {
   import('./demo').then(({Demo}) => root.render(<Demo />));
 } else if (params.has('course')) {
   root.render(<p className="preview-status">正在加载课程…</p>);

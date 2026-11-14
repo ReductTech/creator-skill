@@ -263,7 +263,7 @@ def build_dataset(
         file = next(
             (
                 asset_dir / (p["sceneId"] + ext)
-                for ext in (".jpg", ".jpeg", ".png", ".webp")
+                for ext in (".webp", ".jpg", ".jpeg", ".png")
                 if (asset_dir / (p["sceneId"] + ext)).is_file()
             ),
             None,

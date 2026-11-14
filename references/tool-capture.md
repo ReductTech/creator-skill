@@ -30,7 +30,7 @@ python creator-skill/scripts/tools.py capture.inspect --module Policy-Gradient
 
 逐页使用 `capture.slides --slide <场景ID> --page-directory <语义页目录>`，保存到 `modules/<模块目录名>/pages/<语义页目录>/_scratchpad/screenshots/<场景ID>.png`；操作状态用 `--state` 命名为 `<场景ID>/<状态>.png`。批量捕获旧模块而未指定页目录时仍兼容模块级输出，制作新页时使用逐页目录。`--output` 可指定对应页 `_scratchpad/` 内的图片目录。
 
-`capture.thumbnails` 生成正式播放器缩略图，默认保存到 `modules/<模块目录名>/assets/scenedeck-thumbnails/<页ID>.jpg`（320×180 渐进式 JPEG，质量 75、4:4:4 采样），只接受默认状态；其 `--output` 仅可选择正式缩略图目录内的位置。`capture.slides --format both` 从一次采集中同时写入评估目录和正式缩略图目录。评估截图仍为 1600×900 PNG。采集到当前运行时第一页时，自动另外生成 `assets/course-covers/<第一页ID>.jpg`（800×450，质量 80），供首页使用；封面直接由完整页面采样，不放大小缩略图。智能体只需指定模块，可选指定页 ID，无需填写尺寸和质量；已有图片对应当前实现和状态时直接复用。
+`capture.thumbnails` 生成正式播放器缩略图，默认保存到 `modules/<模块目录名>/assets/scenedeck-thumbnails/<页ID>.webp`（1600×900 WebP，q=20），只接受默认状态；其 `--output` 仅可选择正式缩略图目录内的位置。`capture.slides --format both` 从一次采集中同时写入评估目录和正式缩略图目录。评估截图仍为 1600×900 PNG。采集到当前运行时第一页时，自动另外生成 `assets/course-covers/<第一页ID>.webp`（1600×900 WebP，q=20），供首页使用；封面和缩略图都直接使用完整页面截图编码。智能体只需指定模块，可选指定页 ID，无需填写尺寸和质量；已有图片对应当前实现和状态时直接复用。
 
 浏览器使用隔离的无头上下文，不读取用户浏览器配置。显式提供的服务不由工具关闭；仅临时启动的产物服务会在任务结束后停止。
 

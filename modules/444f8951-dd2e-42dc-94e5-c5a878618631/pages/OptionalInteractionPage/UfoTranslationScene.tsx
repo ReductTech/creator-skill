@@ -1,4 +1,4 @@
-import bgAsset0 from '../../assets/images/translation-example/bg.jpg';
+import bgAsset0 from '../../assets/images/translation-example/bg.webp';
 import ufoAsset1 from '../../assets/images/translation-example/ufo.png';
 import pillarAsset2 from '../../assets/images/translation-example/pillar.png';
 import dark_foliageAsset3 from '../../assets/images/translation-example/dark_foliage.png';

@@ -1,6 +1,6 @@
 ---
 name: creator-skill
-description: 规划、设计、制作或修改 React 交互演示，包括主线、大纲、口播、从零创作与 PPT/PDF 改编，以及 Shuku 课件检查和源码 ZIP 交付。适用于教学、科研和商业汇报，不用于普通网站或一般文档。
+description: 规划、设计、制作或修改 React 交互演示，包括主线、大纲、口播、从零创作与 PPT/PDF 改编、课件内问卷与投票，以及 Shuku 课件检查和源码 ZIP 交付。适用于教学、科研和商业汇报，不用于普通网站或一般文档。
 ---
 
 # React 演示创作
@@ -18,12 +18,16 @@ description: 规划、设计、制作或修改 React 交互演示，包括主线
 4. **模块示例在本 Skill 根目录的 `modules/`。** 可读取和复制示例作为起点；新建时执行上面的 UUID 更换规则，不为制作用户课件而修改原示例。用户课件保存到已配置的目标工程。
 5. **不允许修改 Shared。** 本 Skill 根目录的 `shared/` 和目标工程中的 Shared 都只读使用；允许原样复制到缺失的目标位置，禁止改动其源码、样式、资源、`style.json` 或公共行为，也不覆盖已有 Shared。课程专属调整留在课程目录，不能通过改 Shared 让当前页达标。
 
+6. **逐页清理临时目录，交付和提交前再清理。** 每完成一页并完成必要核对，运行 `scratchpad.clean <该页目录> --apply`；整门课收尾、打包交付或 Git 提交前，对本次课件目录再运行一次，确保没有遗留 `_scratchpad`。先将需长期保留的设计图、正式素材和必要记录放到正式位置或用户交付目录；清理后不能仍引用临时路径。支持直接指定绝对路径，递归清理所有嵌套层级的 `_scratchpad`，不按普通目录名称排除；仅不跟随链接/junction，防止越界。此临时目录清理适用于 Shared 下的 `_scratchpad`，不得修改其他 Shared 文件。命令默认只预览，实际删除须带 `--apply`，详见[临时目录清理](references/tools.md#临时目录清理)。
+
 ## 开始与续作
 
 先确定目标、已有成果和当前阶段。仅讨论主线、大纲、讲稿或设计时，无需工程配置或创建文件；工程操作按下方配置定位课程。
 
 - 创作、改编与续作：读[流程共用说明](references/workflow/common.md)，再选[从零创作](references/workflow/from-scratch.md)或[参考改编](references/workflow/reference-adaptation.md)。修改已有模块沿用原流程，从当前阶段接续。
 - 仅维护缩略图：直接读[截图和缩略图](references/tools.md#截图和缩略图)，不重走创作流程。
+- 仅迁移素材引用（包括格式转换后的动态路径）：使用独立工具 `assets.rewrite`，读[路径迁移](references/engineering/asset-paths.md)；与 `assets.compress` 分开执行，先预览再按已授权范围应用。
+- 压缩课件图片：默认连续完成[压缩、迁移与查漏](references/engineering/asset-paths.md#压缩后的默认连续流程)。用户要求实际压缩时，相关引用迁移与遗漏检查属于同一任务，主动执行，不再等待用户另行提醒；用户只要求预览或明确限定范围时遵守其限制。
 - 按下表读取当前动作所需资料；仍在上下文中的内容不重复读，不预读整个参考目录。已有确认、检查和产物仅在仍对应当前版本与范围时复用。
 
 ## 工程定位
@@ -59,8 +63,9 @@ description: 规划、设计、制作或修改 React 交互演示，包括主线
 | 构建、源码 ZIP 与上传交付 | [交付](references/engineering/delivery.md) |
 | 执行工具、参数与依赖 | [工具索引](references/tools.md)，优先 `describe <ID>` 与 `<ID> --help` |
 | 习题 / 大模型 / GPU | [习题](references/design/quiz.md) / [大模型](references/computing/llm.md) / [计算](references/computing/gpu.md) |
+| 问卷、投票、调研、标准控件与 Custom 交互 | [问卷接入与可复制示例](references/design/surveys.md)，先复用标准控件，再按需要替换单题外观 |
 | 用户明确要求评分 / 个人偏好 | [Rubric](references/eval/rubric-evaluation.md) / [偏好](references/preferences.md) |
 
 ## 完成
 
-按影响范围检查真实渲染、内容与相关交互，修复后复验；不默认执行评分或全仓测试。交付简述完成内容、实际验证与剩余限制，未执行的检查标为未验证。
+按影响范围检查真实渲染、内容与相关交互，修复后复验；随后按上方规则清理本次课件的 `_scratchpad`，再交付或提交。不默认执行评分或全仓测试。交付简述完成内容、实际验证与剩余限制，未执行的检查标为未验证。

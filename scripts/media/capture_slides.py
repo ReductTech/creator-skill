@@ -2,9 +2,9 @@
 """Capture real 1600x900 术库 screenshots.
 
 Reads: The selected module and requested browser states.
-Writes: Evaluation PNGs remain 1600x900. Requested JPG thumbnails default to
-320x180 in assets/scenedeck-thumbnails; the runtime first slide also gets an
-800x450 JPG in assets/course-covers. No size/quality arguments are needed.
+Writes: Evaluation PNGs remain 1600x900. Thumbnails and the runtime first-slide
+cover use 1600x900 WebP q=20 in assets/scenedeck-thumbnails and assets/course-covers.
+No size/quality arguments are needed.
 Owns its browser and completed-artifact preview server.
 Thumbnail runs also save a report and batch contact sheet in module _scratchpad/thumbnails.
 """
@@ -532,7 +532,7 @@ def capture_module(args: argparse.Namespace, context_setup=None) -> dict:
         try:
             for screenshots in destinations:
                 is_thumbnail = screenshots.is_relative_to(thumbnail_root)
-                extension = "jpg" if is_thumbnail else "png"
+                extension = "webp" if is_thumbnail else "png"
                 target = (
                     screenshots / f"{slide_id}.{extension}"
                     if args.state == "default"
@@ -547,7 +547,7 @@ def capture_module(args: argparse.Namespace, context_setup=None) -> dict:
                 if is_thumbnail:
                     save_thumbnail(image, target)
                     if slide_id == first_scene_id:
-                        cover = directory / 'assets/course-covers' / f'{slide_id}.jpg'
+                        cover = directory / 'assets/course-covers' / f'{slide_id}.webp'
                         save_cover(image, cover)
                         cover_files.append(str(cover))
                 else:

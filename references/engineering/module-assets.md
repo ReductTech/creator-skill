@@ -86,7 +86,7 @@ export function Lesson() { return <img src={imageUrl} alt="模型结构" />; }
 
 GPU 构建容器保持断网，上传发生在容器外的可信 Worker，不将 OSS 凭据交给课程代码。只有明确配置为公开的静态素材才启用公共 OSS 上传；私有内容遵守原权限。HTML、交互代码及计算服务仍由服务器交付。GLTF 内部依赖按最终文件地址处理，图集坐标保持原语义。断网导出通过现有离线资源入口接管，不能假设 fetch(file://...) 可用。
 
-正式术库缩略图保存在 `modules/<课程目录>/assets/scenedeck-thumbnails/`，统一为 `<scene-id>.jpg`，320×180 渐进式 JPEG，质量 75、4:4:4 采样。由 `capture.thumbnails` 生成，播放器使用 320×180 小图；运行时第一页同时自动生成 `assets/course-covers/<第一页ID>.jpg` 的 800×450 首页封面（质量 80）。无需传入尺寸或质量参数，评估截图仍为 1600×900 PNG。播放器 `assetId` 使用当前模块的 UUID，不使用目录名。
+正式术库缩略图保存在 `modules/<课程目录>/assets/scenedeck-thumbnails/`，统一为 `<scene-id>.webp`，1600×900 WebP，质量 q=20。由 `capture.thumbnails` 生成；运行时第一页同时自动生成 `assets/course-covers/<第一页ID>.webp` 的首页封面，同为 1600×900、q=20。无需传入尺寸或质量参数，评估截图仍为 1600×900 PNG。播放器 `assetId` 使用当前模块的 UUID，不使用目录名。
 
 已有正式缩略图对应当前实现时可直接用于检查，无需重复截图；交互状态截图保存在 `_scratchpad/`。
 
@@ -108,10 +108,16 @@ Shuku 的素材上传入口调用 `shared.asset_upload`；独立 Skill 的上传
 
 CAS 使用未开启版本控制的桶，读取桶状态后发现 Enabled/Suspended 就停止，不改桶设置。删除模块或版本不能直接删除共享对象；垃圾回收另行设计，此次不执行。
 
-## 普通 PNG 压缩
+## 普通图片压缩
 
-运行 `python creator-skill/scripts/tools.py assets.compress modules/<课程目录>/assets --dry-run` 先检查范围，移除 `--dry-run` 才执行。工具只处理单帧、完全不透明、普通 8 位 PNG，生成 `.jpg`；透明 PNG（包括调色板透明）、APNG、GIF、SVG、WebP、16 位 PNG 和其他格式保持原字节，不铺背景、不抽帧、不缩放。JPEG 不比原图小时不转换；已有 JPG 不覆盖；原 PNG 默认保留。
+运行 `python creator-skill/scripts/tools.py assets.compress modules/<课程目录>/assets --dry-run` 先检查范围，移除 `--dry-run` 才执行。普通 PNG、JPEG、WebP 仅在长边大于 900 时处理：等比例缩到长边 900，另一边随比例缩小，输出 WebP q=80，不裁剪、不补边。长边小于或等于 900 的图片保持原字节和原格式，不重新编码。透明普通图片保留 alpha；动画、高位深图片、GIF、SVG 和其他格式跳过。
 
-直接压缩源码资源并改为 JPG 时，必须同步修改所有静态引用；未能可靠定位引用就不改名、不自动替换。不生成格式映射表，不保留依赖映射的兼容路径。优先在 Shuku 构建中进行可选压缩，让创作者的源文件和引用保持一致。
+`assets/scenedeck-thumbnails/`、`assets/course-thumbnails/` 和 `assets/course-covers/` 使用独立标准：1600×900 WebP q=20，不受普通图片的 900 长边限制。正式截图本来为 16:9；旧缩略图迁移时非 16:9 图片等比例完整保留并居中补白。中间截图继续保留 PNG，不进入普通素材压缩。
 
-转码后的最终字节重新计算 SHA-256，随新构建上传；旧发布版本保持不变，不自动删除其对象。旧压缩工具若仍写入映射文件，必须迁移后才可使用。
+生成 `.webp` 时保留原 PNG/JPEG，不覆盖已有同名 WebP；原文件已是大尺寸 WebP 时，先备份到素材目录旁的 `<目录名>-image-originals/` 再替换。`--report` 记录真实源文件、目标路径、前后尺寸、质量和字节数；`--dry-run` 仅输出计划，不写图片、备份或报告。格式和尺寸按上述标准执行，不以文件更小作为是否转换的条件。
+
+改为 WebP 后使用独立的 `assets.rewrite` 同步静态和可验证的动态引用，使用真实 `.webp` 路径；参数、覆盖和未验证情况见[素材路径迁移](asset-paths.md)。压缩与路径迁移分开执行，不生成运行时格式映射表。源码中的原图与备份保留供检查和回退，批量迁移既有课件时核对引用后再决定是否清理。
+
+实际压缩默认接着完成引用迁移与查漏，不等待用户再次提醒。按[压缩后的默认连续流程](asset-paths.md#压缩后的默认连续流程)保存本次转换报告，依次预览并应用 `assets.rewrite`、复跑确认无残留可迁移项、检查旧路径和动态来源，再验证受影响资源的真实加载；这整段完成后才按原流程清理临时记录并收尾。
+
+转码后的最终字节重新计算 SHA-256，随新构建上传；旧发布版本保持不变，不自动删除其对象。Shuku 构建端的可选图片处理由平台自身实现，Skill 工具修改不代表平台已同步。

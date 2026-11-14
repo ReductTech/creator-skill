@@ -1,6 +1,6 @@
 # 工具脚本规范
 
-目标工程根目录从明确指定的 `target-root.json` 读取，独立使用默认位于 Skill 根目录；平台可显式指定本次调用的配置文件。Python 使用 `_common.get_target_root()`／`project_path()`，Node 使用 `common/_target_root.mjs` 的 `getTargetRoot()`；相对工程路径以配置为基准，不使用当前工作目录、脚本父目录层数或旧环境变量推算。Skill 自己的文档、模板、检查器和浏览器启动文件按脚本自身位置读取。旧的 `--root`／`--repository` 参数只能确认同一目标，不能覆盖配置。
+`scratchpad.clean` 按用户指定的绝对路径清理，可不配置工程；相对路径仍按 `targetRoot` 解析。其他工程工具的目标工程根目录从明确指定的 `target-root.json` 读取，独立使用默认位于 Skill 根目录；平台可显式指定本次调用的配置文件。Python 使用 `_common.get_target_root()`／`project_path()`，Node 使用 `common/_target_root.mjs` 的 `getTargetRoot()`；相对工程路径以配置为基准，不使用当前工作目录、脚本父目录层数或旧环境变量推算。Skill 自己的文档、模板、检查器和浏览器启动文件按脚本自身位置读取。旧的 `--root`／`--repository` 参数只能确认同一目标，不能覆盖配置。
 
 用于维护 `scripts/` 中供智能体调用的工具。按用途分为 `module/`、`checks/`、`media/`、`analysis/`、`common/`、`tests/`，模板单独放在 `templates/`，不再增加更深层级。统一入口、清单与依赖文件保留在根目录；测试和内部辅助文件不强套命令行模板。
 
