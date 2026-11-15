@@ -135,7 +135,7 @@ def test_image_tool_does_not_search_parent_projects(tmp_path):
     parent_index.parent.mkdir(parents=True)
     original = json.dumps({'roots': {'demo': 'course/assets'}, 'formats': {}})
     parent_index.write_text(original, encoding='utf-8')
-    Image.frombytes('RGB', (1000, 500), random.Random(0).randbytes(1000*500*3)).save(assets / 'picture.png')
+    Image.frombytes('RGB', (2000, 1000), random.Random(0).randbytes(2000*1000*3)).save(assets / 'picture.png')
     skill = prepare_skill(tmp_path, 'skill', target)
     result = run(skill, tmp_path, 'assets.compress', 'assets', '--report', 'report.json')
     assert result.returncode == 0, result.stdout + result.stderr

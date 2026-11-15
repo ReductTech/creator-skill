@@ -136,7 +136,17 @@ export function planReferences({course, changes, ts}) {
   const edits = new Map(), unresolved = [], unverified = [], matches = [];
   const diagnostic = (file, start, kind, expression, detail) => {
     const text = originals.get(file);
-    unresolved.push({file: slash(path.relative(course, file)), line: text.slice(0, start).split('\n').length, kind, expression, detail});
+    const guidance = {
+      'unknown-base': ['素材路径的目录前缀无法确定，可能指向其他目录或远端地址。', '确认实际指向的素材，改为相对于本课程 assets 的完整固定路径；不要直接去掉目录前缀。'],
+      'ambiguous-path': ['这个路径匹配到多个素材，或同名素材中只有部分已转换，无法安全确定目标。', '结合实际使用位置确认目录，将数据项写成完整素材路径，并原样传入 moduleAssetUrl。'],
+      'partial-family': ['动态路径覆盖的素材没有全部转换，统一改扩展名会让部分图片失效。', '将动态拼接改为完整路径列表，已转换项使用新路径，未转换项保留原路径。'],
+      'unsupported-dynamic-rename': ['动态引用涉及目录、主文件名或不确定扩展名，不能安全批量替换。', '按转换报告将各项写成完整固定路径。'],
+      'hidden-directory-change': ['短路径隐藏了发生变化的目录，不能只替换文件名。', '使用转换报告中包含目录的完整目标路径。'],
+    };
+    const [reason, nextAction] = guidance[kind];
+    unresolved.push({file: slash(path.relative(course, file)), line: text.slice(0, start).split('\n').length,
+      kind, expression: expression.replace(SLOT, '${…}'), sourceLine: text.slice(0, start).split('\n').at(-1) + text.slice(start).split(/\r?\n/)[0],
+      reason, nextAction, detail});
   };
 
   function replacement(pattern, file, start, disk = false) {
@@ -162,7 +172,11 @@ export function planReferences({course, changes, ts}) {
     }
     // An unknown URL/directory base may be remote or select another asset root.
     if (/^\u0000\d+\u0000\//.test(relative)) {
-      if (known.some(name => relative.includes(path.extname(name)))) diagnostic(file, start, 'unknown-base', pattern, 'Resolve the base directory before rewriting this expression');
+      // Only block when this expression could refer to an asset in this change list.
+      // Sharing an extension with any asset (e.g. outlines.json) is not evidence.
+      const regex = patternRegex(relative);
+      const affected = [...changes.keys()].filter(name => regex.test(name) || regex.test('/' + name));
+      if (affected.length) diagnostic(file, start, 'unknown-base', pattern, {candidates: affected});
       return null;
     }
     const regex = patternRegex(relative);
@@ -264,7 +278,8 @@ export function planReferences({course, changes, ts}) {
         const terms = evaluate(node.arguments[0]);
         if (!terms || terms.some(term => term.code) && !/\.[a-z\d]+(?:$|[?#])/i.test(terms.map(term => term.text ?? '${…}').join(''))) {
           unverified.push({file: slash(path.relative(course, file)), line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
-            expression: node.getText(source), reason: 'Runtime-computed asset path: inspect its callers/data; no arbitrary functions are executed'});
+            expression: node.getText(source), reason: '路径由运行时数据或函数计算，脚本未执行这些代码，无法证明所有引用已迁移。',
+            nextAction: '检查调用方和数据中的完整素材路径，依据转换报告确认已转换项使用新路径；仍需验证实际加载。'});
         }
       }
       if (ts.isJsxAttribute(node) && node.name.getText(source).toLowerCase() === 'srcset' && node.initializer && ts.isStringLiteral(node.initializer)) {
@@ -392,6 +407,9 @@ export async function runTask(args) {
     changedFiles: updates.map(item => ({file: slash(path.relative(course, item.file)), references: item.references})),
     referenceCount: matches.length, unresolved, unverified, matches, applied: false,
     coverage: 'Static syntax and known local asset families only; runtime code is never executed.',
+    boundary: '仅自动迁移能够确定的本地素材引用。unresolved 会阻止整个模块写入；unverified 需要人工核对，不代表全部引用已迁移。',
+    summary: unresolved.length ? `发现 ${unresolved.length} 处阻塞问题，本模块源码未写入；修正后用同一转换报告重跑 rewrite，无需重新压缩。`
+      : `未发现阻塞问题；另有 ${unverified.length} 处运行时引用需要人工核对。`,
   };
   if (args.apply && !unresolved.length) {
     result.backupDirectory = applyPlan(course, updates); result.applied = true;
@@ -404,7 +422,15 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     const options = buildParser(), args = parseOptions(argv, options);
     if (args.help) { printHelp('usage: assets.rewrite --module <UUID|alias> (--changes <JSON> | --to-ext webp) [--apply]\nRewrite references only; default is read-only.', options); return 0; }
-    const result = await runTask(args); emitResult(result); return result.status === 'failed' ? 1 : 0;
+    const result = await runTask(args); emitResult(result);
+    if (result.unresolved.length || result.unverified.length) {
+      process.stderr.write(result.summary + '\n' + result.boundary + '\n');
+      for (const issue of result.unresolved) process.stderr.write(
+        `\n[${issue.kind}] ${issue.file}:${issue.line}\n源码：${issue.sourceLine.trim()}\n原因：${issue.reason}\n关联素材：${JSON.stringify(issue.detail)}\n处理：${issue.nextAction}\n`);
+      for (const issue of result.unverified) process.stderr.write(
+        `\n[unverified，需核对] ${issue.file}:${issue.line}\n源码：${issue.expression}\n原因：${issue.reason}\n处理：${issue.nextAction}\n`);
+    }
+    return result.status === 'failed' ? 1 : 0;
   } catch (error) { return reportError(error); }
 }
 

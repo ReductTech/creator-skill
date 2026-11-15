@@ -74,7 +74,20 @@ export function Lesson() { return <img src={imageUrl} alt="模型结构" />; }
 
 课程上下文由构建器注入。`moduleAssetUrl` 与 `moduleJson` 只接受一个课程内路径参数；旧显式模块 ID 必须改写。资源从 `@shuku/course-runtime/react/assets`、JSON 从 `@shuku/course-runtime/react/moduleJson` 导入；Shared 不再转发内核接口。CSS 背景图使用 helper 生成地址后传入 CSS 自定义属性；Canvas、WebGL 与音视频也消费该 URL，不另建路径解析器。资源 JSON 按需 fetch 此地址，不打入 JS 包；可复用 `moduleJson` 的缓存、并发合并和重试。
 
-禁止跨目录 `..`、磁盘路径、`file://`、手写 CDN 地址。新资源引用应使用固定相对路径；多个素材在代码数组中明确列出，不通过扩展名替换猜测文件。文件改名时修改引用本身，禁止建立格式映射兼容表。已有图片图集的坐标索引是内容数据，仍保留；不能以清理格式表为由删除图集裁剪、Canvas 或 WebGL 能力。
+禁止跨目录 `..`、磁盘路径、`file://`、手写 CDN 地址。**素材路径不得拼接字段。** 新建或修改素材引用时，每项都必须写出相对于本课程 `assets/` 的完整固定路径，包含目录、文件名与扩展名；不得通过模板插值、`+`、`.concat()`、`.join()`、`path.join()` 或扩展名替换拼出素材路径，也不得手工拼入模块 UUID 或只存裸文件名后再补目录，以免寻图失败、同名素材歧义或格式转换后漏改引用。动态切换图片时，从明确列出的完整路径中选择，再将所选路径原样传给 `moduleAssetUrl`；JSON 等其他素材引用同样适用。文件改名时修改引用本身，禁止建立格式映射兼容表。已有图片图集的坐标索引是内容数据，仍保留；不能以清理格式表为由删除图集裁剪、Canvas 或 WebGL 能力。
+
+例如，切换图片时将完整路径直接存入数据：
+
+```tsx
+const thumbnails = [
+  { path: 'workflow/course-thumbnails/weight-sharing.webp', label: '权重共享' },
+  { path: 'workflow/course-thumbnails/window-scan.webp', label: '局部匹配' },
+];
+// 路径须对应真实存在的文件；数据字段原样传入，不再拼接目录或扩展名。
+const images = thumbnails.map(item => (
+  <img key={item.path} src={moduleAssetUrl(item.path)} alt={item.label} />
+));
+```
 
 ## 构建与 OSS 交付
 
@@ -110,9 +123,9 @@ CAS 使用未开启版本控制的桶，读取桶状态后发现 Enabled/Suspend
 
 ## 普通图片压缩
 
-运行 `python creator-skill/scripts/tools.py assets.compress modules/<课程目录>/assets --dry-run` 先检查范围，移除 `--dry-run` 才执行。普通 PNG、JPEG、WebP 仅在长边大于 900 时处理：等比例缩到长边 900，另一边随比例缩小，输出 WebP q=80，不裁剪、不补边。长边小于或等于 900 的图片保持原字节和原格式，不重新编码。透明普通图片保留 alpha；动画、高位深图片、GIF、SVG 和其他格式跳过。
+运行 `python creator-skill/scripts/tools.py assets.compress modules/<课程目录>/assets --dry-run` 先检查范围，移除 `--dry-run` 才执行。普通 PNG、JPEG、WebP 的尺寸上限为宽 1600 像素、高 900 像素，横图、竖图均使用这一固定宽高边界，不按长短边交换。宽或高超限时，按 `min(1, 1600 / 原宽, 900 / 原高)` 等比例缩小，最终同时满足宽不大于 1600、高不大于 900。超限图片输出 WebP q=80，不裁剪、不补边、不放大。例如 2000×1000 缩为 1600×800，1000×2000 缩为 450×900，2000×1500 缩为 1200×900。已同时满足宽高上限的图片保持原字节和原格式，不重新编码。透明普通图片保留 alpha；动画、高位深图片、GIF、SVG 和其他格式跳过。
 
-`assets/scenedeck-thumbnails/`、`assets/course-thumbnails/` 和 `assets/course-covers/` 使用独立标准：1600×900 WebP q=20，不受普通图片的 900 长边限制。正式截图本来为 16:9；旧缩略图迁移时非 16:9 图片等比例完整保留并居中补白。中间截图继续保留 PNG，不进入普通素材压缩。
+`assets/scenedeck-thumbnails/`、`assets/course-thumbnails/` 和 `assets/course-covers/` 使用独立标准：1600×900 WebP q=20，不使用普通图片的等比例缩小规则。正式截图本来为 16:9；旧缩略图迁移时非 16:9 图片等比例完整保留并居中补白。中间截图继续保留 PNG，不进入普通素材压缩。
 
 生成 `.webp` 时保留原 PNG/JPEG，不覆盖已有同名 WebP；原文件已是大尺寸 WebP 时，先备份到素材目录旁的 `<目录名>-image-originals/` 再替换。`--report` 记录真实源文件、目标路径、前后尺寸、质量和字节数；`--dry-run` 仅输出计划，不写图片、备份或报告。格式和尺寸按上述标准执行，不以文件更小作为是否转换的条件。
 

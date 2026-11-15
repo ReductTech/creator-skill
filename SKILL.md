@@ -45,7 +45,7 @@ description: 规划、设计、制作或修改 React 交互演示，包括主线
 - 所有课件的设计示意图与正式页面画布均不添加页码、总页数或页序角标；每次生图提示词明确写“不添加页码”，参考原稿和样例中的页码也不保留。
 - 课程目录 UUID、`outlines.json.id`、`moduleIdentity.id` 相等；`moduleIdentity` 只含 `version`、`id`。每页登记非空 `id`、`title`、`snippet`，页面 UUID 稳定且与 PPT、Guide、讲稿一致，新增用 UUID v4。大纲不增加其他页面字段，不编造用户尚未提供的内容。
 - 页面放 `pages/<语义页目录>/<同名组件及样式>`，按实际制作进度建目录。逐页中间产物放页内 `_scratchpad/`，整体原稿和记录放模块级 `_scratchpad/`；正式素材放课程 `assets/`。
-- 视觉组件从 `@shuku/course-style/react` 导入；资源、请求与状态从 `@shuku/course-runtime/react/...` 导入。`moduleAssetUrl('真实相对路径')` 与 `moduleJson('真实相对路径')` 仅接受一个参数；不从 Shared 导入内核接口，不维护历史资源映射。
+- 视觉组件从 `@shuku/course-style/react` 导入；资源、请求与状态从 `@shuku/course-runtime/react/...` 导入。`moduleAssetUrl('真实相对路径')` 与 `moduleJson('真实相对路径')` 仅接受一个参数。素材路径必须完整写出目录、文件名与扩展名，不拼接字段构造路径；动态切换时从完整路径列表中选择，详见[资源引用](references/engineering/module-assets.md#资源引用平台强制约定)。不从 Shared 导入内核接口，不维护历史资源映射。
 - 初始化用户工程时，直接将本 Skill 根目录的完整 `shared/` 复制到目标工程的 `modules/shared/`（平铺布局用 `shared/`）；目标已有 Shared 时复用，不覆盖。路径、风格登记与 UUID 规则见[复制内置 Shared](references/engineering/module-assets.md#复制内置-shared)。
 - 课程源码与风格在课程工程，正式构建与运行时在 Shuku。制作时可用内置 Player Preview 预览源码；交付展示和截图验收仍使用平台构建产物，本地预览不能代替最终 ZIP 验收。
 

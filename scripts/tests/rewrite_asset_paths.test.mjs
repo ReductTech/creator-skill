@@ -171,6 +171,50 @@ test('unknown directory prefix is reported instead of rewriting a possible remot
   assert.equal(f.plan().updates.length,0);
 });
 
+test('unrelated dynamic JSON and unchanged image paths do not block changed covers', t => {
+  const source = "const outline=path.join(__dirname,'outlines.json'); const anchor='assets/'+outline.id+'/yuhuanong/anchor_face.jpg'; const cover=moduleAssetUrl('course-covers/opening.jpg');";
+  const f=fixture(t, {'page.ts':source}, {'course-covers/opening.jpg':'course-covers/opening.webp'}, ['data.json','yuhuanong/anchor_face.jpg']);
+  f.write(f.assets,'data.json','{}');
+  const result=f.plan();
+  assert.equal(result.unresolved.length,0);
+  assert.equal(result.updates.length,1);
+  assert.ok(result.updates[0].after.includes("path.join(__dirname,'outlines.json')"));
+  assert.ok(result.updates[0].after.includes("'assets/'+outline.id+'/yuhuanong/anchor_face.jpg'"));
+  assert.ok(result.updates[0].after.includes('course-covers/opening.webp'));
+});
+
+test('unknown prefix still blocks a changed JSON asset and reports an actionable error', t => {
+  const source="const data=path.join(root,'config.json');";
+  const f=fixture(t, {'page.ts':source}, {'data/config.json':'data/config-v2.json'});
+  f.write(f.assets,'data/config-v2.json','{}');
+  const run=f.cli('--apply');
+  assert.equal(run.status,1);
+  const result=JSON.parse(run.stdout), issue=result.unresolved[0];
+  assert.equal(result.applied,false);
+  assert.equal(issue.kind,'unknown-base');
+  assert.equal(issue.expression.includes('\u0000'),false);
+  assert.equal(issue.sourceLine,source);
+  assert.ok(issue.reason && issue.nextAction);
+  assert.deepEqual(issue.detail.candidates,['data/config.json']);
+  assert.ok(run.stderr.includes('page.ts:1'));
+  assert.ok(run.stderr.includes('本模块源码未写入'));
+  assert.equal(fs.readFileSync(path.join(f.course,'page.ts'),'utf8'),source);
+});
+
+test('ambiguous data reports candidates while complete data paths migrate safely', t => {
+  const mapping={'workflow/a.jpg':'workflow/a.webp','copied/workflow/a.jpg':'copied/workflow/a.webp'};
+  const f=fixture(t, {'page.ts':"const items=[{path:'a.jpg'}];"}, mapping);
+  const issue=f.plan().unresolved[0];
+  assert.equal(issue.kind,'ambiguous-path');
+  assert.ok(issue.nextAction.includes('完整素材路径'));
+  assert.deepEqual(issue.detail,Object.keys(mapping));
+  f.write(f.course,'page.ts',"const items=[{path:'workflow/a.jpg'}];items.map(item=>moduleAssetUrl(item.path));");
+  const plan=f.plan();
+  assert.equal(plan.unresolved.length,0);
+  assert.ok(plan.updates[0].after.includes('workflow/a.webp'));
+  assert.equal(plan.unverified.length,1);
+});
+
 test('dynamic arbitrary renames are reported', t => {
   const f=fixture(t, {'page.tsx': 'const image=`images/${id}.jpg`;'}, {'images/a.jpg':'renamed/a.webp'});
   assert.equal(f.plan().unresolved[0].kind,'unsupported-dynamic-rename');

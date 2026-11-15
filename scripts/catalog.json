@@ -216,7 +216,7 @@
       "category": "assets",
       "path": "scripts/media/compress-images.py",
       "runtime": "python",
-      "description": "普通图片仅长边超过 900 时等比缩小为 WebP q=80；缩略图与封面为 1600×900 WebP q=20",
+      "description": "普通图片仅宽超过 1600 或高超过 900 时等比缩小，同时满足宽高两个上限，输出 WebP q=80；缩略图与封面为 1600×900 WebP q=20",
       "effects": "普通小图保持原字节；保留 PNG/JPEG 源文件，原地处理 WebP 前备份；不改引用、不写格式映射；--dry-run 不写文件",
       "dependencies": [
         "Pillow"

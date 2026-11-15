@@ -1,7 +1,8 @@
 """Compress course assets to WebP without enlarging ordinary images.
 
-Ordinary PNG/JPEG/WebP images with a long edge above 900 become WebP q=80,
-proportionally resized to a 900-pixel long edge. Smaller images stay byte-identical.
+Ordinary PNG/JPEG/WebP images exceeding a width of 1600 pixels or a height of 900
+pixels become WebP q=80, proportionally resized to satisfy both limits.
+Images within both limits stay byte-identical; images are never enlarged.
 Thumbnails and covers instead use 1600x900 WebP q=20. Animation and high-bit-depth
 images are skipped. Sources are retained; in-place WebP writes require a backup.
 References must be updated explicitly to the reported real WebP filenames.
@@ -19,12 +20,13 @@ from _common import project_path
 
 IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.webp'}
 THUMBNAIL_DIRS = {'scenedeck-thumbnails', 'course-thumbnails', 'course-covers'}
-MAX_SIDE = 900
+MAX_WIDTH = 1600
+MAX_HEIGHT = 900
 QUALITY = 80
 
 
 def fit_size(width, height):
-    scale = min(1.0, MAX_SIDE / max(width, height))
+    scale = min(1.0, MAX_WIDTH / width, MAX_HEIGHT / height)
     return max(1, round(width * scale)), max(1, round(height * scale))
 
 
