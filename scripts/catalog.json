@@ -36,9 +36,9 @@
       "category": "module",
       "path": "scripts/module/package_course.py",
       "runtime": "python",
-      "description": "导出通过当前 Shuku 导入校验与真实构建的课程源码 ZIP",
+      "description": "导出通过当前 Shuku 导入、构建、资源转码校验和逐页真实截图的课程源码 ZIP",
       "effects": "只读课程源码；在指定仓库外创建新 ZIP 和验证构建；不覆盖、不上传、不发布",
-      "dependencies": [],
+      "dependencies": ["playwright", "PIL"],
       "arguments": []
     },
     {

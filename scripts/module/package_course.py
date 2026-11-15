@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export a source ZIP only after round-trip Shuku admission and real builds.
+"""Export a source ZIP after Shuku admission, media validation and real page captures.
 
 Reads: Configured course repository and explicitly selected Shuku checkout.
 Writes: A new ZIP and verified builds beside it. Never uploads or publishes.
@@ -125,6 +125,8 @@ def export_course(root, requested, shuku, output, timeout=300):
                 target.write_bytes(checked[name])
             check_authoring(extracted, timeout)
         _, admitted = validate_zip_course(normalized, check)
+        verified = []
+        from shared.courses.delivery_validation import validate_local_delivery
         for course in admitted:
             run = subprocess.run([node, str(worker_build), course['module_id']], cwd=shuku,
                 env={**env, 'SHUKU_COURSE_SOURCE':str(extracted), 'SHUKU_COURSE_OUTPUT':str(scratch/'builds')},
@@ -133,6 +135,11 @@ def export_course(root, requested, shuku, output, timeout=300):
                 print(run.stdout, file=sys.stderr, end='')
             if run.returncode:
                 raise ValueError('Shuku build failed: '+(run.stderr or run.stdout)[-2500:])
+            manifests = list((scratch/'builds'/course['module_id']).glob('*/artifact-manifest.json'))
+            if len(manifests) != 1:
+                raise ValueError('Expected one completed Shuku build for '+course['module_id'])
+            checked = validate_local_delivery(manifests[0].parent, timeout_ms=min(30000,timeout*1000))
+            verified.append({'module_id':course['module_id'], **checked})
         (scratch/'builds').rename(builds)
         try:
             # Atomic, fails if another process created the destination meanwhile.
@@ -142,8 +149,9 @@ def export_course(root, requested, shuku, output, timeout=300):
             raise ValueError('Could not create new ZIP; verified builds retained at '+str(builds)) from None
     return {'output':str(output), 'buildOutput':str(builds), 'courses':[c['module_id'] for c in admitted],
             'requested':sorted(selected_ids), 'files':len(included), 'zipBytes':output.stat().st_size,
-            'coverage':{'zipRoundTrip':True,'platformAdmission':True,'realBuild':True,'rendering':False,'productionUpload':False},
-            'unverified':['Inspect affected pages/interactions in these builds before upload', 'Destination deployment and live compute services']}
+            'coverage':{'zipRoundTrip':True,'platformAdmission':True,'realBuild':True,'mediaReferences':True,'rendering':True,'productionUpload':False},
+            'verifiedDeliveries':verified,
+            'unverified':['Interaction states beyond the initial capture', 'Destination deployment and live compute services']}
 
 
 def main(argv=None):

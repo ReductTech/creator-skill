@@ -88,7 +88,8 @@ def test_zip_roundtrip_includes_sibling_dependency_excludes_unrelated_draft_and_
     assert result.returncode==0,(report,result.stderr)
     assert set(report['courses'])=={MID,OTHER}
     assert report['coverage']['platformAdmission'] and report['coverage']['realBuild']
-    assert report['coverage']['rendering'] is False
+    assert report['coverage']['rendering'] and report['coverage']['mediaReferences']
+    assert all(row['captured']==row['pages'] for row in report['verifiedDeliveries'])
     assert len(list(Path(report['buildOutput']).rglob('artifact-manifest.json')))==2
     with zipfile.ZipFile(output) as archive:
         names=archive.namelist()
@@ -109,3 +110,49 @@ def test_no_zip_is_delivered_when_real_compile_rejects_an_import(tmp_path):
     result,report=pack(root,output,MID)
     assert result.returncode==2 and 'build failed' in report['error']
     assert not output.exists()
+
+
+@pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
+def test_no_zip_is_delivered_when_compiled_page_throws_at_runtime(tmp_path):
+    root=tmp_path/'source';directory=course(root)
+    (directory/'Guide.tsx').write_text('export function Guide(){throw new Error("fixture runtime failure")}',encoding='utf-8')
+    output=tmp_path/'must-not-render.zip'
+    result,report=pack(root,output,MID)
+    assert result.returncode==2 and 'page rendering failed' in report['error']
+    assert not output.exists()
+
+
+@pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
+def test_no_zip_is_delivered_for_unprovable_dynamic_asset_reference(tmp_path):
+    from PIL import Image
+    root=tmp_path/'source';directory=course(root)
+    (directory/'assets').mkdir();Image.new('RGB',(10,10),'blue').save(directory/'assets/image.png')
+    (directory/'Guide.tsx').write_text('''import {moduleAssetUrl} from '@shuku/course-runtime/react/assets';
+        function path(){return globalThis.location.hash.slice(1)||'image.png'}
+        export function Guide(){return <img src={moduleAssetUrl(path())}/>}''',encoding='utf-8')
+    output=tmp_path/'must-not-convert.zip'
+    result,report=pack(root,output,MID)
+    assert result.returncode==2 and ('资源引用' in report['error'] or 'DYNAMIC_ASSET' in report['error'])
+    assert not output.exists()
+
+
+@pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
+@pytest.mark.parametrize('missing_scene',[False,True])
+def test_real_platform_ppt_renderer_checks_every_outline_page_before_delivery(tmp_path,missing_scene):
+    root=tmp_path/'source';directory=course(root)
+    outline=json.loads((directory/'outlines.json').read_text())
+    second='55555555-5555-4555-8555-555555555555'
+    outline['pages'].append({'id':second,'title':'Second','snippet':'Second page'})
+    outline['ppt']={'entry':'Ppt.tsx'}
+    (directory/'outlines.json').write_text(json.dumps(outline),encoding='utf-8')
+    scenes=[f"{{id:'{outline['pages'][0]['id']}',title:'Opening',render:()=> <div>Opening content</div>}}"]
+    if not missing_scene: scenes.append(f"{{id:'{second}',title:'Second',render:()=> <div>Second content</div>}}")
+    (directory/'Ppt.tsx').write_text("export const deck={id:'"+MID+"',title:'Delivery fixture',scenes:["+','.join(scenes)+"]}",encoding='utf-8')
+    output=tmp_path/'presentation.zip'
+    result,report=pack(root,output,MID)
+    if missing_scene:
+        assert result.returncode==2 and not output.exists()
+        assert 'MISSING_PAGE_COMPONENT' in report['error'] and second in report['error']
+    else:
+        assert result.returncode==0,(report,result.stderr)
+        assert report['verifiedDeliveries'][0]['captured']==2
