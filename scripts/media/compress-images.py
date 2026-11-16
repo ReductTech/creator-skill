@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'common'))
 from _common import project_path
 
 IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.webp'}
-THUMBNAIL_DIRS = {'scenedeck-thumbnails', 'course-thumbnails', 'course-covers'}
+THUMBNAIL_DIRS = {'shuku-thumbnails', 'scenedeck-thumbnails', 'course-thumbnails', 'course-covers'}
 MAX_WIDTH = 1600
 MAX_HEIGHT = 900
 QUALITY = 80

@@ -33,6 +33,8 @@ python <Skill>/scripts/tools.py capture.slides --help
 
 ## 截图和缩略图
 
+整套课件交付前，智能体在本地自动生成全部页面的正式缩略图：`assets/shuku-thumbnails/<页面UUID>.webp`，1600×900、WebP q=20，并随 `course.pack` 打入 SKZIP。使用当前平台构建，工程外构建传 `--build-output <目录>`；无需用户手动截图。生成数量、总览和最终包内文件均须核对。
+
 仅更新缩略图时直接执行 `capture.thumbnails --module <UUID或alias>`，不重走创作设计或评分。已有当前构建可复用，工程外的输出传 `--build-output <目录>`；不启动源码 Vite。
 
 仅在执行截图或一致性检查时读[截图细节](tool-capture.md)，包括单页、操作状态、就绪、返回值与失败处理。常用命令：

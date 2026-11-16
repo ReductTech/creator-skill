@@ -18,7 +18,7 @@ python creator-skill/scripts/tools.py capture.thumbnails --module AI-Practice-Ed
 
 截图只加载固定构建，不做源码依赖优化。原有服务和用户浏览器不被关闭；工具自己的浏览器与临时服务在任务结束时退出。
 
-正式图片写入模块自己的 `assets/scenedeck-thumbnails/`。同时自动保存模块 `_scratchpad/thumbnails/report.json` 和 `contact-sheet.jpg`；单页任务保存 `<页ID>.json`，不重建整套总览。JSON 返回 `generatedCount`、`requestedCount`、`generationStatus`、`checksStatus`、`timing.totalSeconds`、各页 `elapsedMs` 及报告路径，无需另写汇总脚本。
+正式图片写入模块自己的 `assets/shuku-thumbnails/`。同时自动保存模块 `_scratchpad/thumbnails/report.json` 和 `contact-sheet.jpg`；单页任务保存 `<页ID>.json`，不重建整套总览。JSON 返回 `generatedCount`、`requestedCount`、`generationStatus`、`checksStatus`、`timing.totalSeconds`、各页 `elapsedMs` 及报告路径，无需另写汇总脚本。
 
 检查 `generationStatus` 和生成数量后打开总览核对。`generationStatus: ok` 表示图片已写入；`checksStatus: failed` / 退出码 `1` 表示另有布局检查发现，不等于没有生成图片，**不要因此反复重跑整套**。保留并按范围核对这些发现；只有执行错误、缺页或图像错误才补采相关页。缩略图维护不默认制作 ZIP、额外逐页截图或执行全仓库测试；修改了工具本身才运行工具回归测试。
 
@@ -30,7 +30,7 @@ python creator-skill/scripts/tools.py capture.inspect --module Policy-Gradient
 
 逐页使用 `capture.slides --slide <场景ID> --page-directory <语义页目录>`，保存到 `modules/<模块目录名>/pages/<语义页目录>/_scratchpad/screenshots/<场景ID>.png`；操作状态用 `--state` 命名为 `<场景ID>/<状态>.png`。批量捕获旧模块而未指定页目录时仍兼容模块级输出，制作新页时使用逐页目录。`--output` 可指定对应页 `_scratchpad/` 内的图片目录。
 
-`capture.thumbnails` 生成正式播放器缩略图，默认保存到 `modules/<模块目录名>/assets/scenedeck-thumbnails/<页ID>.webp`（1600×900 WebP，q=20），只接受默认状态；其 `--output` 仅可选择正式缩略图目录内的位置。`capture.slides --format both` 从一次采集中同时写入评估目录和正式缩略图目录。评估截图仍为 1600×900 PNG。采集到当前运行时第一页时，自动另外生成 `assets/course-covers/<第一页ID>.webp`（1600×900 WebP，q=20），供首页使用；封面和缩略图都直接使用完整页面截图编码。智能体只需指定模块，可选指定页 ID，无需填写尺寸和质量；已有图片对应当前实现和状态时直接复用。
+`capture.thumbnails` 生成正式播放器缩略图，默认保存到 `modules/<模块目录名>/assets/shuku-thumbnails/<页ID>.webp`（1600×900 WebP，q=20），只接受默认状态；其 `--output` 仅可选择正式缩略图目录内的位置。`capture.slides --format both` 从一次采集中同时写入评估目录和正式缩略图目录。评估截图仍为 1600×900 PNG。采集到当前运行时第一页时，自动另外生成 `assets/course-covers/<第一页ID>.webp`（1600×900 WebP，q=20），供首页使用；封面和缩略图都直接使用完整页面截图编码。智能体只需指定模块，可选指定页 ID，无需填写尺寸和质量；已有图片对应当前实现和状态时直接复用。
 
 浏览器使用隔离的无头上下文，不读取用户浏览器配置。显式提供的服务不由工具关闭；仅临时启动的产物服务会在任务结束后停止。
 

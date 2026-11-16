@@ -1,13 +1,15 @@
 import json
+import pytest
 from PIL import Image
 from media.migrate_thumbnail_webp import migrate
 
 
-def test_migration_preserves_new_webp_capture_and_original_files(tmp_path):
+@pytest.mark.parametrize('folder', ['shuku-thumbnails', 'scenedeck-thumbnails'])
+def test_migration_preserves_new_webp_capture_and_original_files(tmp_path, folder):
     shared = tmp_path / 'modules/shared/react'
     shared.mkdir(parents=True)
     assets = tmp_path / 'modules/Example/assets'
-    thumbs = assets / 'scenedeck-thumbnails'
+    thumbs = assets / folder
     thumbs.mkdir(parents=True)
     Image.new('RGB', (8, 8), 'red').save(thumbs / 'one.png')
     Image.new('RGB', (1600, 900), 'blue').save(thumbs / 'one.webp', quality=20)

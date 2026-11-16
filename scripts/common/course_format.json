@@ -2,6 +2,7 @@
   "module_uuid_pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$",
   "page_uuid_pattern": "^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$",
   "identity_version": 1,
+  "default_title": "未命名标题",
   "identity_fields": ["id", "version"],
   "max_courses": 200,
   "max_pages": 10000,

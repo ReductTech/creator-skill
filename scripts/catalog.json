@@ -49,8 +49,8 @@
       "category": "module",
       "path": "scripts/module/package_course.py",
       "runtime": "python",
-      "description": "唯一官方 SKZIP 交付入口：自动压缩、迁移查漏、补编辑 ID，作者选择资源后通过平台构建与真实渲染才出包",
-      "effects": "只读原工程；隔离副本处理；未确认资源时仅生成清单；全部强制检查通过后创建新 .skzip 和验证构建；不覆盖、不上传、不发布",
+      "description": "唯一官方 SKZIP 交付入口：自动压缩、迁移查漏、补编辑 ID，作者选择资源；质量空缺提示，合格课程继续出包",
+      "effects": "只读原工程；隔离副本处理；未确认资源时仅生成清单；必要检查和至少一门课程构建通过后创建新 .skzip；记录失败课程与质量提醒；不覆盖、不上传、不发布",
       "dependencies": [
         "playwright",
         "PIL"
@@ -89,7 +89,7 @@
       "path": "scripts/media/capture_slides.py",
       "runtime": "python",
       "description": "生成 术库 缩略图",
-      "effects": "读取已构建课件；生成 1600×900 WebP q=20 缩略图，第一页同时生成相同规格的 assets/course-covers 封面；保存模块 _scratchpad/thumbnails 下的报告、耗时与整套总览",
+      "effects": "读取已构建课件；在 assets/shuku-thumbnails/ 生成 1600×900 WebP q=20 缩略图，第一页同时生成相同规格的 assets/course-covers 封面；保存模块 _scratchpad/thumbnails 下的报告、耗时与整套总览",
       "dependencies": [
         "playwright",
         "PIL"

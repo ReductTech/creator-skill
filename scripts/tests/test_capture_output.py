@@ -20,7 +20,7 @@ def setup_capture(tmp_path, monkeypatch):
     monkeypatch.setattr(capture, "ROOT", tmp_path)
     monkeypatch.setattr(capture, "resolve_module", lambda _: (tmp_path, "fixture", "uuid"))
     monkeypatch.setattr(capture, "scene_ids", lambda *args: ["one", "two"])
-    official = tmp_path / "assets/scenedeck-thumbnails"
+    official = tmp_path / "assets/shuku-thumbnails"
     closed = False
 
     @contextmanager
@@ -45,7 +45,7 @@ def test_publish_after_close_uses_webp_and_ignores_legacy_mapping(tmp_path, monk
     official = setup_capture(tmp_path, monkeypatch)
     index = tmp_path / "modules/shared/asset-index.json"
     index.parent.mkdir(parents=True)
-    index.write_text(json.dumps({"formats": {"uuid/scenedeck-thumbnails/one.png": "scenedeck-thumbnails/one.jpg"}}))
+    index.write_text(json.dumps({"formats": {"uuid/shuku-thumbnails/one.png": "shuku-thumbnails/one.jpg"}}))
     args = capture.build_parser().parse_args(["--module", "fixture", "--format", "thumbnails"])
     result = capture.capture_module(args)
     assert result["errors"] == []
@@ -70,7 +70,7 @@ def test_obsolete_thumbnail_mapping_is_ignored(tmp_path, monkeypatch):
     setup_capture(tmp_path, monkeypatch)
     index = tmp_path / "modules/shared/asset-index.json"
     index.parent.mkdir(parents=True)
-    index.write_text(json.dumps({"formats": {"uuid/scenedeck-thumbnails/one.png": "../../escaped.jpg"}}))
+    index.write_text(json.dumps({"formats": {"uuid/shuku-thumbnails/one.png": "../../escaped.jpg"}}))
     args = capture.build_parser().parse_args(["--module", "fixture", "--format", "thumbnails"])
     result = capture.capture_module(args)
     assert result["errors"] == []

@@ -20,9 +20,11 @@ description: 规划、设计、制作或修改 React 交互演示，包括大纲
 
 6. **逐页清理临时目录，交付和提交前再清理。** 每完成一页并完成必要核对，运行 `scratchpad.clean <该页目录> --apply`；整门课收尾、打包交付或 Git 提交前，对本次课件目录再运行一次，确保没有遗留 `_scratchpad`。先将需长期保留的设计图、正式素材和必要记录放到正式位置或用户交付目录；清理后不能仍引用临时路径。支持直接指定绝对路径，递归清理所有嵌套层级的 `_scratchpad`，不按普通目录名称排除；仅不跟随链接/junction，防止越界。此临时目录清理适用于 Shared 下的 `_scratchpad`，不得修改其他 Shared 文件。命令默认只预览，实际删除须带 `--apply`，详见[临时目录清理](references/tools.md#临时目录清理)。
 
+7. **正式页面缩略图必须统一保存在课件自己的 `assets/shuku-thumbnails/`。** 新建、更新和仅维护缩略图均使用唯一正式路径 `<课件目录>/assets/shuku-thumbnails/<页面UUID>.webp`，全部实际页面各一张，统一为 1600×900、WebP q=20，直接平铺在该目录，不另建子目录。不得改用其他目录名，不得将正式页面缩略图保存到工程根目录、其他课件、Shared、`_scratchpad` 或交付目录。生成后核对本地路径，并确保最终 SKZIP 保留同一课件内的 `assets/shuku-thumbnails/<页面UUID>.webp` 路径。检查用截图、总览和报告仍按各自规则保存，不作为正式页面缩略图交付。
+
 ## 开始与续作
 
-**交付只用一个入口：`course.pack --module <课程UUID> --shuku-root <Shuku路径> --output <工程外绝对路径.skzip>`。** 不手工压 ZIP、不改后缀冒充 SKZIP、不用“构建成功”替代交付验收。该入口在副本中强制执行图片压缩与格式处理、引用迁移和查漏、`shuku-edit-id` 补齐与复查、资源盘点、平台导入/构建和真实页面验证；失败或未验证时不出包。资源清单必须先给作者选择保留/排除，智能体不得代选，也不删除作者原文件。首次直接运行，按返回清单继续同一入口，详见[官方 SKZIP 交付](references/engineering/delivery.md)。
+**交付只用一个入口：`course.pack --module <课程UUID> --shuku-root <Shuku路径> --output <工程外绝对路径.skzip>`。** 不手工压 ZIP、不改后缀冒充 SKZIP、不自行填写通过结果。入口在副本中执行图片压缩、引用迁移查漏、编辑 ID 补齐复查、资源盘点、平台检查与构建；质量空缺如实提示，允许出包。包损坏、非法路径、未完成作者资源确认或没有一门课程通过必要检查与构建时不出包；个别课程失败记录原因，其余合格课程继续。资源保留/排除必须由作者选择，不删除原文件。详见[官方 SKZIP 交付](references/engineering/delivery.md)。
 
 先确定目标、已有成果和当前阶段。仅讨论主线、大纲、讲稿或设计时，无需工程配置或创建文件；工程操作按下方配置定位课程。
 
@@ -45,7 +47,7 @@ description: 规划、设计、制作或修改 React 交互演示，包括大纲
 - 生图前读设计指导并实际查看相关成对正反例，把借鉴与避让决策写入提示词；工具边界见[页面设计指导](references/design/design.md#视觉设计图的工具约束)。
 - React 使用 1600×900 固定画布、外层等比例缩放。第一页独立设计封面，其余页默认使用 Shared `ContentBlock` 标准标题区；独立文字用 `Typography`。用户明确指定的版式按指定范围执行。
 - 所有课件的设计示意图与正式页面画布均不添加页码、总页数或页序角标；每次生图提示词明确写“不添加页码”，参考原稿和样例中的页码也不保留。
-- 课程目录 UUID、`outlines.json.id`、`moduleIdentity.id` 相等；`moduleIdentity` 只含 `version`、`id`。每页登记非空 `id`、`title`、`snippet`，页面 UUID 稳定且与 PPT、Guide、讲稿一致，新增用 UUID v4。大纲不增加其他页面字段，不编造用户尚未提供的内容。
+- 课程目录 UUID、`outlines.json.id`、`moduleIdentity.id` 相等；`moduleIdentity` 只含 `version`、`id`。每页登记稳定 UUID，与 PPT、Guide、讲稿一致，新增用 UUID v4。课程或页面标题缺失、空白时默认“未命名标题”；讲稿 `snippet` 缺失时补空字符串，允许为空，不编造讲稿。身份、入口等必要字段不使用展示默认值替代。
 - 页面放 `pages/<语义页目录>/<同名组件及样式>`，按实际制作进度建目录。逐页中间产物放页内 `_scratchpad/`，整体原稿和记录放模块级 `_scratchpad/`；正式素材放课程 `assets/`。
 - 视觉组件从 `@shuku/course-style/react` 导入；资源、请求与状态从 `@shuku/course-runtime/react/...` 导入。`moduleAssetUrl('真实相对路径')` 与 `moduleJson('真实相对路径')` 仅接受一个参数。素材路径必须完整写出目录、文件名与扩展名，不拼接字段构造路径；动态切换时从完整路径列表中选择，详见[资源引用](references/engineering/module-assets.md#资源引用平台强制约定)。不从 Shared 导入内核接口，不维护历史资源映射。
 - 初始化用户工程时，直接将本 Skill 根目录的完整 `shared/` 复制到目标工程的 `modules/shared/`（平铺布局用 `shared/`）；目标已有 Shared 时复用，不覆盖。路径、风格登记与 UUID 规则见[复制内置 Shared](references/engineering/module-assets.md#复制内置-shared)。
@@ -70,4 +72,4 @@ description: 规划、设计、制作或修改 React 交互演示，包括大纲
 
 ## 完成
 
-按影响范围检查真实渲染、内容与相关交互，修复后复验；随后按上方规则清理本次课件的 `_scratchpad`，再交付或提交。不默认执行评分或全仓测试。交付简述完成内容、实际验证与剩余限制，未执行的检查标为未验证。
+按影响范围检查真实渲染、内容与相关交互，修复后复验。整套课件完成、准备交付 SKZIP 时，智能体须在本地基于当前平台构建执行 `capture.thumbnails --module <课程UUID>`（工程外构建加 `--build-output <目录>`），为全部实际页面生成缩略图，严格遵守上方第 7 条的唯一保存路径与规格；不得要求用户手动截图。核对生成数量、页面对应、本地保存路径及总览，将 `assets/shuku-thumbnails/` 作为正式资源随 `course.pack` 一起打入 SKZIP，检查最终包内路径正确且逐页文件齐全。截图或构建失败须修复后补采，不以缺少缩略图的包宣称交付完成。随后按上方规则清理本次课件的 `_scratchpad`，再交付或提交。不默认执行评分或全仓测试。交付简述完成内容、实际验证与剩余限制，未执行的检查标为未验证。

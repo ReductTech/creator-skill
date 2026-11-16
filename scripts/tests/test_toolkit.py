@@ -127,7 +127,7 @@ def test_real_capture_uses_existing_engine_for_default_and_click_states(tmp_path
                 with Image.open(folder/'one/changed.png') as saved:
                     assert saved.size==(1600,900) and saved.getpixel((1000,500))==(0,0,255)
                 assert capture_slides.main(command+['--format','thumbnails'])==0
-                official=tmp_path/'assets/scenedeck-thumbnails'
+                official=tmp_path/'assets/shuku-thumbnails'
                 with Image.open(official/'one.webp') as saved:
                     assert saved.size==(1600,900) and saved.format=='WEBP'
                     assert saved.getpixel((200,100))[0]>250

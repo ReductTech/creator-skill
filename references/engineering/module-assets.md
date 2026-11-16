@@ -99,7 +99,7 @@ const images = thumbnails.map(item => (
 
 GPU 构建容器保持断网，上传发生在容器外的可信 Worker，不将 OSS 凭据交给课程代码。只有明确配置为公开的静态素材才启用公共 OSS 上传；私有内容遵守原权限。HTML、交互代码及计算服务仍由服务器交付。GLTF 内部依赖按最终文件地址处理，图集坐标保持原语义。断网导出通过现有离线资源入口接管，不能假设 fetch(file://...) 可用。
 
-正式术库缩略图保存在 `modules/<课程目录>/assets/scenedeck-thumbnails/`，统一为 `<scene-id>.webp`，1600×900 WebP，质量 q=20。由 `capture.thumbnails` 生成；运行时第一页同时自动生成 `assets/course-covers/<第一页ID>.webp` 的首页封面，同为 1600×900、q=20。无需传入尺寸或质量参数，评估截图仍为 1600×900 PNG。播放器 `assetId` 使用当前模块的 UUID，不使用目录名。
+正式术库缩略图保存在 `modules/<课程目录>/assets/shuku-thumbnails/`，统一为 `<scene-id>.webp`，1600×900 WebP，质量 q=20。由 `capture.thumbnails` 生成；运行时第一页同时自动生成 `assets/course-covers/<第一页ID>.webp` 的首页封面，同为 1600×900、q=20。无需传入尺寸或质量参数，评估截图仍为 1600×900 PNG。播放器 `assetId` 使用当前模块的 UUID，不使用目录名。
 
 已有正式缩略图对应当前实现时可直接用于检查，无需重复截图；交互状态截图保存在 `_scratchpad/`。
 
@@ -127,7 +127,7 @@ CAS 使用未开启版本控制的桶，读取桶状态后发现 Enabled/Suspend
 
 运行 `python creator-skill/scripts/tools.py assets.compress modules/<课程目录>/assets --dry-run` 先检查范围，移除 `--dry-run` 才执行。普通 PNG、JPEG、WebP 的尺寸上限为宽 1600 像素、高 900 像素，横图、竖图均使用这一固定宽高边界，不按长短边交换。宽或高超限时，按 `min(1, 1600 / 原宽, 900 / 原高)` 等比例缩小，最终同时满足宽不大于 1600、高不大于 900。超限图片输出 WebP q=80，不裁剪、不补边、不放大。例如 2000×1000 缩为 1600×800，1000×2000 缩为 450×900，2000×1500 缩为 1200×900。已同时满足宽高上限的图片保持原字节和原格式，不重新编码。透明普通图片保留 alpha；动画、高位深图片、GIF、SVG 和其他格式跳过。
 
-`assets/scenedeck-thumbnails/`、`assets/course-thumbnails/` 和 `assets/course-covers/` 使用独立标准：1600×900 WebP q=20，不使用普通图片的等比例缩小规则。正式截图本来为 16:9；旧缩略图迁移时非 16:9 图片等比例完整保留并居中补白。中间截图继续保留 PNG，不进入普通素材压缩。
+`assets/shuku-thumbnails/`、旧版 `assets/scenedeck-thumbnails/`、`assets/course-thumbnails/` 和 `assets/course-covers/` 使用独立标准：1600×900 WebP q=20，不使用普通图片的等比例缩小规则。正式截图本来为 16:9；旧缩略图迁移时非 16:9 图片等比例完整保留并居中补白。中间截图继续保留 PNG，不进入普通素材压缩。
 
 生成 `.webp` 时保留原 PNG/JPEG，不覆盖已有同名 WebP；原文件已是大尺寸 WebP 时，先备份到素材目录旁的 `<目录名>-image-originals/` 再替换。`--report` 记录真实源文件、目标路径、前后尺寸、质量和字节数；`--dry-run` 仅输出计划，不写图片、备份或报告。格式和尺寸按上述标准执行，不以文件更小作为是否转换的条件。
 

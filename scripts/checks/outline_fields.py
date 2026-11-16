@@ -14,6 +14,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
 from _common import modules_directory, require_target_root, report_error
 from course_identity import is_canonical_uuid
+from course_metadata import normalize_outline
 
 def source_ids(directory):
     result = {}
@@ -39,7 +40,7 @@ def process(repository, fix=False, module=None):
     errors, changes = [], []
     modules = pages_total = 0
     for path in sorted(modules_directory(repository).glob("*/outlines.json")):
-        doc = json.loads(path.read_text(encoding="utf-8-sig"))
+        doc = normalize_outline(json.loads(path.read_text(encoding="utf-8-sig")))
         if module and module not in (path.parent.name, doc.get("id"), doc.get("alias"), doc.get("moduleIdentity", {}).get("id")):
             continue
         modules += 1
@@ -76,7 +77,7 @@ def process(repository, fix=False, module=None):
                 changed = True
                 changes.append({"module": path.parent.name, "page": index + 1, "id": value})
             for key in ("id", "title", "snippet"):
-                if not isinstance(page.get(key), str) or not page[key].strip():
+                if not isinstance(page.get(key), str) or key != 'snippet' and not page[key].strip():
                     errors.append(label + ": missing nonempty " + key)
             value = page.get("id")
             if isinstance(value, str):

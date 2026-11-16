@@ -113,17 +113,17 @@ def test_no_zip_is_delivered_when_real_compile_rejects_an_import(tmp_path):
 
 
 @pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
-def test_no_zip_is_delivered_when_compiled_page_throws_at_runtime(tmp_path):
+def test_render_failure_is_a_quality_warning_after_successful_build(tmp_path):
     root=tmp_path/'source';directory=course(root)
     (directory/'Guide.tsx').write_text('export function Guide(){throw new Error("fixture runtime failure")}',encoding='utf-8')
     output=tmp_path/'must-not-render.skzip'
     result,report=pack(root,output,MID)
-    assert result.returncode==2 and 'page rendering failed' in report['error']
-    assert not output.exists()
+    assert result.returncode==0 and output.exists(), (report,result.stderr)
+    assert not report['coverage']['rendering'] and report['warnings']
 
 
 @pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
-def test_no_zip_is_delivered_for_unprovable_dynamic_asset_reference(tmp_path):
+def test_unprovable_dynamic_asset_reference_is_a_quality_warning(tmp_path):
     from PIL import Image
     root=tmp_path/'source';directory=course(root)
     (directory/'assets').mkdir();Image.new('RGB',(10,10),'blue').save(directory/'assets/image.png')
@@ -132,8 +132,8 @@ def test_no_zip_is_delivered_for_unprovable_dynamic_asset_reference(tmp_path):
         export function Guide(){return <img src={moduleAssetUrl(path())}/>}''',encoding='utf-8')
     output=tmp_path/'must-not-convert.skzip'
     result,report=pack(root,output,MID)
-    assert result.returncode==2 and ('资源引用' in report['error'] or 'DYNAMIC_ASSET' in report['error'] or 'unresolved/unverified' in report['error'])
-    assert not output.exists()
+    assert result.returncode==0 and output.exists(), (report,result.stderr)
+    assert not report['coverage']['references'] or not report['coverage']['mediaReferences']
 
 
 @pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
@@ -151,8 +151,8 @@ def test_real_platform_ppt_renderer_checks_every_outline_page_before_delivery(tm
     output=tmp_path/'presentation.skzip'
     result,report=pack(root,output,MID)
     if missing_scene:
-        assert result.returncode==2 and not output.exists()
-        assert 'MISSING_PAGE_COMPONENT' in report['error'] and second in report['error']
+        assert result.returncode==0 and output.exists(), (report,result.stderr)
+        assert not report['coverage']['rendering'] and report['warnings']
     else:
         assert result.returncode==0,(report,result.stderr)
         assert report['verifiedDeliveries'][0]['captured']==2
@@ -196,3 +196,44 @@ def test_official_review_preparation_and_author_exclusions_preserve_source(tmp_p
         assert b'picture.webp' in code and b'shuku-edit-id' in code
     after = {p.relative_to(root).as_posix():p.read_bytes() for p in root.rglob('*') if p.is_file()}
     assert before == after
+
+
+@pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
+def test_official_pack_defaults_titles_and_continues_after_an_invalid_course(tmp_path):
+    from skzip import verify_archive
+    root=tmp_path/'source';directory=course(root);bad=course(root,OTHER)
+    path=directory/'outlines.json';doc=json.loads(path.read_text())
+    doc.pop('title');doc['pages'][0].pop('title');doc['pages'][0].pop('snippet')
+    path.write_text(json.dumps(doc),encoding='utf-8')
+    (bad/'outlines.json').write_text('{broken',encoding='utf-8')
+    output=tmp_path/'mixed.skzip'
+    result,report=pack(root,output,'FIXTURE-'+MID[:8],OTHER)
+    assert result.returncode==0, (report,result.stderr)
+    assert report['courses']==[MID] and report['rejectedCourses'][0]['module_id']==OTHER
+    receipt=verify_archive(output)
+    assert receipt['checks']['build']['scope']=='accepted-courses'
+    with zipfile.ZipFile(output) as archive:
+        doc=json.loads(archive.read('modules/'+MID+'/outlines.json'))
+    assert doc['title']==doc['pages'][0]['title']=='未命名标题' and doc['pages'][0]['snippet']==''
+    assert json.loads(path.read_text()).get('title') is None
+
+
+def test_delivery_payload_retains_official_thumbnails_after_scratch_cleanup(tmp_path):
+    from PIL import Image
+    from media.thumbnail_profiles import save_thumbnail
+    directory = course(tmp_path)
+    thumbnail = directory/'assets/shuku-thumbnails/44444444-4444-4444-8444-444444444444.webp'
+    save_thumbnail(Image.new('RGB', (1600, 900), 'navy'), thumbnail)
+    report = directory/'_scratchpad/thumbnails/report.json'
+    report.parent.mkdir(parents=True)
+    report.write_text('{}')
+    files = source_paths(tmp_path, [tmp_path/'modules'])
+    name = thumbnail.relative_to(tmp_path).as_posix()
+    assert name in files
+    assert report.relative_to(tmp_path).as_posix() not in files
+    archive = tmp_path/'payload.zip'
+    with zipfile.ZipFile(archive, 'w') as stream:
+        for path, file in files.items():
+            stream.write(file, path)
+    with zipfile.ZipFile(archive) as stream:
+        assert stream.read(name) == thumbnail.read_bytes()

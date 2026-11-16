@@ -6,7 +6,23 @@ import re
 RULES = json.loads(Path(__file__).with_name('course_format.json').read_text(encoding='utf-8'))
 
 
+def normalize_outline(doc):
+    """Fill display defaults without changing stable identities or author data."""
+    if not isinstance(doc, dict):
+        return doc
+    result = dict(doc)
+    def title(value):
+        return RULES.get('default_title', '未命名标题') if value is None or isinstance(value, str) and not value.strip() else value
+    result['title'] = title(doc.get('title'))
+    if isinstance(doc.get('pages'), list):
+        result['pages'] = [{**page, 'title':title(page.get('title')),
+                            'snippet':'' if page.get('snippet') is None else page['snippet']}
+                           if isinstance(page, dict) else page for page in doc['pages']]
+    return result
+
+
 def page_errors(doc, label, *, complete=False):
+    doc = normalize_outline(doc)
     errors = []
     if 'pageAliases' in doc:
         errors.append('Page aliases are unsupported; use page UUIDs: ' + label)
@@ -32,7 +48,7 @@ def page_errors(doc, label, *, complete=False):
             errors.append(label + ': obsolete outline fields are unsupported: ' + ', '.join(obsolete))
         if complete:
             for field in RULES['required_page_fields']:
-                if not isinstance(page.get(field), str) or not page[field].strip():
+                if not isinstance(page.get(field), str) or field != 'snippet' and not page[field].strip():
                     errors.append(f'{label}: page {number} has no {field}')
     return errors
 
@@ -40,6 +56,7 @@ def page_errors(doc, label, *, complete=False):
 def module_errors(doc, identity, *, complete=False, exists=None):
     if not isinstance(doc, dict):
         return [identity + ': outline must be an object']
+    doc = normalize_outline(doc)
     errors = []
     asset = doc.get('moduleIdentity')
     ppt = doc.get('ppt', {})

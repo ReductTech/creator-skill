@@ -2,16 +2,21 @@
  * code and never uploads. The PUBLIC_KEY is a workflow convention, not a secret.
  * Import verifySkzip(file, {onProgress}) from an HTTPS/localhost application.
  */
-const MANIFEST = 'skzip-manifest.json', POLICY = 'creator-delivery-v1';
+const MANIFEST = 'skzip-manifest.json', POLICY = 'creator-delivery-v2';
 const PUBLIC_KEY = 'shuku-skzip-public-workflow-v1';
 const CHECKS = ['images','references','editIds','resources','admission','build','mediaReferences','rendering'];
+const HARD_CHECKS = ['resources','admission','build'];
 const MAX_FILES = 10000, MAX_BYTES = 1024 ** 3, MAX_FILE = 128 * 1024 ** 2, MAX_MANIFEST = 4 * 1024 ** 2;
+export const SKZIP_MAX_BYTES = MAX_BYTES;
 const utf8 = new TextDecoder('utf-8', {fatal:true}), encoder = new TextEncoder();
 const hex = raw => [...new Uint8Array(raw)].map(n=>n.toString(16).padStart(2,'0')).join('');
 const sha = async bytes => hex(await crypto.subtle.digest('SHA-256',bytes));
 export const canonical = value => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v)
   ? Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])) : v);
-function requireThat(ok, message) { if (!ok) throw Error(message); }
+export class SkzipValidationError extends Error {
+  constructor(code) { super(code); this.name='SkzipValidationError'; this.code=code; }
+}
+function requireThat(ok, message, code='SKZIP_INVALID') { if (!ok) throw new SkzipValidationError(code); }
 function safeName(name) {
   requireThat(typeof name === 'string' && name && !/[\\:\u0000-\u001f]/.test(name)
     && !name.startsWith('/') && !name.split('/').some(p=>!p || p==='.' || p==='..'), 'Invalid SKZIP path');
@@ -19,15 +24,15 @@ function safeName(name) {
 }
 
 export async function validateManifest(document) {
-  requireThat(document && document.format==='shuku-skzip' && document.schema===1 && document.policy===POLICY,
-    '请选择官方打包程序生成的 SKZIP；格式或版本不受支持。');
+  requireThat(document && document.format==='shuku-skzip' && document.schema===1 && ['creator-delivery-v1',POLICY].includes(document.policy),
+    '请选择官方打包程序生成的 SKZIP；格式或版本不受支持。','SKZIP_FORMAT');
   const {workflowTag,...unsigned} = document;
   const key = await crypto.subtle.importKey('raw',encoder.encode(PUBLIC_KEY),{name:'HMAC',hash:'SHA-256'},false,['sign']);
   const expected = hex(await crypto.subtle.sign('HMAC',key,encoder.encode(canonical(unsigned))));
-  requireThat(workflowTag===expected, 'SKZIP 流程标记不正确，请重新打包。');
-  requireThat(document.checks && Object.keys(document.checks).length===CHECKS.length
-    && CHECKS.every(k=>document.checks[k]?.status==='passed'), '交付检查未全部通过。');
-  requireThat(document.resourceReview?.confirmed===true, '作者尚未完成资源取舍。');
+  requireThat(workflowTag===expected, 'SKZIP 流程标记不正确，请重新打包。','SKZIP_INTEGRITY');
+  requireThat(document.checks && HARD_CHECKS.every(k=>document.checks[k]?.status==='passed'),
+    '必要的交付检查未通过。','SKZIP_CHECKS');
+  requireThat(document.resourceReview?.confirmed===true, '作者尚未完成资源取舍。','SKZIP_REVIEW');
   requireThat(Array.isArray(document.files) && document.files.length>0 && document.files.length<MAX_FILES,
     'Invalid SKZIP inventory');
   const seen = new Set(); let bytes = 0;
@@ -97,19 +102,22 @@ async function contents(file, entry) {
 }
 
 export async function verifySkzip(file, {onProgress=()=>{}}={}) {
+  requireThat(globalThis.crypto?.subtle && typeof globalThis.DecompressionStream==='function',
+    'Browser does not support local SKZIP verification','SKZIP_BROWSER');
   requireThat(file && /\.skzip$/i.test(file.name||'') && file.size>0 && file.size<=MAX_BYTES,
-    '请选择不超过 1 GiB 的 .skzip 文件；普通 ZIP 不可上传。');
+    '请选择不超过 1 GiB 的 .skzip 文件；普通 ZIP 不可上传。','SKZIP_FORMAT');
   const entries=await directory(file), manifest=entries.get(MANIFEST);
-  requireThat(manifest?.name===MANIFEST && manifest.length<=MAX_MANIFEST,'缺少 SKZIP 交付清单。');
+  requireThat(manifest?.name===MANIFEST && manifest.length<=MAX_MANIFEST,'缺少 SKZIP 交付清单。','SKZIP_FORMAT');
   const document=JSON.parse(utf8.decode(await contents(file,manifest))), rows=await validateManifest(document);
   requireThat(entries.size===rows.length+1,'SKZIP 存在未登记或缺失文件。');
   let completed=0;
   for(const row of rows) {
     const entry=entries.get(row.path.toLowerCase());
-    requireThat(entry?.name===row.path && entry.length===row.size,'SKZIP 文件清单不一致：'+row.path);
-    requireThat(await sha(await contents(file,entry))===row.sha256,'SKZIP 内容已变化，请重新打包：'+row.path);
+    requireThat(entry?.name===row.path && entry.length===row.size,'SKZIP 文件清单不一致：'+row.path,'SKZIP_INTEGRITY');
+    requireThat(await sha(await contents(file,entry))===row.sha256,'SKZIP 内容已变化，请重新打包：'+row.path,'SKZIP_INTEGRITY');
     onProgress({completed:++completed,total:rows.length,path:row.path});
   }
   return {status:'passed',format:document.format,policy:document.policy,files:rows.length,
-    bytes:rows.reduce((n,r)=>n+r.size,0),manifest:document};
+    bytes:rows.reduce((n,r)=>n+r.size,0),manifest:document,
+    warnings:CHECKS.filter(k=>!HARD_CHECKS.includes(k) && document.checks?.[k]?.status!=='passed')};
 }

@@ -62,8 +62,8 @@ def test_envelope_actual_bytes_and_tamper(tmp_path):
 def test_missing_or_fabricated_receipts_fail(tmp_path, change):
     path = tmp_path/'bad.skzip'
     def mutate(d):
-        if change == 'missing-check': del d['checks']['editIds']
-        elif change == 'failed-check': d['checks']['references']['status'] = 'unverified'
+        if change == 'missing-check': del d['checks']['admission']
+        elif change == 'failed-check': d['checks']['build']['status'] = 'failed'
         elif change == 'unconfirmed': d['resourceReview']['confirmed'] = False
         elif change == 'unlisted': d['files'] = []
         elif change == 'tag': d['producer']['name'] = 'changed'
@@ -109,12 +109,12 @@ def test_prepare_converts_small_png_rewrites_and_adds_ids(tmp_path):
         assert im.size == (20, 30) and im.mode == 'RGBA'
 
 
-def test_opaque_references_block_preparation(tmp_path):
+def test_opaque_references_are_reported_without_blocking_preparation(tmp_path):
     root = tmp_path/'source'
     course, record = fixture(root, "import {moduleAssetUrl} from '@shuku/course-runtime/react/assets';export function Guide(){return <img src={moduleAssetUrl(location.hash)}/>} ")
     work = tmp_path/'work'; work.mkdir()
-    with pytest.raises(ValueError, match='unresolved/unverified'):
-        prepare(root, [record], work, 30)
+    rows, _, _ = prepare(root, [record], work, 30)
+    assert rows[0]['references'].get('unverified') or rows[0]['references'].get('unresolved')
 
 
 def test_id_check_rejects_duplicates_and_missing_ids(tmp_path):

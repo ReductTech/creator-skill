@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate JPG thumbnails for every registered PPT, using the normal capture pipeline."""
+"""Regenerate 1600x900 WebP q=20 thumbnails in assets/shuku-thumbnails for every registered PPT, using the normal capture pipeline."""
 import argparse
 import json
 from pathlib import Path

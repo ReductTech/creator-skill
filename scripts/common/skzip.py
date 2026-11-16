@@ -12,8 +12,9 @@ import zipfile
 
 MANIFEST = 'skzip-manifest.json'
 PUBLIC_KEY = b'shuku-skzip-public-workflow-v1'
-POLICY = 'creator-delivery-v1'
+POLICY = 'creator-delivery-v2'
 CHECKS = ('images', 'references', 'editIds', 'resources', 'admission', 'build', 'mediaReferences', 'rendering')
+HARD_CHECKS = ('resources', 'admission', 'build')
 MAX_FILES, MAX_BYTES, MAX_FILE_BYTES = 10000, 1024 ** 3, 128 * 1024 ** 2
 MAX_MANIFEST = 4 * 1024 ** 2
 
@@ -42,8 +43,8 @@ def seal(document):
 
 
 def envelope(files, checks, review, producer):
-    if set(checks) != set(CHECKS) or any(checks[k].get('status') != 'passed' for k in CHECKS):
-        raise ValueError('All SKZIP delivery gates must pass')
+    if any(not isinstance(checks.get(k), dict) or checks[k].get('status') != 'passed' for k in HARD_CHECKS):
+        raise ValueError('Required SKZIP delivery gates must pass')
     rows = []
     for name in sorted(files):
         raw = files[name]
@@ -55,13 +56,13 @@ def envelope(files, checks, review, producer):
 def validate_manifest(document):
     if (not isinstance(document, dict) or document.get('format') != 'shuku-skzip'
             or type(document.get('schema')) is not int or document['schema'] != 1
-            or document.get('policy') != POLICY):
+            or document.get('policy') not in ('creator-delivery-v1', POLICY)):
         raise ValueError('Unsupported SKZIP format/version')
     tag = document.get('workflowTag')
     if not isinstance(tag, str) or not hmac.compare_digest(tag, seal(document)['workflowTag']):
         raise ValueError('Invalid SKZIP workflow tag; re-run course.pack')
     checks = document.get('checks', {})
-    if set(checks) != set(CHECKS) or any(not isinstance(checks[k], dict) or checks[k].get('status') != 'passed' for k in CHECKS):
+    if not isinstance(checks, dict) or any(not isinstance(checks.get(k), dict) or checks[k].get('status') != 'passed' for k in HARD_CHECKS):
         raise ValueError('Incomplete SKZIP delivery checks')
     review = document.get('resourceReview', {})
     if not isinstance(review, dict) or review.get('confirmed') is not True:

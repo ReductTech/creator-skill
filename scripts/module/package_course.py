@@ -16,7 +16,7 @@ from uuid import uuid4
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'common'))
-from _common import emit_result, report_error, require_target_root, resolve_module, modules_directory
+from _common import emit_result, report_error, require_target_root, modules_directory
 from skzip import canonical, digest, envelope, verify_archive, MANIFEST, CHECKS
 from module.delivery_prepare import prepare, resource_review, choose_resources, tool
 
@@ -81,13 +81,12 @@ def export_course(root, requested, shuku, output, timeout=300, *, resources=None
     # discovery, style completion, admission and the compiler. No duplicate format.
     sys.path.insert(0, str(shuku))
     from shared.courses.source.source_files import SourceFiles
-    from shared.courses.source.course_repository import discover_shuku_courses, course_input_paths
+    from shared.courses.source.course_repository import discover_shuku_courses, course_input_paths, normalize_course_files
     from shared.courses.styles import supply_default_style, DEFAULT_STYLE_ID
     from shared.courses.source.zip_input import unpack_zip
     from shared.courses.source.source_limits import MAX_FILES, MAX_BYTES, MAX_FILE_BYTES
-    from worker.shuku_worker.build.course_validation import validate_zip_course, check_authoring
+    from worker.shuku_worker.build.course_validation import validate_zip_course, check_authoring, CourseValidationError
 
-    selected_ids = {resolve_module(name, root)[1]['id'] for name in requested}
     directories = [modules_directory(root)]
     registry = root/'course-styles.json'
     if registry.is_file():
@@ -97,16 +96,20 @@ def export_course(root, requested, shuku, output, timeout=300, *, resources=None
     raw = source_paths(root, directories)
     if registry.is_file():
         raw['course-styles.json'] = registry
-    files = supply_default_style(SourceFiles(raw))
-    candidates = discover_shuku_courses(files)
-    selected = [item for item in candidates if item['module_id'] in selected_ids]
-    if len(selected) != len(selected_ids) or any(not item['ready'] for item in selected):
-        raise ValueError('Select implemented UUID courses; outline-only drafts cannot be delivered')
+    files = supply_default_style(normalize_course_files(SourceFiles(raw)))
+    candidates = discover_shuku_courses(files, partial=True)
+    selected = []
+    for name in requested:
+        matches = [item for item in candidates if any(isinstance(value, str) and name.casefold() == value.casefold()
+                   for value in (item['module_id'], item['path'], item['outline'].get('alias')))]
+        if len(matches) != 1:
+            raise ValueError('Unknown or ambiguous course: '+name)
+        if matches[0] not in selected:
+            selected.append(matches[0])
+    selected_ids = {item['module_id'] for item in selected}
     inputs = course_input_paths(files, candidates, selected={item['path'] for item in selected})
     included = set().union(*inputs.values())
     packaged = [item for item in candidates if item['path']+'/outlines.json' in included]
-    if any(not item['ready'] for item in packaged):
-        raise ValueError('A dependency or computed import includes an outline-only draft; make the import explicit or move reusable code into shared')
     if len(included) > MAX_FILES or sum(files.size(name) for name in included) > MAX_BYTES:
         raise ValueError('Source ZIP exceeds the selected platform expanded size/file-count limits')
     if any(files.size(name) > MAX_FILE_BYTES for name in included):
@@ -152,8 +155,6 @@ def export_course(root, requested, shuku, output, timeout=300, *, resources=None
                 if not target.resolve().is_relative_to(prepared.resolve()) or digest(target.read_bytes()) != row['sha256']:
                     raise ValueError('Resource changed before exclusion')
                 target.unlink()
-        tool(prepared, config, 'check.module', [], timeout)
-        tool(prepared, config, 'check.asset-imports', [], timeout)
         payload = source_paths(prepared, [prepared])
         archive = scratch/'payload.zip'
         def write_payload():
@@ -165,33 +166,81 @@ def export_course(root, requested, shuku, output, timeout=300, *, resources=None
             raise ValueError('SKZIP exceeds the platform upload size limit')
         normalized = unpack_zip(archive, scratch/'payload')
         extracted = scratch/'source'
+        extracted.mkdir()
         def check(checked):
+            directory = Path(tempfile.mkdtemp(prefix='admission-', dir=scratch))
             for name in checked:
-                target = extracted/name
+                target = directory/name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(checked[name])
-            check_authoring(extracted, timeout)
-        _, admitted = validate_zip_course(normalized, check)
+            try:
+                check_authoring(directory, timeout)
+            finally:
+                shutil.rmtree(directory)
+        normalized, admitted = validate_zip_course(normalized, check, partial=True)
+        inputs = course_input_paths(normalized, admitted, conservative_dynamic=False)
         verified = []
+        rejected = [{'module_id':course['module_id'], 'issues':course.get('validation', {}).get('issues',
+                    [{'path':course['path'], 'message':'Course has no buildable entry'}])}
+                    for course in admitted if not course['ready']]
+        accepted = []
+        delivery_warnings = []
         from shared.courses.delivery.delivery_validation import validate_local_delivery
         for course in admitted:
-            run = subprocess.run([node, str(worker_build), course['module_id']], cwd=shuku,
-                env={**env, 'SHUKU_COURSE_SOURCE':str(extracted), 'SHUKU_COURSE_OUTPUT':str(scratch/'builds')},
-                capture_output=True, text=True, encoding='utf-8', timeout=timeout)
+            if not course['ready']:
+                continue
+            shutil.rmtree(extracted)
+            extracted.mkdir()
+            for name in inputs[course['path']]:
+                target = extracted/name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(normalized[name])
+            try:
+                run = subprocess.run([node, str(worker_build), course['module_id']], cwd=shuku,
+                    env={**env, 'SHUKU_COURSE_SOURCE':str(extracted), 'SHUKU_COURSE_OUTPUT':str(scratch/'builds')},
+                    capture_output=True, text=True, encoding='utf-8', timeout=timeout)
+            except subprocess.TimeoutExpired:
+                rejected.append({'module_id':course['module_id'], 'issues':[{'path':course['path'],
+                    'message':'Shuku build exceeded the per-course timeout'}]})
+                continue
             if run.stdout:
                 print(run.stdout, file=sys.stderr, end='')
             if run.returncode:
-                raise ValueError('Shuku build failed: '+(run.stderr or run.stdout)[-2500:])
+                rejected.append({'module_id':course['module_id'], 'issues':[{'path':course['path'],
+                    'message':'Shuku build failed: '+(run.stderr or run.stdout)[-2500:]}]})
+                continue
             manifests = list((scratch/'builds'/course['module_id']).glob('*/artifact-manifest.json'))
             if len(manifests) != 1:
-                raise ValueError('Expected one completed Shuku build for '+course['module_id'])
-            checked = validate_local_delivery(manifests[0].parent, timeout_ms=min(30000,timeout*1000))
-            verified.append({'module_id':course['module_id'], **checked})
+                rejected.append({'module_id':course['module_id'], 'issues':[{'path':course['path'],
+                    'message':'Expected one completed Shuku build'}]})
+                continue
+            accepted.append(course['module_id'])
+            try:
+                checked = validate_local_delivery(manifests[0].parent, timeout_ms=min(30000,timeout*1000))
+                verified.append({'module_id':course['module_id'], **checked})
+            except (ValueError, RuntimeError, OSError, ImportError, subprocess.TimeoutExpired) as error:
+                delivery_warnings.append({'module_id':course['module_id'], 'message':str(error)[:2500]})
+        if not accepted:
+            raise ValueError('No course passed admission and build: '+json.dumps(rejected, ensure_ascii=False))
         checks = {name:{'status':'passed'} for name in CHECKS}
+        for name in ('admission', 'build'):
+            checks[name].update(scope='accepted-courses', accepted=accepted, rejected=rejected)
+        checks['images']['status'] = 'warning' if any(image.get('status') not in ('converted', 'unchanged')
+            or image.get('reason') not in (None, 'within-bounds') for row in preparation for image in row['images']) else 'passed'
+        if any(row['decision'] == 'keep' and row['path'] in originals for row in choice['decisions']):
+            checks['images'].update(status='warning', retainedOriginals=True)
+        checks['references']['status'] = 'warning' if any(row['references'].get('status') == 'warning'
+            or any(row['references'].get(key) for key in ('unresolved','unverified','changedFiles','referenceCount'))
+            for row in preparation) else 'passed'
+        checks['editIds']['status'] = 'warning' if any(row['editIds'].get('status') == 'warning'
+            or row['skippedComponents'] for row in preparation) else 'passed'
         checks['images']['courses'] = preparation
-        checks['editIds']['coverage'] = 'All eligible authored JSX nodes; opaque/custom components are explicitly recorded in images.courses.skippedComponents. Shared is immutable.'
+        checks['editIds']['coverage'] = 'Eligible authored JSX nodes were checked; per-course reports record failures and skipped components. Shared is immutable. A warning is not a coverage guarantee.'
         checks['resources']['retainedBytes'] = review['totalBytes'] - choice['excludedBytes']
         checks['rendering']['courses'] = verified
+        if delivery_warnings:
+            for name in ('rendering', 'mediaReferences'):
+                checks[name].update(status='warning', warnings=delivery_warnings)
         package_files = SourceFiles(payload)
         document = envelope(package_files, checks, choice,
                             {'name':'creator-skill/course.pack', 'revision':producer_hash})
@@ -210,9 +259,12 @@ def export_course(root, requested, shuku, output, timeout=300, *, resources=None
         except OSError:
             # Builds remain available for diagnosis; an unverified ZIP is never delivered.
             raise ValueError('Could not create new ZIP; verified builds retained at '+str(builds)) from None
-    return {'status':'passed', 'output':str(output), 'buildOutput':str(builds), 'courses':[c['module_id'] for c in admitted],
+    return {'status':'passed', 'output':str(output), 'buildOutput':str(builds), 'courses':accepted, 'rejectedCourses':rejected,
             'requested':sorted(selected_ids), 'files':len(payload), 'zipBytes':output.stat().st_size,
-            'coverage':{'skzipIntegrity':True,'zipRoundTrip':True,'imagePreparation':True,'referenceMigration':True,'editIds':True,'resourceReview':True,'platformAdmission':True,'realBuild':True,'mediaReferences':True,'rendering':True,'productionUpload':False},
+            'coverage':{**{name:record['status'] == 'passed' for name,record in checks.items()},
+                        'skzipIntegrity':True, 'zipRoundTrip':True, 'resourceReview':True,
+                        'platformAdmission':True, 'realBuild':True, 'productionUpload':False},
+            'warnings':delivery_warnings, 'preparation':preparation,
             'verifiedDeliveries':verified,
             'unverified':['Interaction states beyond the initial capture', 'Destination deployment and live compute services']}
 

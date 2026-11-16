@@ -13,7 +13,7 @@ from skzip import canonical, digest
 SCRIPTS = Path(__file__).resolve().parents[1]
 
 
-def tool(root, config, name, arguments, timeout):
+def tool(root, config, name, arguments, timeout, *, advisory=False):
     env = {**os.environ, 'CREATOR_SKILL_TARGET_CONFIG': str(config)}
     process = subprocess.run([sys.executable, str(SCRIPTS/'tools.py'), name, *map(str, arguments)],
                              cwd=root, env=env, capture_output=True, text=True, encoding='utf-8', timeout=timeout)
@@ -22,6 +22,8 @@ def tool(root, config, name, arguments, timeout):
     except ValueError:
         raise ValueError(name + ' did not return a check result: ' + process.stderr[-1500:]) from None
     if process.returncode or result.get('status') in ('error', 'failed'):
+        if advisory:
+            return {**result, 'status':'warning'}
         raise ValueError(name + ' failed: ' + json.dumps(result, ensure_ascii=False))
     return result
 
@@ -56,33 +58,26 @@ def prepare(root, courses, workspace, timeout):
             if file.suffix.lower() not in ('.png', '.jpg', '.jpeg', '.webp'):
                 continue
             backup = workspace/'originals'/file.relative_to(root)
-            row = convert(file, backup=backup, delivery=True)
-            if row.get('reason') == 'webp-already-exists':
-                raise ValueError('Unverified existing WebP collision: ' + str(file.relative_to(root)))
-            if row.get('reason') not in (None, 'within-bounds', 'animated', 'unsupported-bit-depth-or-mode'):
-                raise ValueError('Image processing incomplete: ' + json.dumps(row))
+            try:
+                row = convert(file, backup=backup, delivery=True)
+            except (ValueError, OSError) as error:
+                row = {'status':'warning', 'reason':str(error)[:1000]}
             images.append({'path':file.relative_to(root).as_posix(),
                            **{k: v for k, v in row.items() if k not in ('source', 'target', 'backup')}})
-            if row['status'] == 'converted' and file.suffix.lower() != '.webp':
+            if row.get('status') == 'converted' and file.suffix.lower() != '.webp':
                 changes[file.relative_to(assets).as_posix()] = Path(row['target']).relative_to(assets).as_posix()
                 originals.add(file.relative_to(root).as_posix())
         change_file = workspace/(course['module_id']+'-changes.json')
         change_file.write_bytes(canonical(changes))
         arguments = ['--module', course['module_id'], '--changes', change_file]
         for apply in (False, True, False):
-            plan = tool(root, config, 'assets.rewrite', [*arguments, *(['--apply'] if apply else [])], timeout)
-            if plan.get('unresolved') or plan.get('unverified'):
-                raise ValueError('Resource references are unresolved/unverified: ' + json.dumps(plan, ensure_ascii=False))
-        if plan['changedFiles'] or plan['referenceCount']:
-            raise ValueError('Old resource references remain after migration')
-        applied = tool(root, config, 'module.edit-ids', [directory, '--apply', '--backup-dir', workspace/'id-backups'], timeout)
-        checked = tool(root, config, 'module.edit-ids', [directory, '--check'], timeout)
+            plan = tool(root, config, 'assets.rewrite', [*arguments, *(['--apply'] if apply else [])], timeout, advisory=True)
+        applied = tool(root, config, 'module.edit-ids', [directory, '--apply', '--backup-dir', workspace/'id-backups'], timeout, advisory=True)
+        checked = tool(root, config, 'module.edit-ids', [directory, '--check'], timeout, advisory=True)
         results.append({'module': course['module_id'], 'images': images, 'migratedPaths': changes,
-                        'idsAdded': applied['idsWritten'], 'idsKept': checked['existingIdsKept'],
-                        'skippedComponents': checked['skipped']})
-    tool(root, config, 'check.outlines', [], timeout)
-    tool(root, config, 'check.module', [], timeout)
-    tool(root, config, 'check.asset-imports', [], timeout)
+                        'idsAdded': applied.get('idsWritten', 0), 'idsKept': checked.get('existingIdsKept', 0),
+                        'skippedComponents': checked.get('skipped', []),
+                        'references':plan, 'editIds':checked})
     return results, originals, config
 
 

@@ -93,7 +93,7 @@ def test_dry_run_does_not_write_and_reports_dimensions(tmp_path):
     assert list(tmp_path.iterdir()) == [source] and source.read_bytes() == original
 
 
-@pytest.mark.parametrize('folder', ['scenedeck-thumbnails', 'course-thumbnails', 'course-covers'])
+@pytest.mark.parametrize('folder', ['shuku-thumbnails', 'scenedeck-thumbnails', 'course-thumbnails', 'course-covers'])
 def test_thumbnail_and_cover_profiles_override_ordinary_limit(tmp_path, folder):
     directory = tmp_path / folder
     directory.mkdir()

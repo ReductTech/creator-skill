@@ -3,7 +3,7 @@
 
 Reads: The selected module and requested browser states.
 Writes: Evaluation PNGs remain 1600x900. Thumbnails and the runtime first-slide
-cover use 1600x900 WebP q=20 in assets/scenedeck-thumbnails and assets/course-covers.
+cover use 1600x900 WebP q=20 in assets/shuku-thumbnails and assets/course-covers.
 No size/quality arguments are needed.
 Owns its browser and completed-artifact preview server.
 Thumbnail runs also save a report and batch contact sheet in module _scratchpad/thumbnails.
@@ -430,7 +430,7 @@ def capture_module(args: argparse.Namespace, context_setup=None) -> dict:
         raise ValueError(
             "Interactive states are evaluation screenshots; use --format screenshots"
         )
-    thumbnail_root = (directory / "assets" / "scenedeck-thumbnails").resolve()
+    thumbnail_root = (directory / "assets" / "shuku-thumbnails").resolve()
     if not thumbnail_root.is_relative_to(directory.resolve()):
         raise ValueError(f"Thumbnail directory must stay inside {directory}")
     report_dir = None

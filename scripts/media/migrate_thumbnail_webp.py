@@ -16,7 +16,7 @@ try:
 except ModuleNotFoundError:
     from thumbnail_profiles import THUMBNAIL_SIZE, save_thumbnail
 
-THUMBNAIL_DIRS = {'scenedeck-thumbnails', 'course-thumbnails', 'course-covers'}
+THUMBNAIL_DIRS = {'shuku-thumbnails', 'scenedeck-thumbnails', 'course-thumbnails', 'course-covers'}
 
 
 def migrate(root=None):
