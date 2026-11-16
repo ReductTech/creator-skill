@@ -33,7 +33,7 @@ python <Skill>/scripts/tools.py capture.slides --help
 
 ## 截图和缩略图
 
-仅在用户明确要求制作或维护缩略图时执行；不作为源码打包前置条件，不为此本地构建。正式缩略图位置仍为 `assets/shuku-thumbnails/<页面UUID>.webp`，1600×900、WebP q=20。源码包原样保留已有缩略图，缺失只作提醒。
+仅在用户明确要求制作或维护缩略图时执行；不作为源码打包前置条件，不为此本地构建。正式缩略图位置仍为 `assets/shuku-thumbnails/<页面UUID>.webp`，1600×900、WebP q=20。正式缩略图由服务器构建后生成，不使用上传图片替代正式截图；缺失不作本地警告。
 
 仅更新缩略图时直接执行 `capture.thumbnails --module <UUID或alias>`，不重走创作设计或评分。已有当前构建可复用，工程外的输出传 `--build-output <目录>`；不启动源码 Vite。
 

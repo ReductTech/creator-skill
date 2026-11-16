@@ -49,9 +49,11 @@
       "category": "module",
       "path": "scripts/module/package_course.py",
       "runtime": "python",
-      "description": "Python 源码 SKZIP 流水线：识别目录、排除 Shared、静态检查与图片盘点、连续出包并返回汇总",
-      "effects": "自动在模块目录同级生成编号 SKZIP 和详细报告；普通提醒允许出包，严重错误阻止；返回修复重打或确认上传建议；不安装、不构建、不渲染、不转码、不上传",
-      "dependencies": [],
+      "description": "Python/Pillow SKZIP 流水线：文件黑白名单检查、普通图片优化、转换清单、精简归档与详细分级报告",
+      "effects": "原工程不改不删；自动编号输出 SKZIP、JSON 和可读报告；服务器迁移引用、补 ID、构建截图；绝不安装或调用 Node",
+      "dependencies": [
+        "Pillow（有普通图片需加工时）"
+      ],
       "arguments": []
     },
     {

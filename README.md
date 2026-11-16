@@ -229,6 +229,6 @@ creator-skill/
 
 ## 与术库的关系
 
-本仓库维护创作规范、辅助工具与测试。源码交付只需 `python scripts/module/package_course.py <目录>`，自动识别模块并排除 Shared，一次串联独立的源码检查、图片文件头检查和归档组件，最后返回汇总。无需 Node、npm、浏览器、Shuku 工程或工程配置；不在本机构建、渲染、转码，不要求资源确认。平台分类、安全审查、导入和构建由服务器执行。详见[源码 SKZIP 交付](references/engineering/delivery.md)。
+本仓库维护创作规范、辅助工具与测试。源码交付只需 `python scripts/module/package_course.py <目录>`，自动识别模块并排除 Shared，一次串联独立的源码检查、Pillow 图片加工和归档组件，最后返回汇总。无需 Node、npm、浏览器、Shuku 工程或工程配置；本地允许 Pillow 图片优化，不在本机构建、渲染、截图、迁移引用或补编辑 ID，不要求资源确认。平台分类、安全审查、导入和构建由服务器执行。详见[源码 SKZIP 交付](references/engineering/delivery.md)。
 
 逐页确认与每页 ImageGen 设计图是必需流程，见 [流程共用说明](references/workflow/common.md) 和 [页面设计指导](references/design/design.md)。

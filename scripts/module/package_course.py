@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
-"""One-call source SKZIP pipeline with automatic sibling output and detailed handoff.
+"""Python/Pillow SKZIP pipeline: inspect, optimize images, inventory and archive.
 
-Glue only: reusable discovery/source, image, archive and reporting components.
-No dependency installation, Node/Shuku invocation, compilation, rendering or upload.
+Never installs/runs Node, rewrites source, builds, captures, deletes or uploads.
+The server verifies image mappings and migrates references before compilation.
 """
 import argparse
 import json
 from pathlib import Path
 import sys
 import time
+import tempfile
 import zipfile
 
 sys.path[:0] = [str(Path(__file__).resolve().parents[1]), str(Path(__file__).resolve().parents[1] / 'common')]
 from skzip import digest
 from module.source_inputs import default_output
 from module.source_checks import inspect_collection
-from module.source_images import inspect_images
+from module.source_prepare import prepare_images
 from module.source_archive import write_source_archive
 from module.source_report import start_report, record_stage, finish_report
 
@@ -38,6 +39,7 @@ def export_source(directories):
         report.update({key: value for key, value in inspection.items() if key != 'coverage'})
         report['sourceCheckCoverage'] = inspection['coverage']
         report['issues']['warnings'].extend(inspection['warnings'])
+        report['issues']['serious'].extend(inspection['serious'])
         report['issues']['serious'].extend({'stage': stage, **item} for item in inspection['rejectedModules'])
         if not files and not report['issues']['serious']:
             report['issues']['serious'].append({'stage': stage, 'reason': 'No valid module source'})
@@ -48,14 +50,19 @@ def export_source(directories):
             return finish_report(report, started, 'failed')
         report['coverage']['sourceChecks'] = True
         stage, stage_started = 'image-inspection', time.monotonic()
-        report['images'] = inspect_images(files)
-        report['issues']['warnings'].extend({'kind': 'image-header-warning', **item}
-                                            for item in report['images']['issues'])
-        record_stage(report, stage, stage_started, report['images']['status'],
-                     counts=report['images']['counts'], issueCount=report['images']['issueCount'])
-        stage, stage_started = 'archive-and-integrity', time.monotonic()
-        producer = {'name': 'creator-skill/course.pack', 'revision': digest(Path(__file__).read_bytes())}
-        result = write_source_archive(files, {**inspection, 'images': report['images']}, output, producer)
+        with tempfile.TemporaryDirectory(prefix='creator-images-') as temporary:
+            if inspection.get('styleRegistry'):
+                registry = Path(temporary)/'course-styles.json'
+                registry.write_text(json.dumps(inspection['styleRegistry'], ensure_ascii=False), encoding='utf-8')
+                files['course-styles.json'] = registry
+            files, report['images'] = prepare_images(files, Path(temporary))
+            report['issues']['warnings'].extend(report['images']['issues'])
+            record_stage(report, stage, stage_started, report['images']['status'],
+                         counts=report['images']['counts'], converted=report['images']['converted'])
+            stage, stage_started = 'archive-and-integrity', time.monotonic()
+            producer = {'name': 'creator-skill/course.pack', 'revision': digest(Path(__file__).read_bytes())}
+            # Never embed local absolute paths in the uploaded report.
+            result = write_source_archive(files, {'modules': inspection['modules'], 'images': report['images']}, output, producer)
         report.update(result)
         report['outputCreated'] = True
         report['coverage']['skzipIntegrity'] = True

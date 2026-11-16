@@ -34,7 +34,7 @@ def write_source_archive(files, report, output, producer):
     seen, total, snapshots = set(), 0, {}
     for name, path in files.items():
         safe_name(name)
-        if name.casefold() in seen or any(p.casefold() == 'shared' for p in name.split('/')):
+        if name.casefold() in seen:
             raise ValueError('Duplicate or excluded Shared archive path: ' + name)
         seen.add(name.casefold())
         info = path.stat()

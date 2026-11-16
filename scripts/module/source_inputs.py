@@ -9,6 +9,9 @@ import json
 import os
 from pathlib import Path
 import stat
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from common.submission_policy import blocked_reason
 
 SKIP = {'.git', 'node_modules', 'dist', '__pycache__', '_scratchpad',
         '.pytest_cache', '.venv', 'creator-skill'}
@@ -31,7 +34,8 @@ def default_output(directories):
     else:
         candidate = first.with_name(first.name + '.skzip')
     original, number = candidate, 2
-    while candidate.exists() or candidate.is_symlink() or candidate.with_suffix('.report.json').exists():
+    while (candidate.exists() or candidate.is_symlink() or candidate.with_suffix('.report.json').exists()
+           or candidate.with_suffix('.report.md').exists()):
         candidate = original.with_name(original.stem + '-' + str(number) + '.skzip')
         number += 1
     return candidate
@@ -78,12 +82,12 @@ def discover_modules(directories):
     return modules, sorted(set(shared))
 
 
-def source_paths(root, directories, excluded_shared=None):
+def source_paths(root, directories, excluded_shared=None, excluded_files=None, *, preserve_shared=False):
     """Collect regular files with logical paths, never following links/junctions."""
     root = Path(root).resolve()
     files = {}
     for directory in map(Path, directories):
-        if directory.name.casefold() == 'shared':
+        if directory.name.casefold() == 'shared' and not preserve_shared:
             if excluded_shared is not None:
                 excluded_shared.append(str(directory))
             continue
@@ -94,17 +98,22 @@ def source_paths(root, directories, excluded_shared=None):
             for name in dirs:
                 if name.casefold() == 'shared' and excluded_shared is not None:
                     excluded_shared.append(str(base / name))
-            dirs[:] = sorted(d for d in dirs if d.casefold() not in SKIP | {'shared'})
+            dirs[:] = sorted(d for d in dirs if d.casefold() not in SKIP | (set() if preserve_shared else {'shared'}))
             for name in [*dirs, *names]:
                 if linked(base / name):
                     raise ValueError('Source cannot contain links/junctions: ' + str(base / name))
             for name in sorted(names):
                 path = base / name
-                if (path.suffix.lower() in {'.zip', '.skzip', '.pyc'} or name.casefold() == '.env'
-                        or name.casefold().startswith('.env.')):
+                if path.suffix.lower() in {'.zip', '.skzip'}:
                     continue
                 if not stat.S_ISREG(path.stat().st_mode):
                     raise ValueError('Source must contain regular files: ' + str(path))
+                with path.open('rb') as stream:
+                    reason = blocked_reason(path.relative_to(root).as_posix(), stream.read(512))
+                if reason:
+                    if excluded_files is not None:
+                        excluded_files.append({'path': path.relative_to(root).as_posix(), 'reason': reason})
+                    continue
                 files[path.relative_to(root).as_posix()] = path
     return files
 

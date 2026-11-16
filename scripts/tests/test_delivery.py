@@ -65,7 +65,7 @@ def test_directory_shapes_pack_source_and_exclude_shared(tmp_path, shape, shared
     assert len(result['modules']) == (1 if shape == 'single' else 2)
     assert {m.name: snapshot(m) for m in (first, second) if m} == before
     manifest = verify_archive(output)
-    assert manifest['policy'] == 'creator-source-v1'
+    assert manifest['policy'] == 'creator-source-v2'
     assert manifest['checks']['build']['status'] == 'server-pending'
     assert not result['coverage']['realBuild']
     with zipfile.ZipFile(output) as archive:
@@ -73,7 +73,7 @@ def test_directory_shapes_pack_source_and_exclude_shared(tmp_path, shape, shared
         assert all('shared' not in p.lower().split('/') for p in archive.namelist())
 
 
-def test_original_resources_and_scratch_are_preserved_without_transcoding(tmp_path):
+def test_original_inputs_are_preserved_while_package_optimizes_images(tmp_path):
     directory = course(tmp_path / 'source')
     assets = directory / 'assets'
     assets.mkdir()
@@ -87,17 +87,18 @@ def test_original_resources_and_scratch_are_preserved_without_transcoding(tmp_pa
     before = snapshot(directory)
     output = default_output([directory])
     result = export_source([directory])
-    assert result['images']['converted'] == 0
-    assert result['images']['counts'] == {'png': 1, 'jpeg': 2}
-    assert result['images']['issueCount'] == 1
+    assert result['images']['converted'] == 1
+    assert result['images']['counts']['inspected'] == 3
+    assert len(result['images']['issues']) >= 2
     assert result['modules'][0]['missingThumbnails'] == 1
     assert snapshot(directory) == before
     with zipfile.ZipFile(output) as archive:
         names = archive.namelist()
         assert not any('_scratchpad' in p or 'node_modules' in p or '.env' in p or 'old.skzip' in p for p in names)
         png = f'modules/{directory.name}/assets/picture.png'
-        assert archive.read(png) == PNG
-        assert archive.getinfo(png).compress_type == zipfile.ZIP_STORED
+        assert png not in names
+        assert archive.read(png.replace('.png', '.webp'))[:4] == b'RIFF'
+        assert archive.getinfo(png.replace('.png', '.webp')).compress_type == zipfile.ZIP_STORED
         assert archive.getinfo(f'modules/{directory.name}/Guide.tsx').compress_type == zipfile.ZIP_DEFLATED
 
 
@@ -247,7 +248,7 @@ def test_detailed_report_allows_warnings_but_requires_upload_decision(tmp_path):
     (assets / 'wrong.png').write_bytes(b'\xff\xd8\xff\xe0jpeg-header')
     result = export_source([directory])
     assert result['status'] == 'passed' and result['uploadEligible'] is True
-    assert result['seriousErrorCount'] == 0 and result['warningCount'] == 2
+    assert result['seriousErrorCount'] == 0 and result['warningCount'] == 1
     assert result['uploadAuthorized'] is False and result['requiresUserConfirmation'] is True
     assert result['userOptions'] == ['fix-and-repack', 'upload-current-package']
     assert [stage['name'] for stage in result['stages']] == ['source-checks', 'image-inspection', 'archive-and-integrity']

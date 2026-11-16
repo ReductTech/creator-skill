@@ -13,7 +13,7 @@ import zipfile
 MANIFEST = 'skzip-manifest.json'
 PUBLIC_KEY = b'shuku-skzip-public-workflow-v1'
 POLICY = 'creator-delivery-v2'
-SOURCE_POLICY = 'creator-source-v1'
+SOURCE_POLICY = 'creator-source-v2'
 SERVER_PENDING = ('classification', 'security', 'admission', 'build', 'rendering')
 CHECKS = ('images', 'references', 'editIds', 'resources', 'admission', 'build', 'mediaReferences', 'rendering')
 HARD_CHECKS = ('resources', 'admission', 'build')
@@ -62,7 +62,9 @@ def source_envelope(rows, report, producer):
               **{name: {'status': 'server-pending'} for name in SERVER_PENDING}}
     document = seal({'format': 'shuku-skzip', 'schema': 1, 'policy': SOURCE_POLICY,
                      'packageKind': 'source', 'sharedPolicy': 'server-provided',
-                     'resourcePolicy': 'preserve-originals', 'producer': producer,
+                     'resourcePolicy': 'optimized-images', 'producer': producer,
+                     'filePolicy': 'submission-files-v1',
+                     'imageConversions': report['images'].get('conversions', []),
                      'checks': checks, 'serverPending': list(SERVER_PENDING),
                      'report': report, 'files': rows})
     validate_manifest(document)
@@ -72,19 +74,22 @@ def source_envelope(rows, report, producer):
 def validate_manifest(document):
     if (not isinstance(document, dict) or document.get('format') != 'shuku-skzip'
             or type(document.get('schema')) is not int or document['schema'] != 1
-            or document.get('policy') not in ('creator-delivery-v1', POLICY, SOURCE_POLICY)):
+            or document.get('policy') not in ('creator-delivery-v1', POLICY, 'creator-source-v1', SOURCE_POLICY)):
         raise ValueError('Unsupported SKZIP format/version')
     tag = document.get('workflowTag')
     if not isinstance(tag, str) or not hmac.compare_digest(tag, seal(document)['workflowTag']):
         raise ValueError('Invalid SKZIP workflow tag; re-run course.pack')
     checks = document.get('checks', {})
-    if document['policy'] == SOURCE_POLICY:
+    if document['policy'] in ('creator-source-v1', SOURCE_POLICY):
         if (document.get('packageKind') != 'source' or document.get('sharedPolicy') != 'server-provided'
                 or not isinstance(checks, dict)
                 or any(not isinstance(checks.get(k), dict) or checks[k].get('status') != 'passed' for k in ('source', 'paths'))
                 or document.get('serverPending') != list(SERVER_PENDING)
                 or any(not isinstance(checks.get(k), dict) or checks[k].get('status') != 'server-pending' for k in SERVER_PENDING)):
             raise ValueError('Incomplete source checks or falsely claimed server checks')
+        if document['policy'] == SOURCE_POLICY and (document.get('filePolicy') != 'submission-files-v1'
+                or not isinstance(document.get('imageConversions'), list)):
+            raise ValueError('Missing source file policy or image conversions')
     else:
         if not isinstance(checks, dict) or any(not isinstance(checks.get(k), dict) or checks[k].get('status') != 'passed' for k in HARD_CHECKS):
             raise ValueError('Incomplete SKZIP delivery checks')
@@ -129,9 +134,9 @@ def check_directory(path):
     raise ValueError('Missing SKZIP central directory')
 
 
-def verify_archive(path):
+def verify_archive(path, *, require_extension=True):
     """Recompute the actual inventory; never trust a successful check label alone."""
-    if path.suffix.lower() != '.skzip' or path.stat().st_size > MAX_BYTES:
+    if (require_extension and path.suffix.lower() != '.skzip') or path.stat().st_size > MAX_BYTES:
         raise ValueError('Select a bounded .skzip created by course.pack')
     check_directory(path)
     with zipfile.ZipFile(path) as archive:
