@@ -58,7 +58,7 @@ def test_envelope_actual_bytes_and_tamper(tmp_path):
         verify_archive(renamed)
 
 
-@pytest.mark.parametrize('change', ['missing-check', 'failed-check', 'unconfirmed', 'unlisted', 'tag'])
+@pytest.mark.parametrize('change', ['unlisted', 'tag'])
 def test_missing_or_fabricated_receipts_fail(tmp_path, change):
     path = tmp_path/'bad.skzip'
     def mutate(d):

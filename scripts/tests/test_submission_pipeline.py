@@ -80,7 +80,7 @@ def test_python_and_binary_payloads_are_retained_and_marked_high_risk(tmp_path, 
     with zipfile.ZipFile(result['output']) as archive:
         assert archive.read(logical) == raw
         manifest = json.loads(archive.read(MANIFEST))
-    assert manifest['filePolicy'] == 'submission-files-v2'
+    assert not any(k in manifest for k in ('policy','schema','filePolicy'))
     assert manifest['highRiskFiles'] == result['highRiskFiles']
     assert manifest['riskLevel'] == 'high'
     assert manifest['checks']['security']['status'] == 'server-pending'
@@ -88,7 +88,8 @@ def test_python_and_binary_payloads_are_retained_and_marked_high_risk(tmp_path, 
     with pytest.raises(ValueError, match='high-risk'):
         validate_manifest(seal(manifest))
     manifest['filePolicy'] = 'submission-files-v1'
-    validate_manifest(seal(manifest))  # Old inventories remain readable.
+    with pytest.raises(ValueError, match='high-risk'):
+        validate_manifest(seal(manifest))  # Labels cannot bypass content checks.
 
 
 def test_archive_verification_rejects_disguised_executable_payload(tmp_path):

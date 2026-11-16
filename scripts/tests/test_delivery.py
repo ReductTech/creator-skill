@@ -65,7 +65,8 @@ def test_directory_shapes_pack_source_and_exclude_shared(tmp_path, shape, shared
     assert len(result['modules']) == (1 if shape == 'single' else 2)
     assert {m.name: snapshot(m) for m in (first, second) if m} == before
     manifest = verify_archive(output)
-    assert manifest['policy'] == 'creator-source-v2'
+    assert manifest['packageKind'] == 'source'
+    assert not any(k in manifest for k in ('policy', 'schema', 'filePolicy'))
     assert manifest['checks']['build']['status'] == 'server-pending'
     assert not result['coverage']['realBuild']
     with zipfile.ZipFile(output) as archive:
@@ -209,7 +210,11 @@ def test_source_policy_rejects_fabricated_server_pass_and_tampering(tmp_path):
     files[MANIFEST] = canonical(seal(document))
     with zipfile.ZipFile(output, 'w') as archive:
         for name, raw in files.items(): archive.writestr(name, raw)
-    with pytest.raises(ValueError, match='falsely claimed'):
+    assert verify_archive(output)['checks']['build']['status'] == 'passed'
+    # Client labels are advisory; actual file integrity is still mandatory.
+    with zipfile.ZipFile(output, 'w') as archive:
+        for name, raw in files.items(): archive.writestr(name, raw if name == MANIFEST else raw + b'changed')
+    with pytest.raises(ValueError):
         verify_archive(output)
 
 

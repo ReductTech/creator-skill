@@ -1,4 +1,4 @@
-"""SKZIP v1 envelope. The public workflow key is a convention, not authentication.
+"""SKZIP source envelope. The public workflow key is a convention, not authentication.
 
 Reads a bounded ZIP without extracting or executing its contents. No network.
 """
@@ -9,12 +9,11 @@ from pathlib import PurePosixPath
 import stat
 import struct
 import zipfile
-from common.submission_policy import POLICY_REVISION, high_risk_reason, blocked_reason
+from common.submission_policy import high_risk_reason, blocked_reason
 
 MANIFEST = 'skzip-manifest.json'
 PUBLIC_KEY = b'shuku-skzip-public-workflow-v1'
-POLICY = 'creator-delivery-v2'
-SOURCE_POLICY = 'creator-source-v2'
+POLICY = 'source'  # Legacy import name; never used as an acceptance gate.
 SERVER_PENDING = ('classification', 'security', 'admission', 'build', 'rendering')
 CHECKS = ('images', 'references', 'editIds', 'resources', 'admission', 'build', 'mediaReferences', 'rendering')
 HARD_CHECKS = ('resources', 'admission', 'build')
@@ -46,29 +45,23 @@ def seal(document):
 
 
 def envelope(files, checks, review, producer):
-    if any(not isinstance(checks.get(k), dict) or checks[k].get('status') != 'passed' for k in HARD_CHECKS):
-        raise ValueError('Required SKZIP delivery gates must pass')
-    rows = []
-    for name in sorted(files):
-        raw = files[name]
-        rows.append({'path': safe_name(name), 'size': len(raw), 'sha256': digest(raw)})
-    return seal({'format': 'shuku-skzip', 'schema': 1, 'policy': POLICY,
+    """Legacy call shape retained; client check labels are metadata, not admission."""
+    rows = [{'path': safe_name(name), 'size': len(files[name]), 'sha256': digest(files[name])}
+            for name in sorted(files)]
+    return seal({'format': 'shuku-skzip', 'packageKind': 'source',
                  'producer': producer, 'checks': checks, 'resourceReview': review, 'files': rows})
 
 
 def source_envelope(rows, report, producer):
-    """Record source checks honestly; server-owned gates are never marked passed."""
+    """Write a content-described source package without client version labels."""
     checks = {'source': {'status': 'passed'}, 'paths': {'status': 'passed'},
               'images': {'status': report['images']['status']},
               **{name: {'status': 'server-pending'} for name in SERVER_PENDING}}
-    high_risk = [{'path': row['path'], 'riskLevel': 'high', 'reason': high_risk_reason(row['path'])}
-                 for row in sorted(rows, key=lambda row: row['path']) if high_risk_reason(row['path'])]
-    document = seal({'format': 'shuku-skzip', 'schema': 1, 'policy': SOURCE_POLICY,
-                     'packageKind': 'source', 'sharedPolicy': 'server-provided',
-                     'resourcePolicy': 'optimized-images', 'producer': producer,
-                     'filePolicy': POLICY_REVISION,
-                     'highRiskFiles': high_risk,
-                     'riskLevel': 'high' if high_risk else 'unassessed',
+    risks = [{'path': row['path'], 'riskLevel': 'high', 'reason': high_risk_reason(row['path'])}
+             for row in sorted(rows, key=lambda row: row['path']) if high_risk_reason(row['path'])]
+    document = seal({'format': 'shuku-skzip', 'packageKind': 'source',
+                     'sharedPolicy': 'server-provided', 'producer': producer,
+                     'highRiskFiles': risks, 'riskLevel': 'high' if risks else 'unassessed',
                      'imageConversions': report['images'].get('conversions', []),
                      'checks': checks, 'serverPending': list(SERVER_PENDING),
                      'report': report, 'files': rows})
@@ -77,30 +70,12 @@ def source_envelope(rows, report, producer):
 
 
 def validate_manifest(document):
-    if (not isinstance(document, dict) or document.get('format') != 'shuku-skzip'
-            or type(document.get('schema')) is not int or document['schema'] != 1
-            or document.get('policy') not in ('creator-delivery-v1', POLICY, 'creator-source-v1', SOURCE_POLICY)):
-        raise ValueError('Unsupported SKZIP format/version')
+    """Validate actual inventory and integrity, ignoring historical version labels."""
+    if not isinstance(document, dict) or document.get('format') != 'shuku-skzip':
+        raise ValueError('Invalid SKZIP manifest')
     tag = document.get('workflowTag')
     if not isinstance(tag, str) or not hmac.compare_digest(tag, seal(document)['workflowTag']):
         raise ValueError('Invalid SKZIP workflow tag; re-run course.pack')
-    checks = document.get('checks', {})
-    if document['policy'] in ('creator-source-v1', SOURCE_POLICY):
-        if (document.get('packageKind') != 'source' or document.get('sharedPolicy') != 'server-provided'
-                or not isinstance(checks, dict)
-                or any(not isinstance(checks.get(k), dict) or checks[k].get('status') != 'passed' for k in ('source', 'paths'))
-                or document.get('serverPending') != list(SERVER_PENDING)
-                or any(not isinstance(checks.get(k), dict) or checks[k].get('status') != 'server-pending' for k in SERVER_PENDING)):
-            raise ValueError('Incomplete source checks or falsely claimed server checks')
-        if document['policy'] == SOURCE_POLICY and (document.get('filePolicy') not in ('submission-files-v1', POLICY_REVISION)
-                or not isinstance(document.get('imageConversions'), list)):
-            raise ValueError('Missing source file policy or image conversions')
-    else:
-        if not isinstance(checks, dict) or any(not isinstance(checks.get(k), dict) or checks[k].get('status') != 'passed' for k in HARD_CHECKS):
-            raise ValueError('Incomplete SKZIP delivery checks')
-        review = document.get('resourceReview', {})
-        if not isinstance(review, dict) or review.get('confirmed') is not True:
-            raise ValueError('Resource review was not completed')
     rows = document.get('files')
     if not isinstance(rows, list) or not 1 <= len(rows) < MAX_FILES:
         raise ValueError('Invalid SKZIP file inventory')
@@ -118,11 +93,12 @@ def validate_manifest(document):
             raise ValueError('Invalid SKZIP file record: ' + name)
     if sum(row['size'] for row in rows) > MAX_BYTES:
         raise ValueError('SKZIP expanded size limit exceeded')
-    if document.get('filePolicy') == POLICY_REVISION:
+    if not isinstance(document.get('imageConversions', []), list):
+        raise ValueError('Invalid image conversion inventory')
+    if 'highRiskFiles' in document:
         expected = [{'path': row['path'], 'riskLevel': 'high', 'reason': high_risk_reason(row['path'])}
                     for row in sorted(rows, key=lambda row: row['path']) if high_risk_reason(row['path'])]
-        if (document.get('highRiskFiles') != expected
-                or document.get('riskLevel') != ('high' if expected else 'unassessed')):
+        if document['highRiskFiles'] != expected:
             raise ValueError('Missing or incorrect high-risk file declaration')
     return rows
 
@@ -177,11 +153,10 @@ def verify_archive(path, *, require_extension=True):
                 raise ValueError('SKZIP size differs: ' + row['path'])
             calculated = hashlib.sha256()
             with archive.open(info) as stream:
-                if document.get('filePolicy') == POLICY_REVISION:
-                    header = stream.read(512)
-                    if blocked_reason(row['path'], header):
-                        raise ValueError('Forbidden SKZIP payload: ' + row['path'])
-                    calculated.update(header)
+                header = stream.read(512)
+                if blocked_reason(row['path'], header):
+                    raise ValueError('Forbidden SKZIP payload: ' + row['path'])
+                calculated.update(header)
                 while block := stream.read(1024 * 1024):
                     calculated.update(block)
             if calculated.hexdigest() != row['sha256']:

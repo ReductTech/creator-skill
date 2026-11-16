@@ -2,7 +2,6 @@
 from pathlib import PurePosixPath
 import re
 
-POLICY_REVISION = 'submission-files-v2'
 OUTSIDE_ASSETS_LIMIT = 100 * 1024
 SOURCE_EXTENSIONS = frozenset({'.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.css'})
 BLOCKED_EXTENSIONS = frozenset({

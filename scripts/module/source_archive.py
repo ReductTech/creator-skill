@@ -82,6 +82,6 @@ def write_source_archive(files, report, output, producer):
         os.link(temporary, output)  # Atomic and exclusive on Windows and POSIX.
     finally:
         temporary.unlink(missing_ok=True)
-    return {'output': str(output), 'policy': document['policy'], 'files': len(rows),
+    return {'output': str(output), 'packageKind': 'source', 'files': len(rows),
             'sourceBytes': total, 'zipBytes': output.stat().st_size,
             'serverPending': document['serverPending'], 'skzipIntegrity': True}
