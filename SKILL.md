@@ -1,6 +1,6 @@
 ---
 name: creator-skill
-description: 规划、设计、制作或修改 React 交互演示，包括大纲、口播、PPT/PDF 改编、问卷与投票，以及通过官方 course.pack 入口检查并交付 Shuku SKZIP 课件包。适用于教学、科研和商业汇报，不用于普通网站或一般文档。
+description: 规划、设计、制作或修改 React 交互演示，包括大纲、口播、PPT/PDF 改编、问卷与投票，以及通过纯 Python course.pack 流水线检查源码并交付 Shuku SKZIP 源码包。适用于教学、科研和商业汇报，不用于普通网站或一般文档。
 ---
 
 # React 演示创作
@@ -14,17 +14,17 @@ description: 规划、设计、制作或修改 React 交互演示，包括大纲
    - **UUID 必须用规范生成器生成**，例如 Python `uuid.uuid4()` 或 JavaScript `crypto.randomUUID()`，使用标准小写、带连字符的 UUID v4。禁止猜测、手写、随意拼接、顺序编号或根据标题、路径推导 UUID；不要直接复用文档中的示例值。
    - **更新已有课件**：课件 UUID 和已有页面 UUID 保持不变；改标题、讲稿、内容、样式或页序均不重新生成身份。仅新增的独立页面使用生成器分配新 UUID，不连带修改其他页面。
 2. **细致复刻用户给出的设计示意图，不得偷懒。** 逐项对齐布局、比例、间距、字号、颜色、图形、素材位置与交互意图，不能仅保留大致结构或自行简化。真实渲染后与设计图对照，修正可见差异；不能把整张设计图贴作背景代替正式实现。所有画布仍遵守不添加页码的要求。
-3. **预览模块在本 Skill 根目录的 `player-preview/`。** 按其 [README](player-preview/README.md) 安装和启动，确认目标课件实际可打开后，向用户提供真实预览链接，并在预览期间保持服务运行。
+3. **预览模块在本 Skill 根目录的 `player-preview/`。** 仅在用户要求预览时查阅其 [README](player-preview/README.md)。打包任务不安装或启动播放器、Node、浏览器，不进行本地构建。
 4. **模块示例在本 Skill 根目录的 `modules/`。** 可读取和复制示例作为起点；新建时执行上面的 UUID 更换规则，不为制作用户课件而修改原示例。用户课件保存到已配置的目标工程。
 5. **不允许修改 Shared。** 本 Skill 根目录的 `shared/` 和目标工程中的 Shared 都只读使用；允许原样复制到缺失的目标位置，禁止改动其源码、样式、资源、`style.json` 或公共行为，也不覆盖已有 Shared。课程专属调整留在课程目录，不能通过改 Shared 让当前页达标。
 
-6. **逐页清理临时目录，交付和提交前再清理。** 每完成一页并完成必要核对，运行 `scratchpad.clean <该页目录> --apply`；整门课收尾、打包交付或 Git 提交前，对本次课件目录再运行一次，确保没有遗留 `_scratchpad`。先将需长期保留的设计图、正式素材和必要记录放到正式位置或用户交付目录；清理后不能仍引用临时路径。支持直接指定绝对路径，递归清理所有嵌套层级的 `_scratchpad`，不按普通目录名称排除；仅不跟随链接/junction，防止越界。此临时目录清理适用于 Shared 下的 `_scratchpad`，不得修改其他 Shared 文件。命令默认只预览，实际删除须带 `--apply`，详见[临时目录清理](references/tools.md#临时目录清理)。
+6. **创作逐页清理临时目录，创作收尾和提交前再清理。** 每完成一页并完成必要核对，运行 `scratchpad.clean <该页目录> --apply`；创作收尾或 Git 提交前，对本次课件目录再运行一次，确保没有遗留 `_scratchpad`。先将需长期保留的设计图、正式素材和必要记录放到正式位置或用户交付目录；清理后不能仍引用临时路径。支持直接指定绝对路径，递归清理所有嵌套层级的 `_scratchpad`，不按普通目录名称排除；仅不跟随链接/junction，防止越界。此临时目录清理适用于 Shared 下的 `_scratchpad`，不得修改其他 Shared 文件。仅打包时不清理或改写原目录，脚本自动排除 `_scratchpad`。命令默认只预览，实际删除须带 `--apply`，详见[临时目录清理](references/tools.md#临时目录清理)。
 
-7. **正式页面缩略图必须统一保存在课件自己的 `assets/shuku-thumbnails/`。** 新建、更新和仅维护缩略图均使用唯一正式路径 `<课件目录>/assets/shuku-thumbnails/<页面UUID>.webp`，全部实际页面各一张，统一为 1600×900、WebP q=20，直接平铺在该目录，不另建子目录。不得改用其他目录名，不得将正式页面缩略图保存到工程根目录、其他课件、Shared、`_scratchpad` 或交付目录。生成后核对本地路径，并确保最终 SKZIP 保留同一课件内的 `assets/shuku-thumbnails/<页面UUID>.webp` 路径。检查用截图、总览和报告仍按各自规则保存，不作为正式页面缩略图交付。
+7. **正式页面缩略图必须统一保存在课件自己的 `assets/shuku-thumbnails/`。** 新建、更新和仅维护缩略图均使用唯一正式路径 `<课件目录>/assets/shuku-thumbnails/<页面UUID>.webp`，在用户要求制作或维护缩略图时，全部实际页面各一张，统一为 1600×900、WebP q=20，直接平铺在该目录，不另建子目录。不得改用其他目录名，不得将正式页面缩略图保存到工程根目录、其他课件、Shared、`_scratchpad` 或交付目录。生成后核对本地路径，并确保最终 SKZIP 保留同一课件内的 `assets/shuku-thumbnails/<页面UUID>.webp` 路径。检查用截图、总览和报告仍按各自规则保存，不作为正式页面缩略图交付。
 
 ## 开始与续作
 
-**交付只用一个入口：`course.pack --module <课程UUID> --shuku-root <Shuku路径> --output <工程外绝对路径.skzip>`。** 不手工压 ZIP、不改后缀冒充 SKZIP、不自行填写通过结果。入口在副本中执行图片压缩、引用迁移查漏、编辑 ID 补齐复查、资源盘点、平台检查与构建；质量空缺如实提示，允许出包。包损坏、非法路径、未完成作者资源确认或没有一门课程通过必要检查与构建时不出包；个别课程失败记录原因，其余合格课程继续。资源保留/排除必须由作者选择，不删除原文件。详见[官方 SKZIP 交付](references/engineering/delivery.md)。
+**源码交付只运行一次胶水入口：`python <Skill>/scripts/module/package_course.py <输入目录>`。** 支持模块本身、模块集合、工程根目录和多个输入目录；自动识别并排除 Shared。流水线复用独立组件，一次完成目录识别、源码合法性检查、PNG/JPEG 等图片文件头检查、归档与完整性校验，最后输出一份汇总。默认保留正式资源和源码原始字节，不等待资源确认，不转码、不补编辑 ID、不清理原工程、不重复预检。不得为打包安装依赖、调用 Node/Shuku、在本机编译或构建、启动浏览器、渲染或生成缩略图。分类、安全审查、平台导入和构建由服务器完成，清单如实标为待处理。详见[源码 SKZIP 交付](references/engineering/delivery.md)。
 
 先确定目标、已有成果和当前阶段。仅讨论主线、大纲、讲稿或设计时，无需工程配置或创建文件；工程操作按下方配置定位课程。
 
@@ -36,9 +36,9 @@ description: 规划、设计、制作或修改 React 交互演示，包括大纲
 
 ## 工程定位
 
-工程操作前读本 Skill 的本地 `target-root.json`：`{"targetRoot":"用户指定的课程工程绝对路径"}`。首次按用户提供的有效目录创建，缺少目录时询问；该文件由 Git 忽略。后续沿用，不按 cwd、Skill 位置或旧环境变量猜测或切换工程。
+除明确传入路径的 `course.pack`、`course.discover`、`course.inspect`、`course.images` 外，工程操作前读本 Skill 的本地 `target-root.json`：`{"targetRoot":"用户指定的课程工程绝对路径"}`。首次按用户提供的有效目录创建，缺少目录时询问；该文件由 Git 忽略。后续沿用，不按 cwd、Skill 位置或旧环境变量猜测或切换工程。
 
-`CREATOR_SKILL_TARGET_CONFIG` 可指定本次调用专用配置，仍只含 `targetRoot`，不改变本地绑定。工具发现、`--help` 与 Skill 自身检查无需目标配置。构建和打包另以 `--shuku-root` 显式指定 Shuku，不能把它当成课程根目录。
+`CREATOR_SKILL_TARGET_CONFIG` 可指定本次调用专用配置，仍只含 `targetRoot`，不改变本地绑定。工具发现、`--help` 与 Skill 自身检查无需目标配置。源码打包不需要 `target-root.json`、`--shuku-root` 或 Shuku 工程；相对输入路径以调用时工作目录为基准。
 
 ## 关键约束
 
@@ -51,7 +51,7 @@ description: 规划、设计、制作或修改 React 交互演示，包括大纲
 - 页面放 `pages/<语义页目录>/<同名组件及样式>`，按实际制作进度建目录。逐页中间产物放页内 `_scratchpad/`，整体原稿和记录放模块级 `_scratchpad/`；正式素材放课程 `assets/`。
 - 视觉组件从 `@shuku/course-style/react` 导入；资源、请求与状态从 `@shuku/course-runtime/react/...` 导入。`moduleAssetUrl('真实相对路径')` 与 `moduleJson('真实相对路径')` 仅接受一个参数。素材路径必须完整写出目录、文件名与扩展名，不拼接字段构造路径；动态切换时从完整路径列表中选择，详见[资源引用](references/engineering/module-assets.md#资源引用平台强制约定)。不从 Shared 导入内核接口，不维护历史资源映射。
 - 初始化用户工程时，直接将本 Skill 根目录的完整 `shared/` 复制到目标工程的 `modules/shared/`（平铺布局用 `shared/`）；目标已有 Shared 时复用，不覆盖。路径、风格登记与 UUID 规则见[复制内置 Shared](references/engineering/module-assets.md#复制内置-shared)。
-- 课程源码与风格在课程工程，正式构建与运行时在 Shuku。制作时可用内置 Player Preview 预览源码；交付展示和截图验收仍使用平台构建产物，本地预览不能代替最终 SKZIP 验收。
+- 课程源码与风格在课程工程，正式构建与运行时在 Shuku。制作时可用内置 Player Preview 预览源码；需要展示或截图验收时使用服务器已有构建产物；源码打包不以预览、渲染或构建为前置条件。
 
 ## 按动作读取
 
@@ -64,7 +64,7 @@ description: 规划、设计、制作或修改 React 交互演示，包括大纲
 | 课程/风格 UUID、素材、OSS | [身份与资源](references/engineering/module-assets.md) |
 | 本地开发预览、安装或构建播放器 | [Player Preview](player-preview/README.md) |
 | 页面检查与验收 | [基础检查](references/eval/checks.md) |
-| 检查、打包、导出与上传交付 | 唯一入口 `course.pack`；[官方 SKZIP 交付](references/engineering/delivery.md) |
+| 检查、打包、导出与上传交付 | 一次运行 `course.pack <目录>`，不先预检或本地构建；[源码 SKZIP 交付](references/engineering/delivery.md) |
 | 执行工具、参数与依赖 | [工具索引](references/tools.md)，优先 `describe <ID>` 与 `<ID> --help` |
 | 习题 / 大模型 / GPU | [习题](references/design/quiz.md) / [大模型](references/computing/llm.md) / [计算](references/computing/gpu.md) |
 | 问卷、投票、调研、标准控件与 Custom 交互 | [问卷接入与可复制示例](references/design/surveys.md)，先复用标准控件，再按需要替换单题外观 |
@@ -72,4 +72,4 @@ description: 规划、设计、制作或修改 React 交互演示，包括大纲
 
 ## 完成
 
-按影响范围检查真实渲染、内容与相关交互，修复后复验。整套课件完成、准备交付 SKZIP 时，智能体须在本地基于当前平台构建执行 `capture.thumbnails --module <课程UUID>`（工程外构建加 `--build-output <目录>`），为全部实际页面生成缩略图，严格遵守上方第 7 条的唯一保存路径与规格；不得要求用户手动截图。核对生成数量、页面对应、本地保存路径及总览，将 `assets/shuku-thumbnails/` 作为正式资源随 `course.pack` 一起打入 SKZIP，检查最终包内路径正确且逐页文件齐全。截图或构建失败须修复后补采，不以缺少缩略图的包宣称交付完成。随后按上方规则清理本次课件的 `_scratchpad`，再交付或提交。不默认执行评分或全仓测试。交付简述完成内容、实际验证与剩余限制，未执行的检查标为未验证。
+创作和修改按影响范围核对内容与相关交互，未验证项如实说明。仅请求打包时，直接运行一次源码打包入口，不重走创作、清理、图片压缩、资源确认、缩略图或构建流程。保留已有 `assets/shuku-thumbnails/`，缺失缩略图只记录提醒，不阻止源码出包。输出自动放在模块目录同级，重打自动加编号；不要求额外指定输出。入口退出时返回详细 JSON 并保存同级 `.report.json`，包含阶段耗时、模块与文件数量、图片统计、排除项、严重错误、提醒、输出位置及上传建议。没有严重错误时允许出包：有提醒则向用户说明并询问“修复重打还是按现状上传”，无提醒则确认上传。严重错误必须先与用户沟通修复，修复并重新打包后再确认上传，不静默跳过坏模块。已有明确覆盖当前包和提醒的上传授权时，不重复询问。服务器检查仍记为待处理，脚本本身不上传。不默认评分或执行全仓测试。

@@ -1,8 +1,10 @@
-/** Official SKZIP v1 local browser gate. Reads a File/Blob, never executes archive
+/** SKZIP source and legacy delivery integrity gate. Reads a File/Blob, never executes archive
  * code and never uploads. The PUBLIC_KEY is a workflow convention, not a secret.
  * Import verifySkzip(file, {onProgress}) from an HTTPS/localhost application.
  */
 const MANIFEST = 'skzip-manifest.json', POLICY = 'creator-delivery-v2';
+const SOURCE_POLICY = 'creator-source-v1';
+const SERVER_PENDING = ['classification','security','admission','build','rendering'];
 const PUBLIC_KEY = 'shuku-skzip-public-workflow-v1';
 const CHECKS = ['images','references','editIds','resources','admission','build','mediaReferences','rendering'];
 const HARD_CHECKS = ['resources','admission','build'];
@@ -24,15 +26,23 @@ function safeName(name) {
 }
 
 export async function validateManifest(document) {
-  requireThat(document && document.format==='shuku-skzip' && document.schema===1 && ['creator-delivery-v1',POLICY].includes(document.policy),
+  requireThat(document && document.format==='shuku-skzip' && document.schema===1 && ['creator-delivery-v1',POLICY,SOURCE_POLICY].includes(document.policy),
     '请选择官方打包程序生成的 SKZIP；格式或版本不受支持。','SKZIP_FORMAT');
   const {workflowTag,...unsigned} = document;
   const key = await crypto.subtle.importKey('raw',encoder.encode(PUBLIC_KEY),{name:'HMAC',hash:'SHA-256'},false,['sign']);
   const expected = hex(await crypto.subtle.sign('HMAC',key,encoder.encode(canonical(unsigned))));
   requireThat(workflowTag===expected, 'SKZIP 流程标记不正确，请重新打包。','SKZIP_INTEGRITY');
-  requireThat(document.checks && HARD_CHECKS.every(k=>document.checks[k]?.status==='passed'),
-    '必要的交付检查未通过。','SKZIP_CHECKS');
-  requireThat(document.resourceReview?.confirmed===true, '作者尚未完成资源取舍。','SKZIP_REVIEW');
+  if(document.policy===SOURCE_POLICY) {
+    requireThat(document.packageKind==='source' && document.sharedPolicy==='server-provided'
+      && ['source','paths'].every(k=>document.checks?.[k]?.status==='passed')
+      && canonical(document.serverPending)===canonical(SERVER_PENDING)
+      && SERVER_PENDING.every(k=>document.checks?.[k]?.status==='server-pending'),
+      '源码包检查不完整，或错误声明服务器检查已完成。','SKZIP_CHECKS');
+  } else {
+    requireThat(document.checks && HARD_CHECKS.every(k=>document.checks[k]?.status==='passed'),
+      '必要的交付检查未通过。','SKZIP_CHECKS');
+    requireThat(document.resourceReview?.confirmed===true, '作者尚未完成资源取舍。','SKZIP_REVIEW');
+  }
   requireThat(Array.isArray(document.files) && document.files.length>0 && document.files.length<MAX_FILES,
     'Invalid SKZIP inventory');
   const seen = new Set(); let bytes = 0;
@@ -119,5 +129,8 @@ export async function verifySkzip(file, {onProgress=()=>{}}={}) {
   }
   return {status:'passed',format:document.format,policy:document.policy,files:rows.length,
     bytes:rows.reduce((n,r)=>n+r.size,0),manifest:document,
-    warnings:CHECKS.filter(k=>!HARD_CHECKS.includes(k) && document.checks?.[k]?.status!=='passed')};
+    serverPending:document.policy===SOURCE_POLICY?document.serverPending:[],
+    warnings:document.policy===SOURCE_POLICY
+      ? ['images'].filter(k=>document.checks?.[k]?.status!=='passed')
+      : CHECKS.filter(k=>!HARD_CHECKS.includes(k) && document.checks?.[k]?.status!=='passed')};
 }

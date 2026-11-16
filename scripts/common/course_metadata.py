@@ -1,4 +1,4 @@
-"""Metadata contract mirrored from Shuku; release packaging verifies against the selected live platform."""
+"""Bundled Python metadata contract; authoritative platform checks run on the server."""
 import json
 from pathlib import Path
 import re

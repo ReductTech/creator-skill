@@ -1,239 +1,283 @@
-"""Platform parity and ZIP delivery use real input bytes and the live compiler."""
+"""Source pipeline behavior: Python only, read-only inputs and honest server gates."""
+import base64
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+from uuid import uuid4
 import zipfile
 
 import pytest
 
-from checks.validate_module import validate_modules
-from module.package_course import source_paths
+from module.package_course import export_source
+from module.source_inputs import default_output, discover_modules, source_paths
+from module.source_checks import inspect_collection
+from module.source_images import inspect_images
+from module.source_archive import write_source_archive
+from skzip import MANIFEST, canonical, seal, verify_archive
 
 SCRIPTS = Path(__file__).resolve().parents[1]
-SHUKU = os.environ.get('CREATOR_SKILL_TEST_SHUKU_ROOT')
-MID = '11111111-1111-4111-8111-111111111111'
-OTHER = '22222222-2222-4222-8222-222222222222'
-DRAFT = '33333333-3333-4333-8333-333333333333'
+PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=')
 
 
-def course(root, mid=MID, *, draft=False):
-    directory = root/'modules'/mid
+def course(parent, *, draft=False):
+    mid, page = str(uuid4()), str(uuid4())
+    directory = parent / mid
     directory.mkdir(parents=True)
-    doc = {'id':mid,'title':'Delivery fixture','alias':'fixture-'+mid[:8], 'path':'/modules/'+mid,
-           'moduleIdentity':{'version':1,'id':mid},
-           'pages':[{'id':'44444444-4444-4444-8444-444444444444','title':'Opening','snippet':'Narration'}]}
+    doc = {'id': mid, 'title': 'Fixture', 'path': '/modules/' + mid,
+           'moduleIdentity': {'version': 1, 'id': mid},
+           'pages': [{'id': page, 'title': 'Opening', 'snippet': ''}]}
     if not draft:
         doc['entry'] = 'Guide.tsx'
-        (directory/'Guide.tsx').write_text('export function Guide(){return <p>Delivered</p>}',encoding='utf-8')
-    (directory/'outlines.json').write_text(json.dumps(doc),encoding='utf-8')
+        (directory / 'Guide.tsx').write_text('export function Guide(){return <p>Source only</p>}', encoding='utf-8')
+    (directory / 'outlines.json').write_text(json.dumps(doc), encoding='utf-8')
     return directory
 
 
-@pytest.mark.parametrize('change', ['valid','double-asset','double-json','signature','page-field','semantic-directory','missing-id','retired-index','old-global'])
-def test_preflight_matches_current_platform_for_known_conflicts(tmp_path, change):
-    directory = course(tmp_path)
-    path = directory/'outlines.json'
-    doc = json.loads(path.read_text())
-    if change == 'signature': doc['moduleIdentity']['signature'] = 'legacy'
-    if change == 'page-field': doc['pages'][0]['section'] = 'legacy'
-    if change == 'missing-id': doc.pop('id')
-    if change == 'semantic-directory':
-        doc['id'] = 'Named-Course'
-        directory.rename(directory.parent/'Named-Course')
-        directory = directory.parent/'Named-Course'
-        path = directory/'outlines.json'
-    if change in {'double-asset','double-json'}:
-        helper = 'moduleAssetUrl' if change=='double-asset' else 'moduleJson'
-        (directory/'use.ts').write_text(helper+"(moduleIdentity.id, 'image.png')",encoding='utf-8')
-    if change == 'retired-index': (tmp_path/'asset-index.json').write_text('{}')
-    if change == 'old-global': (directory/'use.ts').write_text('const old = import.meta.env.VITE_LLM_SERVICE_URL')
-    path.write_text(json.dumps(doc),encoding='utf-8')
-    expected = change=='valid'
-    assert (not validate_modules(tmp_path)) == expected
-    if SHUKU:
-        result = subprocess.run([sys.executable,str(Path(SHUKU)/'tooling/authoring/scripts/checks/validate_module.py'), '--repository', str(tmp_path)],
-            cwd=SHUKU,env={**os.environ,'PYTHONPATH':SHUKU},capture_output=True,text=True,encoding='utf-8',timeout=60)
-        report = json.loads(result.stdout)
-        assert (report['status']=='passed') == expected, report
+def snapshot(root):
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob('*') if p.is_file()}
 
 
-def test_source_selection_excludes_scratch_archives_credentials_and_skill(tmp_path):
-    directory = course(tmp_path)
-    for name in ('_scratchpad/draft.tsx','node_modules/cache.js','creator-skill/SKILL.md','nested.zip','.env.local'):
-        p = directory/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('exclude')
-    files = source_paths(tmp_path,[tmp_path/'modules'])
-    assert sorted(files) == [f'modules/{MID}/Guide.tsx',f'modules/{MID}/outlines.json']
-
-
-def pack(root, output, *modules):
-    config = root.parent/'target-root.json'
-    config.write_text(json.dumps({'targetRoot':str(root)}))
-    arguments = [sys.executable,str(SCRIPTS/'tools.py'),'course.pack','--shuku-root',SHUKU,'--output',str(output),'--resources','keep-all']
-    for mid in modules: arguments.extend(['--module',mid])
-    result = subprocess.run(arguments,env={**os.environ,'CREATOR_SKILL_TARGET_CONFIG':str(config)},
-                            capture_output=True,text=True,encoding='utf-8',timeout=120)
-    return result, json.loads(result.stdout)
-
-
-@pytest.mark.skipif(not SHUKU, reason='Set CREATOR_SKILL_TEST_SHUKU_ROOT for real platform admission and builds')
-def test_zip_roundtrip_includes_sibling_dependency_excludes_unrelated_draft_and_never_overwrites(tmp_path):
-    root=tmp_path/'source';first=course(root);second=course(root,OTHER);course(root,DRAFT,draft=True)
-    (second/'helper.ts').write_text('export const value="Sibling dependency"')
-    (first/'Guide.tsx').write_text("import {value} from '../"+OTHER+"/helper';export function Guide(){return <p>{value}</p>}")
-    (first/'_scratchpad').mkdir();(first/'_scratchpad/draft.tsx').write_text('invalid code')
-    output=tmp_path/'course.skzip'
-    result,report=pack(root,output,MID)
-    assert result.returncode==0,(report,result.stderr)
-    assert set(report['courses'])=={MID,OTHER}
-    assert report['coverage']['platformAdmission'] and report['coverage']['realBuild']
-    assert report['coverage']['rendering'] and report['coverage']['mediaReferences']
-    assert all(row['captured']==row['pages'] for row in report['verifiedDeliveries'])
-    assert len(list(Path(report['buildOutput']).rglob('artifact-manifest.json')))==2
-    with zipfile.ZipFile(output) as archive:
-        names=archive.namelist()
-        assert any(OTHER+'/helper.ts' in name for name in names)
-        assert not any(DRAFT in name or '_scratchpad' in name for name in names)
-    before=output.read_bytes()
-    again,error=pack(root,output,MID)
-    assert again.returncode==2 and 'already exists' in error['error']
-    assert output.read_bytes()==before
-
-
-@pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
-def test_no_zip_is_delivered_when_real_compile_rejects_an_import(tmp_path):
-    root=tmp_path/'source';directory=course(root)
-    (directory/'Guide.tsx').write_text("import {moduleAssetUrl} from '@shuku/course-style/react';export function Guide(){return <img src={moduleAssetUrl('image.png')}/>}")
-    (directory/'assets').mkdir();__import__('PIL.Image',fromlist=['Image']).new('RGB',(10,10),'blue').save(directory/'assets/image.png')
-    output=tmp_path/'must-not-exist.skzip'
-    result,report=pack(root,output,MID)
-    assert result.returncode==2 and 'build failed' in report['error']
-    assert not output.exists()
-
-
-@pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
-def test_render_failure_is_a_quality_warning_after_successful_build(tmp_path):
-    root=tmp_path/'source';directory=course(root)
-    (directory/'Guide.tsx').write_text('export function Guide(){throw new Error("fixture runtime failure")}',encoding='utf-8')
-    output=tmp_path/'must-not-render.skzip'
-    result,report=pack(root,output,MID)
-    assert result.returncode==0 and output.exists(), (report,result.stderr)
-    assert not report['coverage']['rendering'] and report['warnings']
-
-
-@pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
-def test_unprovable_dynamic_asset_reference_is_a_quality_warning(tmp_path):
-    from PIL import Image
-    root=tmp_path/'source';directory=course(root)
-    (directory/'assets').mkdir();Image.new('RGB',(10,10),'blue').save(directory/'assets/image.png')
-    (directory/'Guide.tsx').write_text('''import {moduleAssetUrl} from '@shuku/course-runtime/react/assets';
-        function path(){return globalThis.location.hash.slice(1)||'image.png'}
-        export function Guide(){return <img src={moduleAssetUrl(path())}/>}''',encoding='utf-8')
-    output=tmp_path/'must-not-convert.skzip'
-    result,report=pack(root,output,MID)
-    assert result.returncode==0 and output.exists(), (report,result.stderr)
-    assert not report['coverage']['references'] or not report['coverage']['mediaReferences']
-
-
-@pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
-@pytest.mark.parametrize('missing_scene',[False,True])
-def test_real_platform_ppt_renderer_checks_every_outline_page_before_delivery(tmp_path,missing_scene):
-    root=tmp_path/'source';directory=course(root)
-    outline=json.loads((directory/'outlines.json').read_text())
-    second='55555555-5555-4555-8555-555555555555'
-    outline['pages'].append({'id':second,'title':'Second','snippet':'Second page'})
-    outline['ppt']={'entry':'Ppt.tsx'}
-    (directory/'outlines.json').write_text(json.dumps(outline),encoding='utf-8')
-    scenes=[f"{{id:'{outline['pages'][0]['id']}',title:'Opening',render:()=> <div>Opening content</div>}}"]
-    if not missing_scene: scenes.append(f"{{id:'{second}',title:'Second',render:()=> <div>Second content</div>}}")
-    (directory/'Ppt.tsx').write_text("export const deck={id:'"+MID+"',title:'Delivery fixture',scenes:["+','.join(scenes)+"]}",encoding='utf-8')
-    output=tmp_path/'presentation.skzip'
-    result,report=pack(root,output,MID)
-    if missing_scene:
-        assert result.returncode==0 and output.exists(), (report,result.stderr)
-        assert not report['coverage']['rendering'] and report['warnings']
-    else:
-        assert result.returncode==0,(report,result.stderr)
-        assert report['verifiedDeliveries'][0]['captured']==2
-
-
-@pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
-def test_official_review_preparation_and_author_exclusions_preserve_source(tmp_path):
-    from PIL import Image
-    from skzip import verify_archive
-    root = tmp_path/'source'
-    directory = course(root)
-    (directory/'assets').mkdir()
-    Image.new('RGB',(2000,1000),'blue').save(directory/'assets/picture.png')
-    (directory/'assets/unused.txt').write_text('author elects to omit this')
-    (directory/'Guide.tsx').write_text("import {moduleAssetUrl} from '@shuku/course-runtime/react/assets';export function Guide(){return <img src={moduleAssetUrl('picture.png')}/>} ")
-    before = {p.relative_to(root).as_posix():p.read_bytes() for p in root.rglob('*') if p.is_file()}
-    config = tmp_path/'target.json'
-    config.write_text(json.dumps({'targetRoot':str(root)}))
-    output = tmp_path/'reviewed.skzip'
-    command = [sys.executable, str(SCRIPTS/'tools.py'), 'course.pack', '--module', MID,
-               '--shuku-root', SHUKU, '--output', str(output)]
-    env = {**os.environ, 'CREATOR_SKILL_TARGET_CONFIG':str(config)}
-    first = subprocess.run(command, env=env, capture_output=True, text=True, encoding='utf-8', timeout=120)
-    review_result = json.loads(first.stdout)
-    assert first.returncode == 1 and review_result['status'] == 'needs-resource-review', (review_result,first.stderr)
-    assert not output.exists()
-    review_file = Path(review_result['review'])
-    review = json.loads(review_file.read_bytes())
-    for row in review['resources']:
-        row['decision'] = 'keep' if row['path'].endswith('picture.webp') else 'exclude'
-    review_file.write_text(json.dumps(review),encoding='utf-8')
-    second = subprocess.run(command+['--resource-decisions',str(review_file)],env=env,
-                            capture_output=True,text=True,encoding='utf-8',timeout=120)
-    report = json.loads(second.stdout)
-    assert second.returncode == 0, (report, second.stderr)
+@pytest.mark.parametrize('shape', ['single', 'collection', 'project', 'flat', 'multiple'])
+@pytest.mark.parametrize('shared', [False, True])
+def test_directory_shapes_pack_source_and_exclude_shared(tmp_path, shape, shared):
+    project = tmp_path / 'source'
+    collection = project / 'modules' if shape == 'project' else project
+    first = course(collection)
+    second = course(collection) if shape != 'single' else None
+    if shared:
+        folder = collection / 'ShArEd'
+        folder.mkdir()
+        (folder / 'must-not-ship.ts').write_text('export const x = 1')
+        nested = first / 'components' / 'SHARED'
+        nested.mkdir(parents=True)
+        (nested / 'nested.ts').write_text('excluded')
+    inputs = [first] if shape == 'single' else [first, second] if shape == 'multiple' else [project]
+    before = {m.name: snapshot(m) for m in (first, second) if m}
+    output = default_output(inputs)
+    result = export_source(inputs)
+    assert result['status'] == 'passed'
+    expected = (first.with_name(first.name + '.skzip') if shape == 'single' else
+                collection / 'courses.skzip' if shape == 'multiple' else
+                project / 'modules.skzip' if shape == 'project' else project.with_name(project.name + '.skzip'))
+    assert Path(result['output']) == expected
+    assert len(result['modules']) == (1 if shape == 'single' else 2)
+    assert {m.name: snapshot(m) for m in (first, second) if m} == before
     manifest = verify_archive(output)
-    assert manifest['resourceReview']['confirmed'] is True
+    assert manifest['policy'] == 'creator-source-v1'
+    assert manifest['checks']['build']['status'] == 'server-pending'
+    assert not result['coverage']['realBuild']
     with zipfile.ZipFile(output) as archive:
-        assert not any(n.endswith(('picture.png','unused.txt')) for n in archive.namelist())
-        code = archive.read(next(n for n in archive.namelist() if n.endswith('/Guide.tsx')))
-        assert b'picture.webp' in code and b'shuku-edit-id' in code
-    after = {p.relative_to(root).as_posix():p.read_bytes() for p in root.rglob('*') if p.is_file()}
-    assert before == after
+        assert f'modules/{first.name}/Guide.tsx' in archive.namelist()
+        assert all('shared' not in p.lower().split('/') for p in archive.namelist())
 
 
-@pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
-def test_official_pack_defaults_titles_and_continues_after_an_invalid_course(tmp_path):
-    from skzip import verify_archive
-    root=tmp_path/'source';directory=course(root);bad=course(root,OTHER)
-    path=directory/'outlines.json';doc=json.loads(path.read_text())
-    doc.pop('title');doc['pages'][0].pop('title');doc['pages'][0].pop('snippet')
-    path.write_text(json.dumps(doc),encoding='utf-8')
-    (bad/'outlines.json').write_text('{broken',encoding='utf-8')
-    output=tmp_path/'mixed.skzip'
-    result,report=pack(root,output,'FIXTURE-'+MID[:8],OTHER)
-    assert result.returncode==0, (report,result.stderr)
-    assert report['courses']==[MID] and report['rejectedCourses'][0]['module_id']==OTHER
-    receipt=verify_archive(output)
-    assert receipt['checks']['build']['scope']=='accepted-courses'
+def test_original_resources_and_scratch_are_preserved_without_transcoding(tmp_path):
+    directory = course(tmp_path / 'source')
+    assets = directory / 'assets'
+    assets.mkdir()
+    (assets / 'picture.png').write_bytes(PNG)
+    (assets / 'photo.jpeg').write_bytes(b'\xff\xd8\xff\xe0original-jpeg-bytes')
+    (assets / 'wrong.png').write_bytes(b'\xff\xd8\xff\xe0mismatched-header')
+    for name in ('_scratchpad/design.png', 'node_modules/cache.js', '.env.local', 'old.skzip'):
+        p = directory / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(b'leave-original-alone')
+    before = snapshot(directory)
+    output = default_output([directory])
+    result = export_source([directory])
+    assert result['images']['converted'] == 0
+    assert result['images']['counts'] == {'png': 1, 'jpeg': 2}
+    assert result['images']['issueCount'] == 1
+    assert result['modules'][0]['missingThumbnails'] == 1
+    assert snapshot(directory) == before
     with zipfile.ZipFile(output) as archive:
-        doc=json.loads(archive.read('modules/'+MID+'/outlines.json'))
-    assert doc['title']==doc['pages'][0]['title']=='未命名标题' and doc['pages'][0]['snippet']==''
-    assert json.loads(path.read_text()).get('title') is None
+        names = archive.namelist()
+        assert not any('_scratchpad' in p or 'node_modules' in p or '.env' in p or 'old.skzip' in p for p in names)
+        png = f'modules/{directory.name}/assets/picture.png'
+        assert archive.read(png) == PNG
+        assert archive.getinfo(png).compress_type == zipfile.ZIP_STORED
+        assert archive.getinfo(f'modules/{directory.name}/Guide.tsx').compress_type == zipfile.ZIP_DEFLATED
 
 
-def test_delivery_payload_retains_official_thumbnails_after_scratch_cleanup(tmp_path):
-    from PIL import Image
-    from media.thumbnail_profiles import save_thumbnail
-    directory = course(tmp_path)
-    thumbnail = directory/'assets/shuku-thumbnails/44444444-4444-4444-8444-444444444444.webp'
-    save_thumbnail(Image.new('RGB', (1600, 900), 'navy'), thumbnail)
-    report = directory/'_scratchpad/thumbnails/report.json'
-    report.parent.mkdir(parents=True)
-    report.write_text('{}')
-    files = source_paths(tmp_path, [tmp_path/'modules'])
-    name = thumbnail.relative_to(tmp_path).as_posix()
-    assert name in files
-    assert report.relative_to(tmp_path).as_posix() not in files
-    archive = tmp_path/'payload.zip'
-    with zipfile.ZipFile(archive, 'w') as stream:
-        for path, file in files.items():
-            stream.write(file, path)
-    with zipfile.ZipFile(archive) as stream:
-        assert stream.read(name) == thumbnail.read_bytes()
+def test_single_pipeline_does_not_execute_subprocesses_or_source(tmp_path, monkeypatch):
+    directory = course(tmp_path / 'source')
+    (directory / 'Guide.tsx').write_text("import './missing'; throw new Error('must never execute');")
+    def forbidden(*args, **kwargs):
+        raise AssertionError('No process execution allowed')
+    monkeypatch.setattr(subprocess, 'run', forbidden)
+    monkeypatch.setattr(subprocess, 'Popen', forbidden)
+    monkeypatch.setattr(os, 'system', forbidden)
+    result = export_source([directory])
+    assert result['status'] == 'passed'
+    assert any(w['kind'] == 'unverified-import' for w in result['warnings'])
+    assert set(result['serverPending']) == {'classification', 'security', 'admission', 'build', 'rendering'}
+
+
+def test_serious_module_errors_block_entire_request_and_drafts_can_ship_as_source(tmp_path):
+    root = tmp_path / 'source'
+    draft = course(root, draft=True)
+    bad = course(root)
+    (bad / 'outlines.json').write_text('{broken')
+    report = export_source([root])
+    assert report['status'] == 'failed'
+    assert len(report['rejectedModules']) == 1
+    assert report['seriousErrorCount'] == 1 and not report['uploadEligible']
+    assert report['agentNextAction'] == 'discuss-errors-and-repair-before-repacking'
+    assert not Path(report['output']).exists()
+    assert json.loads(Path(report['reportPath']).read_text(encoding='utf-8'))['status'] == 'failed'
+    # An explicitly selected valid scope can be packaged separately.
+    result = export_source([draft])
+    assert result['status'] == 'passed'
+    assert any(w['kind'] == 'outline-only' for w in result['issues']['warnings'])
+    (draft / 'outlines.json').write_text('{}')
+    failed = export_source([draft])
+    assert failed['status'] == 'failed' and failed['outputCreated'] is False
+    assert not Path(failed['output']).exists()
+
+
+@pytest.mark.parametrize('change', ['escape', 'missing', 'identity', 'duplicate-page', 'invalid-utf8'])
+def test_invalid_source_never_publishes_a_package(tmp_path, change):
+    directory = course(tmp_path / 'source')
+    outline = directory / 'outlines.json'
+    doc = json.loads(outline.read_text())
+    if change == 'escape': doc['entry'] = '../outside.tsx'
+    if change == 'missing': doc['entry'] = 'Missing.tsx'
+    if change == 'identity': doc['moduleIdentity']['id'] = str(uuid4())
+    if change == 'duplicate-page': doc['pages'].append(dict(doc['pages'][0]))
+    if change == 'invalid-utf8': (directory / 'Guide.tsx').write_bytes(b'\xff\xfe')
+    outline.write_text(json.dumps(doc))
+    output = default_output([directory])
+    assert export_source([directory])['status'] == 'failed'
+    assert not output.exists()
+
+
+def test_automatic_output_never_overwrites_and_cannot_enter_source(tmp_path):
+    directory = course(tmp_path / 'source')
+    first = export_source([directory])
+    output = Path(first['output'])
+    original = output.read_bytes()
+    second = export_source([directory])
+    assert first['status'] == second['status'] == 'passed'
+    assert second['output'] != first['output']
+    assert Path(second['output']).stem == output.stem + '-2'
+    assert output.read_bytes() == original
+    files, report = inspect_collection([directory])
+    with pytest.raises(ValueError, match='outside'):
+        write_source_archive(files, report, directory / 'forbidden.skzip', {})
+    assert not list(directory.glob('.source-pack-*'))
+
+
+def test_cli_and_router_work_without_site_packages_node_config_or_shuku(tmp_path):
+    directory = course(tmp_path / 'source with spaces')
+    env = {**os.environ, 'PATH': '', 'CREATOR_SKILL_TARGET_CONFIG': str(tmp_path / 'missing-config.json')}
+    direct = [sys.executable, '-S', str(SCRIPTS / 'module/package_course.py'), str(directory)]
+    result = subprocess.run(direct, env=env,
+                            capture_output=True, text=True, encoding='utf-8', timeout=15)
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert len(result.stdout.splitlines()) == 1
+    assert json.loads(result.stdout)['coverage']['realBuild'] is False
+    router = subprocess.run([sys.executable, '-S', str(SCRIPTS / 'tools.py'), 'course.pack',
+                             str(directory)], env=env,
+                            capture_output=True, text=True, encoding='utf-8', timeout=15)
+    assert router.returncode == 0, (router.stdout, router.stderr)
+    assert verify_archive(Path(json.loads(router.stdout)['output']))['packageKind'] == 'source'
+
+
+@pytest.mark.parametrize('tool', ['course.discover', 'course.inspect', 'course.images'])
+def test_components_are_independently_callable_and_read_only(tmp_path, tool):
+    directory = course(tmp_path / 'source')
+    before = snapshot(directory)
+    result = subprocess.run([sys.executable, '-S', str(SCRIPTS / 'tools.py'), tool, str(directory)],
+                            env={**os.environ, 'PATH': '', 'CREATOR_SKILL_TARGET_CONFIG': 'not-a-config'},
+                            capture_output=True, text=True, encoding='utf-8', timeout=15)
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert json.loads(result.stdout)['status'] == 'passed'
+    assert snapshot(directory) == before
+    assert not list(tmp_path.rglob('*.skzip'))
+
+
+def test_source_policy_rejects_fabricated_server_pass_and_tampering(tmp_path):
+    directory = course(tmp_path / 'source')
+    output = Path(export_source([directory])['output'])
+    with zipfile.ZipFile(output) as archive:
+        files = {name: archive.read(name) for name in archive.namelist()}
+    document = json.loads(files[MANIFEST])
+    document['checks']['build']['status'] = 'passed'
+    files[MANIFEST] = canonical(seal(document))
+    with zipfile.ZipFile(output, 'w') as archive:
+        for name, raw in files.items(): archive.writestr(name, raw)
+    with pytest.raises(ValueError, match='falsely claimed'):
+        verify_archive(output)
+
+
+def test_symlinks_are_not_followed(tmp_path):
+    directory = course(tmp_path / 'source')
+    secret = tmp_path / 'secret.txt'
+    secret.write_text('outside')
+    try:
+        (directory / 'linked.txt').symlink_to(secret)
+    except OSError:
+        pytest.skip('Symlinks unavailable for this user')
+    result = export_source([directory])
+    assert result['status'] == 'failed'
+    assert not Path(result['output']).exists()
+
+
+def test_duplicate_archive_paths_are_rejected(tmp_path):
+    directory = course(tmp_path / 'source')
+    source = directory / 'Guide.tsx'
+    files = {'modules/x/Guide.tsx': source, 'modules/x/guide.tsx': source}
+    with pytest.raises(ValueError, match='Duplicate'):
+        write_source_archive(files, {}, tmp_path / 'duplicate.skzip', {})
+
+
+def test_shared_only_is_not_a_course(tmp_path):
+    shared = tmp_path / 'Shared'
+    shared.mkdir()
+    with pytest.raises(ValueError, match='No course'):
+        discover_modules([shared])
+
+
+def test_detailed_report_allows_warnings_but_requires_upload_decision(tmp_path):
+    directory = course(tmp_path / 'source')
+    assets = directory / 'assets'
+    assets.mkdir()
+    (assets / 'wrong.png').write_bytes(b'\xff\xd8\xff\xe0jpeg-header')
+    result = export_source([directory])
+    assert result['status'] == 'passed' and result['uploadEligible'] is True
+    assert result['seriousErrorCount'] == 0 and result['warningCount'] == 2
+    assert result['uploadAuthorized'] is False and result['requiresUserConfirmation'] is True
+    assert result['userOptions'] == ['fix-and-repack', 'upload-current-package']
+    assert [stage['name'] for stage in result['stages']] == ['source-checks', 'image-inspection', 'archive-and-integrity']
+    assert result['stages'][1]['status'] == 'warning'
+    assert json.loads(Path(result['reportPath']).read_text(encoding='utf-8')) == result
+    assert result['summary']['zipBytes'] == Path(result['output']).stat().st_size
+
+
+def test_clean_report_only_asks_for_upload_confirmation(tmp_path):
+    directory = course(tmp_path / 'source')
+    doc = json.loads((directory / 'outlines.json').read_text())
+    thumbnail = directory / 'assets/shuku-thumbnails' / (doc['pages'][0]['id'] + '.webp')
+    thumbnail.parent.mkdir(parents=True)
+    thumbnail.write_bytes(b'RIFF\x08\x00\x00\x00WEBP')
+    result = export_source([directory])
+    assert result['status'] == 'passed' and result['warningCount'] == 0
+    assert result['agentNextAction'] == 'confirm-upload'
+    assert result['userOptions'] == ['upload-current-package']
+
+
+def test_archive_failure_returns_full_serious_error_report(tmp_path, monkeypatch):
+    from module import package_course
+    directory = course(tmp_path / 'source')
+    def fail(*args, **kwargs):
+        raise OSError('fixture disk failure')
+    monkeypatch.setattr(package_course, 'write_source_archive', fail)
+    result = export_source([directory])
+    assert result['status'] == 'error' and result['uploadEligible'] is False
+    assert result['outputCreated'] is False and result['seriousErrorCount'] == 1
+    assert result['stages'][-1]['name'] == 'archive-and-integrity'
+    assert 'disk failure' in result['issues']['serious'][0]['reason']
+    assert Path(result['reportPath']).is_file()
+    assert not Path(result['output']).exists()

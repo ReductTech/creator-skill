@@ -27,7 +27,7 @@
       "path": "scripts/module/add_edit_ids.mjs",
       "runtime": "node",
       "description": "为安全 JSX 标签自动补稳定 shuku-edit-id，已有 ID 保留",
-      "effects": "默认只读盘点；--apply 补稳定属性并备份；--check 对缺失、无效和重复 ID 返回失败；Shared 只读；course.pack 自动在副本中调用",
+      "effects": "默认只读盘点；--apply 补稳定属性并备份；--check 对缺失、无效和重复 ID 返回失败；Shared 只读；独立维护工具，不在源码打包中自动调用",
       "dependencies": [
         "Node.js >=24",
         "player-preview 的 npm 依赖（@babel/parser）"
@@ -49,12 +49,9 @@
       "category": "module",
       "path": "scripts/module/package_course.py",
       "runtime": "python",
-      "description": "唯一官方 SKZIP 交付入口：自动压缩、迁移查漏、补编辑 ID，作者选择资源；质量空缺提示，合格课程继续出包",
-      "effects": "只读原工程；隔离副本处理；未确认资源时仅生成清单；必要检查和至少一门课程构建通过后创建新 .skzip；记录失败课程与质量提醒；不覆盖、不上传、不发布",
-      "dependencies": [
-        "playwright",
-        "PIL"
-      ],
+      "description": "Python 源码 SKZIP 流水线：识别目录、排除 Shared、静态检查与图片盘点、连续出包并返回汇总",
+      "effects": "自动在模块目录同级生成编号 SKZIP 和详细报告；普通提醒允许出包，严重错误阻止；返回修复重打或确认上传建议；不安装、不构建、不渲染、不转码、不上传",
+      "dependencies": [],
       "arguments": []
     },
     {
@@ -327,6 +324,36 @@
       "arguments": [
         "emnist-train"
       ]
+    },
+    {
+      "id": "course.discover",
+      "category": "module",
+      "path": "scripts/module/source_inputs.py",
+      "runtime": "python",
+      "description": "独立识别一个或多个输入目录中的课件，并列出排除的 Shared",
+      "effects": "只读明确传入的路径；无目标工程配置或第三方依赖；不安装、不构建、不上传",
+      "dependencies": [],
+      "arguments": []
+    },
+    {
+      "id": "course.inspect",
+      "category": "module",
+      "path": "scripts/module/source_checks.py",
+      "runtime": "python",
+      "description": "独立检查课件源码元数据、入口、UTF-8 和字面量引用；不编译",
+      "effects": "只读明确传入的路径；无目标工程配置或第三方依赖；不安装、不构建、不上传",
+      "dependencies": [],
+      "arguments": []
+    },
+    {
+      "id": "course.images",
+      "category": "module",
+      "path": "scripts/module/source_images.py",
+      "runtime": "python",
+      "description": "独立检查 PNG/JPEG/WebP 等图片文件头并统计；不解码、不转码",
+      "effects": "只读明确传入的路径；无目标工程配置或第三方依赖；不安装、不构建、不上传",
+      "dependencies": [],
+      "arguments": []
     }
   ]
 }

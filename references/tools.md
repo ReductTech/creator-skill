@@ -1,6 +1,6 @@
 # 创作工具索引
 
-统一入口为 `<Skill绝对路径>/scripts/tools.py`；工具执行目录来自 `target-root.json`，不根据当前目录猜测。工具发现与帮助无需配置目标。
+源码打包可直接运行 `python <Skill>/scripts/module/package_course.py <目录>`，`tools.py course.pack` 转发到同一入口。`course.pack`、`course.discover`、`course.inspect`、`course.images` 使用明确输入路径，不读工程配置，相对路径以调用目录为基准。其他工程工具仍使用 `target-root.json`。
 
 ## 发现与调用
 
@@ -25,7 +25,7 @@ python <Skill>/scripts/tools.py capture.slides --help
 | 素材格式转换或改名后的引用迁移 | `assets.rewrite`；[静态与动态路径迁移](engineering/asset-paths.md)，独立于图片压缩 |
 | 本地媒体导入或样式检查 | `check.asset-imports`、`check.styles` |
 | 每页完成与交付前清理临时目录 | `scratchpad.clean <页面或课件目录> --apply`；见下方临时目录清理 |
-| 检查、导出与交付 | 唯一入口 `course.pack`：强制准备、作者资源选择、平台验收后生成 SKZIP；[官方交付](engineering/delivery.md) |
+| 检查、导出与交付 | 一次运行 `course.pack <目录>`：独立组件连续检查源码并归档，无资源确认、本地构建或渲染；[官方交付](engineering/delivery.md) |
 | 可选源码/缩略图统计报告 | `analyze.pages --help`；静态近似统计不能证明实时状态 |
 | 环境、工具与 Skill 维护 | `environment.doctor --tool <ID>`、`check.skill`；修改脚本前读[脚本规范](engineering/scripts.md) |
 
@@ -33,7 +33,7 @@ python <Skill>/scripts/tools.py capture.slides --help
 
 ## 截图和缩略图
 
-整套课件交付前，智能体在本地自动生成全部页面的正式缩略图：`assets/shuku-thumbnails/<页面UUID>.webp`，1600×900、WebP q=20，并随 `course.pack` 打入 SKZIP。使用当前平台构建，工程外构建传 `--build-output <目录>`；无需用户手动截图。生成数量、总览和最终包内文件均须核对。
+仅在用户明确要求制作或维护缩略图时执行；不作为源码打包前置条件，不为此本地构建。正式缩略图位置仍为 `assets/shuku-thumbnails/<页面UUID>.webp`，1600×900、WebP q=20。源码包原样保留已有缩略图，缺失只作提醒。
 
 仅更新缩略图时直接执行 `capture.thumbnails --module <UUID或alias>`，不重走创作设计或评分。已有当前构建可复用，工程外的输出传 `--build-output <目录>`；不启动源码 Vite。
 
@@ -50,7 +50,9 @@ python <Skill>/scripts/tools.py capture.thumbnails --module <UUID>
 
 ## 临时目录清理
 
-每完成一页并完成必要核对，清理该页；课件接近完成时，以及打包交付或 Git 提交前，清理整门课。已有 `.gitignore` 或打包排除规则不能替代实际清理。需长期保留的已确认设计图、正式资源和记录先保存到工程约定的正式位置或用户交付目录；不要把整个 `_scratchpad` 换名当作清理，也不要让正式代码引用临时目录。
+仅打包任务自动排除 `_scratchpad`，不执行清理，不修改原工程。以下清理命令用于创作收尾或用户另行要求的清理。
+
+每完成一页并完成必要核对，清理该页；课件接近完成时，以及 Git 提交前，清理整门课。已有 `.gitignore` 或打包排除规则不能替代实际清理。需长期保留的已确认设计图、正式资源和记录先保存到工程约定的正式位置或用户交付目录；不要把整个 `_scratchpad` 换名当作清理，也不要让正式代码引用临时目录。
 
 支持直接指定任意绝对路径（无需配置 `targetRoot`）；相对路径仍以配置的 `targetRoot` 为基准，与当前终端目录无关。指定路径下无嵌套深度限制，也不排除 Shared、`.git`、`node_modules` 等普通目录；只删除其中的 `_scratchpad`，不改动其他内容：
 
@@ -61,7 +63,7 @@ python <Skill绝对路径>/scripts/tools.py scratchpad.clean "F:\course" --apply
 python <Skill绝对路径>/scripts/tools.py scratchpad.clean modules/<课程UUID>/pages/<语义页目录>
 # 每页完成后，实际清理该页
 python <Skill绝对路径>/scripts/tools.py scratchpad.clean modules/<课程UUID>/pages/<语义页目录> --apply
-# 课件收尾、打包或提交前，清理该课件所有层级的临时目录
+# 创作收尾或提交前，清理该课件所有层级的临时目录
 python <Skill绝对路径>/scripts/tools.py scratchpad.clean modules/<课程UUID> --apply
 # 明确需要清理整个已配置工程时
 python <Skill绝对路径>/scripts/tools.py scratchpad.clean . --apply
