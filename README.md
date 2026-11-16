@@ -229,6 +229,6 @@ creator-skill/
 
 ## 与术库的关系
 
-本仓库维护创作规范、辅助工具与测试。Shuku 使用自带 `tooling/authoring` 校验器与 `tooling/course-build` 构建器，不从外部 Skill 加载检查器。Skill 的静态预检不能代替当前平台验收；`course.pack --shuku-root <路径>` 使用该 Shuku 的真实导入校验与构建，全部成功才交付源码 ZIP。详见[构建与 ZIP 交付](references/engineering/delivery.md)。
+本仓库维护创作规范、辅助工具与测试。Shuku 使用自带 `tooling/authoring` 校验器与 `tooling/course-build` 构建器，不从外部 Skill 加载检查器。Skill 的静态预检不能代替当前平台验收；`course.pack --shuku-root <路径>` 使用该 Shuku 的真实导入校验与构建，仅通过官方入口自动完成图片处理、引用迁移查漏、编辑 ID、作者资源取舍与平台检查后交付 SKZIP。详见[官方 SKZIP 交付](references/engineering/delivery.md)。
 
 逐页确认与每页 ImageGen 设计图是必需流程，见 [流程共用说明](references/workflow/common.md) 和 [页面设计指导](references/design/design.md)。

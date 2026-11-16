@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {pathToFileURL} from 'node:url';
+import {pathToFileURL, fileURLToPath} from 'node:url';
 import {createRequire} from 'node:module';
 import {getTargetRoot} from '../common/_target_root.mjs';
 import coursePaths from '../common/_course_paths.cjs';
@@ -8,7 +8,9 @@ import coursePaths from '../common/_course_paths.cjs';
 /** Assets are runtime resources regardless of extension or size. */
 export function checkAssetImports(root, directories = ['modules', 'src']) {
   let ts;
-  try { ts = createRequire(path.join(getTargetRoot(), 'package.json'))('typescript'); } catch { /* Shuku's source-only course repositories need no compiler for this check. */ }
+  for (const directory of [root, fileURLToPath(new URL('../../player-preview',import.meta.url)), process.env.SHUKU_ROOT].filter(Boolean)) {
+    try { ts = createRequire(path.join(directory,'package.json'))('typescript'); break; } catch { /* Standalone source-only checks retain their conservative fallback. */ }
+  }
   const errors = [];
   function reference(file, specifier, start, source) {
     if (!specifier.startsWith('.') && !specifier.startsWith('/')) return;

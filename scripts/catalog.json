@@ -22,6 +22,19 @@
       "arguments": []
     },
     {
+      "id": "module.edit-ids",
+      "category": "module",
+      "path": "scripts/module/add_edit_ids.mjs",
+      "runtime": "node",
+      "description": "为安全 JSX 标签自动补稳定 shuku-edit-id，已有 ID 保留",
+      "effects": "默认只读盘点；--apply 补稳定属性并备份；--check 对缺失、无效和重复 ID 返回失败；Shared 只读；course.pack 自动在副本中调用",
+      "dependencies": [
+        "Node.js >=24",
+        "player-preview 的 npm 依赖（@babel/parser）"
+      ],
+      "arguments": []
+    },
+    {
       "id": "module.init",
       "category": "module",
       "path": "scripts/module/init_module.py",
@@ -36,9 +49,12 @@
       "category": "module",
       "path": "scripts/module/package_course.py",
       "runtime": "python",
-      "description": "导出通过当前 Shuku 导入、构建、资源转码校验和逐页真实截图的课程源码 ZIP",
-      "effects": "只读课程源码；在指定仓库外创建新 ZIP 和验证构建；不覆盖、不上传、不发布",
-      "dependencies": ["playwright", "PIL"],
+      "description": "唯一官方 SKZIP 交付入口：自动压缩、迁移查漏、补编辑 ID，作者选择资源后通过平台构建与真实渲染才出包",
+      "effects": "只读原工程；隔离副本处理；未确认资源时仅生成清单；全部强制检查通过后创建新 .skzip 和验证构建；不覆盖、不上传、不发布",
+      "dependencies": [
+        "playwright",
+        "PIL"
+      ],
       "arguments": []
     },
     {
@@ -217,7 +233,7 @@
       "path": "scripts/media/compress-images.py",
       "runtime": "python",
       "description": "普通图片仅宽超过 1600 或高超过 900 时等比缩小，同时满足宽高两个上限，输出 WebP q=80；缩略图与封面为 1600×900 WebP q=20",
-      "effects": "普通小图保持原字节；保留 PNG/JPEG 源文件，原地处理 WebP 前备份；不改引用、不写格式映射；--dry-run 不写文件",
+      "effects": "独立维护默认保留小图；官方 --delivery 模式将小 PNG/JPEG 也转 WebP；保留原图、原地 WebP 先备份；引用迁移由官方交付入口编排",
       "dependencies": [
         "Pillow"
       ],
@@ -230,7 +246,10 @@
       "runtime": "node",
       "description": "独立迁移素材引用路径，覆盖静态引用和常见动态拼接",
       "effects": "默认只读预览；--apply 仅改指定课件的源码引用并备份；动态素材组不完整或存在歧义时整次不写入；不压缩、不改名、不删除素材，不改 Shared",
-      "dependencies": ["node", "typescript"],
+      "dependencies": [
+        "node",
+        "typescript"
+      ],
       "arguments": []
     },
     {

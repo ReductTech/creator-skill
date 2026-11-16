@@ -17,6 +17,7 @@ python <Skill>/scripts/tools.py capture.slides --help
 | 任务 | 工具与必要资料 |
 |---|---|
 | 初始化大纲、补齐/检查身份 | `module.init --title "标题"`、`module.identity --check`；[身份](engineering/module-assets.md) |
+| 自动补稳定编辑 ID（各类安全 JSX 标签） | `module.edit-ids "<课件目录绝对路径>" --apply`；不带 `--apply` 只读，已有 ID 保留；依赖内置 Player Preview 的 npm 安装 |
 | 页 UUID、元数据与字面量资源预检 | `check.outlines`、`check.module`；[基础检查](eval/checks.md) |
 | 真实截图、缩略图、边界与字数、运行时页序 | 见下方截图流程 |
 | 原稿 PPTX 提取 | `extract.pptx --help`；Windows 桌面 PowerPoint；提取产物保存在模块 `_scratchpad/`，不替代原稿视觉核对 |
@@ -24,7 +25,7 @@ python <Skill>/scripts/tools.py capture.slides --help
 | 素材格式转换或改名后的引用迁移 | `assets.rewrite`；[静态与动态路径迁移](engineering/asset-paths.md)，独立于图片压缩 |
 | 本地媒体导入或样式检查 | `check.asset-imports`、`check.styles` |
 | 每页完成与交付前清理临时目录 | `scratchpad.clean <页面或课件目录> --apply`；见下方临时目录清理 |
-| 课程源码 ZIP 交付 | `course.pack --help`；[构建与交付](engineering/delivery.md) |
+| 检查、导出与交付 | 唯一入口 `course.pack`：强制准备、作者资源选择、平台验收后生成 SKZIP；[官方交付](engineering/delivery.md) |
 | 可选源码/缩略图统计报告 | `analyze.pages --help`；静态近似统计不能证明实时状态 |
 | 环境、工具与 Skill 维护 | `environment.doctor --tool <ID>`、`check.skill`；修改脚本前读[脚本规范](engineering/scripts.md) |
 

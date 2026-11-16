@@ -1,40 +1,53 @@
-# Shuku 构建与源码 ZIP 交付
+# 官方 SKZIP 交付
 
-仅在构建、打包或发布时读取。课程工程保存源码和风格；Shuku 提供统一依赖、校验、构建与运行时。不要在 IDL 根目录新增 npm/Vite 工程或用历史 node_modules/dist 作为新流程输入。
+交付仅使用 `course.pack`，输出 `.skzip`。不要手工 ZIP、另写打包脚本、改扩展名，或自行填写“检查通过”。这是减少服务器上传、存储、转码与失败重试成本的必经流程；能播放、扩展名是 WebP、静态检查退出 0 均不能替代它。
 
-## 构建与检查
-
-在用户指定的 Shuku 根目录按该工程 README 配置 `course_build.source_root` 和独立的 `output_root`，执行：
+## 一个入口，作者决定资源取舍
 
 ```powershell
-python run.py courses-check
-python run.py courses-build --module <UUID或alias>
+python <Skill绝对路径>/scripts/tools.py course.pack --module <UUID或alias> --shuku-root <Shuku绝对路径> --output <工程外绝对路径.skzip>
 ```
 
-源码不包含平台 runtime；`@shuku/course-runtime`、`@shuku/course-style` 由构建器解析。Guide TSX 导出与文件名相同的命名组件；PPT 入口导出 `deck`，页面 UUID 与大纲一致。源码类型检查按宿主实际提供的入口执行；Vite 构建不等于完整 TypeScript 类型检查，不能用网站 frontend 的 typecheck 冒充课程检查。
+入口从 targetRoot 读取源码和依赖，在工程外的隔离副本操作。原工程、稳定身份和 Shared 均不修改。已有输出不覆盖，不上传、不发布。
 
-Skill `check.module` 是独立的静态预检；官网验收以当前 Shuku 的 `shuku-course` 校验器与真实构建为准。平台不再从外部 Skill 加载检查器，两者变更需做行为对照。
+固定流程由程序执行，智能体无需自行拼接压缩、迁移、补 ID 等交付命令：
 
-## 交付和提交前清理
+1. 选择课程及真实依赖；拒绝纯大纲、越界路径、链接和非法身份。
+2. 处理课程普通静态 PNG/JPEG/WebP：不放大，等比限制到宽1600、高900，PNG/JPEG 转为 WebP q=80（包括尺寸合格的小图）；缩略图和封面为1600×900 WebP q=20。保留透明；动画、高位深等不支持自动转换的图片记录原样保留原因，不冒充已转码。已有同名 WebP 冲突需先处理，不静默套用。Shared 原样使用。
+3. 使用本次转换清单自动迁移引用，复跑查漏。存在 `unresolved`、`unverified` 或剩余可迁移引用，立即阻止交付并给出定位信息；修复原源码后重新运行同一入口。
+4. 为安全 JSX 补 `shuku-edit-id` 并复查。已有 ID 保留；重复、空/动态 ID、缺失安全节点 ID 或无法验证的原生节点阻止交付。未知自定义组件不盲目加属性，跳过范围写入清单。
+5. 生成资源清单，包含路径、字节数、哈希、转码后原图、相同字节组和疑似未使用提示。疑似未使用不是删除依据。**先向作者展示，再由作者选择；智能体不得自行选保留全部或排除。**
+6. 在最终选定副本上执行元数据/引用检查、真实平台导入、构建、图片交付引用验证与逐页真实渲染。失败或未验证不出包。
+7. 生成绑定实际文件哈希的交付清单，重新读取最终 SKZIP 核对完整性，全部通过才原子交付。
 
-保留正式设计与必要检查结论后，执行 `python <Skill绝对路径>/scripts/tools.py scratchpad.clean modules/<课程UUID> --apply` 清理本次课件中的所有 `_scratchpad`。检查或构建若新生成临时目录，完成核对后再次清理，再交付或 Git 提交；不能仅依赖 ZIP 排除或 `.gitignore`。范围与保护规则见[临时目录清理](../tools.md#临时目录清理)。
+有资源且尚未选择时，返回 `status: needs-resource-review`、清单 JSON 路径，退出1，**不会生成 SKZIP**。`--plan` 强制只做准备与资源盘点。无课程资源时自动记录空清单，不为不存在的取舍询问。
 
-## 导出上传包
-
-官网 ZIP 导入接收带 `outlines.json` 的课程源码，不接收只有 dist 的包或普通 npm 项目。推荐调用：
+作者可在生成的 JSON 中将每项 `decision` 从 `pending` 改为 `keep` 或 `exclude`，保留路径、哈希和快照字段：
 
 ```powershell
-python <Skill绝对路径>/scripts/tools.py course.pack --module <UUID或alias> --shuku-root <Shuku绝对路径> --output <新ZIP绝对路径>
+python <Skill>/scripts/tools.py course.pack --module <UUID> --shuku-root <Shuku路径> --output <绝对路径.skzip> --resource-decisions <作者确认的JSON绝对路径>
 ```
 
-工具仅本地打包，不上传、不发布：选择课程及其依赖，包含公共代码与完整风格；排除无关草稿、嵌套 ZIP、Skill、缓存和 `_scratchpad`，平台业务源码由导入校验拒绝。动态 import 按平台规则保守保留更多课程；若因此带入纯大纲或仍缺依赖，停止并说明，不能静默漏包。
+作者明确选择全部保留时，才使用同一命令的 `--resources keep-all`。原图保留会增加包体积和存储，说明此影响；保留并不阻止交付。排除只影响打包副本，不删除作者原文件。若排除了页面仍依赖的资源，后续检查或真实渲染必须失败；不要绕过。源码、资源或打包规则变化会使旧取舍失效，重新盘点并由作者确认。
 
-临时 ZIP 重新解包后运行该 Shuku 的真实导入校验、每门课程构建、同一套图片转码与引用校验，以及逐页真实浏览器截图；全部成功才原子交付，已有输出不覆盖。缺页面实现、页面脚本报错或无法确认的动态资源引用不能只凭编译成功放行。结果列出课程、依赖、检查覆盖与构建目录。Python 环境还需安装 Playwright 及其 Chromium（`python -m pip install playwright`，`python -m playwright install chromium`）；缺少检查工具会明确失败，不静默跳过。ZIP 最多 1 GiB、展开最多 1 GiB、单文件最多 128 MiB、最多 10000 个文件；上传器限制以当前平台为准。
+## SKZIP 清单与浏览器预检
 
-仅使用平台 alias 的默认风格课程可由官网补齐默认包；直接相对引用 `shared` 或自定义风格必须携带对应完整依赖。工具保留实际依赖，不用默认包掩盖缺失的自定义组件。
+SKZIP 是具有固定契约的 ZIP 容器，根目录必须有 `skzip-manifest.json`，登记格式/策略版本、生产工具摘要、各项强制检查结果、作者资源选择，以及全部交付文件的路径、大小、SHA-256。额外文件、缺文件、内容变化、缺检查或未完成资源确认均不通过。
 
-## 播放与官网验收
+公开的流程标记密钥只用于拦截误传和不遵循流程的打包，不是保密或防伪认证。规则版本不兼容必须重新打包。
 
-`course.pack` 已检查每页初始画面的真实渲染；这不等于验证了所有交互状态。继续使用输出的构建目录执行 `capture.slides --build-output <目录>`，检查本次影响的关键交互状态；页序、入口和依赖变化扩大范围。请求模型/GPU 的互动在术库宿主中验证，独立静态页面不能验证 RPC。平台允许部分页面缩略图先显示，但 Skill 交付验收要求每页都可渲染，不能把缺失页计为成功。
+官网可复用 [浏览器校验器](../../scripts/browser/verify_skzip.mjs)：
 
-上传新课程后网站自动逐门导入、构建和保存，完成后在“我的课程”打开，默认仅自己可见。纯大纲不能播放；公开上架、受审核或他人所有的课程更新仍遵循平台权限。没有实际上传生产官网时，只说明本地验证通过，不能声称官网部署已验收。
+```javascript
+import {verifySkzip} from './verify_skzip.mjs';
+const result = await verifySkzip(file, {onProgress: progress => updateProgress(progress)});
+// 只有成功返回 status: 'passed' 后才调用上传接口；异常显示给作者。
+```
+
+在 HTTPS/localhost 下运行，使用 File/Blob、Web Crypto 和 DecompressionStream。它本地有界读取 ZIP 目录、解压文件并验证清单与哈希，不执行包内脚本，不上传。浏览器不支持所需能力时显示不支持并阻止上传，不静默跳过。官网服务端仍须复核 SKZIP 和平台入库规则，不能信任客户端的 passed 字段。提供校验器不代表网站已经接入；必须另外修改并验证官网上传入口。
+
+## 覆盖与交付说明
+
+交付简述 SKZIP 路径、实际检查结果、作者资源取舍及体积。真实逐页渲染只证明受测状态；模型/GPU、正式问卷、权限和其他交互仍在有权限的术库宿主验证，未验证如实说明。没有实际上传，不声称官网验收或发布完成。
+
+源码日常预览和构建仍按工程实际入口进行，不以手工构建产物代替 SKZIP。源工程的临时记录清理沿用[临时目录清理](../tools.md#临时目录清理)，先保留正式素材与必要记录；官方打包副本自动销毁，检查备份不进入包。

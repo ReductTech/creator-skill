@@ -1,6 +1,6 @@
 ---
 name: creator-skill
-description: 规划、设计、制作或修改 React 交互演示，包括主线、大纲、口播、从零创作与 PPT/PDF 改编、课件内问卷与投票，以及 Shuku 课件检查和源码 ZIP 交付。适用于教学、科研和商业汇报，不用于普通网站或一般文档。
+description: 规划、设计、制作或修改 React 交互演示，包括大纲、口播、PPT/PDF 改编、问卷与投票，以及通过官方 course.pack 入口检查并交付 Shuku SKZIP 课件包。适用于教学、科研和商业汇报，不用于普通网站或一般文档。
 ---
 
 # React 演示创作
@@ -21,6 +21,8 @@ description: 规划、设计、制作或修改 React 交互演示，包括主线
 6. **逐页清理临时目录，交付和提交前再清理。** 每完成一页并完成必要核对，运行 `scratchpad.clean <该页目录> --apply`；整门课收尾、打包交付或 Git 提交前，对本次课件目录再运行一次，确保没有遗留 `_scratchpad`。先将需长期保留的设计图、正式素材和必要记录放到正式位置或用户交付目录；清理后不能仍引用临时路径。支持直接指定绝对路径，递归清理所有嵌套层级的 `_scratchpad`，不按普通目录名称排除；仅不跟随链接/junction，防止越界。此临时目录清理适用于 Shared 下的 `_scratchpad`，不得修改其他 Shared 文件。命令默认只预览，实际删除须带 `--apply`，详见[临时目录清理](references/tools.md#临时目录清理)。
 
 ## 开始与续作
+
+**交付只用一个入口：`course.pack --module <课程UUID> --shuku-root <Shuku路径> --output <工程外绝对路径.skzip>`。** 不手工压 ZIP、不改后缀冒充 SKZIP、不用“构建成功”替代交付验收。该入口在副本中强制执行图片压缩与格式处理、引用迁移和查漏、`shuku-edit-id` 补齐与复查、资源盘点、平台导入/构建和真实页面验证；失败或未验证时不出包。资源清单必须先给作者选择保留/排除，智能体不得代选，也不删除作者原文件。首次直接运行，按返回清单继续同一入口，详见[官方 SKZIP 交付](references/engineering/delivery.md)。
 
 先确定目标、已有成果和当前阶段。仅讨论主线、大纲、讲稿或设计时，无需工程配置或创建文件；工程操作按下方配置定位课程。
 
@@ -47,7 +49,7 @@ description: 规划、设计、制作或修改 React 交互演示，包括主线
 - 页面放 `pages/<语义页目录>/<同名组件及样式>`，按实际制作进度建目录。逐页中间产物放页内 `_scratchpad/`，整体原稿和记录放模块级 `_scratchpad/`；正式素材放课程 `assets/`。
 - 视觉组件从 `@shuku/course-style/react` 导入；资源、请求与状态从 `@shuku/course-runtime/react/...` 导入。`moduleAssetUrl('真实相对路径')` 与 `moduleJson('真实相对路径')` 仅接受一个参数。素材路径必须完整写出目录、文件名与扩展名，不拼接字段构造路径；动态切换时从完整路径列表中选择，详见[资源引用](references/engineering/module-assets.md#资源引用平台强制约定)。不从 Shared 导入内核接口，不维护历史资源映射。
 - 初始化用户工程时，直接将本 Skill 根目录的完整 `shared/` 复制到目标工程的 `modules/shared/`（平铺布局用 `shared/`）；目标已有 Shared 时复用，不覆盖。路径、风格登记与 UUID 规则见[复制内置 Shared](references/engineering/module-assets.md#复制内置-shared)。
-- 课程源码与风格在课程工程，正式构建与运行时在 Shuku。制作时可用内置 Player Preview 预览源码；交付展示和截图验收仍使用平台构建产物，本地预览不能代替最终 ZIP 验收。
+- 课程源码与风格在课程工程，正式构建与运行时在 Shuku。制作时可用内置 Player Preview 预览源码；交付展示和截图验收仍使用平台构建产物，本地预览不能代替最终 SKZIP 验收。
 
 ## 按动作读取
 
@@ -60,7 +62,7 @@ description: 规划、设计、制作或修改 React 交互演示，包括主线
 | 课程/风格 UUID、素材、OSS | [身份与资源](references/engineering/module-assets.md) |
 | 本地开发预览、安装或构建播放器 | [Player Preview](player-preview/README.md) |
 | 页面检查与验收 | [基础检查](references/eval/checks.md) |
-| 构建、源码 ZIP 与上传交付 | [交付](references/engineering/delivery.md) |
+| 检查、打包、导出与上传交付 | 唯一入口 `course.pack`；[官方 SKZIP 交付](references/engineering/delivery.md) |
 | 执行工具、参数与依赖 | [工具索引](references/tools.md)，优先 `describe <ID>` 与 `<ID> --help` |
 | 习题 / 大模型 / GPU | [习题](references/design/quiz.md) / [大模型](references/computing/llm.md) / [计算](references/computing/gpu.md) |
 | 问卷、投票、调研、标准控件与 Custom 交互 | [问卷接入与可复制示例](references/design/surveys.md)，先复用标准控件，再按需要替换单题外观 |

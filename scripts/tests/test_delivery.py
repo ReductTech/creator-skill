@@ -70,7 +70,7 @@ def test_source_selection_excludes_scratch_archives_credentials_and_skill(tmp_pa
 def pack(root, output, *modules):
     config = root.parent/'target-root.json'
     config.write_text(json.dumps({'targetRoot':str(root)}))
-    arguments = [sys.executable,str(SCRIPTS/'tools.py'),'course.pack','--shuku-root',SHUKU,'--output',str(output)]
+    arguments = [sys.executable,str(SCRIPTS/'tools.py'),'course.pack','--shuku-root',SHUKU,'--output',str(output),'--resources','keep-all']
     for mid in modules: arguments.extend(['--module',mid])
     result = subprocess.run(arguments,env={**os.environ,'CREATOR_SKILL_TARGET_CONFIG':str(config)},
                             capture_output=True,text=True,encoding='utf-8',timeout=120)
@@ -83,7 +83,7 @@ def test_zip_roundtrip_includes_sibling_dependency_excludes_unrelated_draft_and_
     (second/'helper.ts').write_text('export const value="Sibling dependency"')
     (first/'Guide.tsx').write_text("import {value} from '../"+OTHER+"/helper';export function Guide(){return <p>{value}</p>}")
     (first/'_scratchpad').mkdir();(first/'_scratchpad/draft.tsx').write_text('invalid code')
-    output=tmp_path/'course.zip'
+    output=tmp_path/'course.skzip'
     result,report=pack(root,output,MID)
     assert result.returncode==0,(report,result.stderr)
     assert set(report['courses'])=={MID,OTHER}
@@ -105,8 +105,8 @@ def test_zip_roundtrip_includes_sibling_dependency_excludes_unrelated_draft_and_
 def test_no_zip_is_delivered_when_real_compile_rejects_an_import(tmp_path):
     root=tmp_path/'source';directory=course(root)
     (directory/'Guide.tsx').write_text("import {moduleAssetUrl} from '@shuku/course-style/react';export function Guide(){return <img src={moduleAssetUrl('image.png')}/>}")
-    (directory/'assets').mkdir();(directory/'assets/image.png').write_bytes(b'fixture')
-    output=tmp_path/'must-not-exist.zip'
+    (directory/'assets').mkdir();__import__('PIL.Image',fromlist=['Image']).new('RGB',(10,10),'blue').save(directory/'assets/image.png')
+    output=tmp_path/'must-not-exist.skzip'
     result,report=pack(root,output,MID)
     assert result.returncode==2 and 'build failed' in report['error']
     assert not output.exists()
@@ -116,7 +116,7 @@ def test_no_zip_is_delivered_when_real_compile_rejects_an_import(tmp_path):
 def test_no_zip_is_delivered_when_compiled_page_throws_at_runtime(tmp_path):
     root=tmp_path/'source';directory=course(root)
     (directory/'Guide.tsx').write_text('export function Guide(){throw new Error("fixture runtime failure")}',encoding='utf-8')
-    output=tmp_path/'must-not-render.zip'
+    output=tmp_path/'must-not-render.skzip'
     result,report=pack(root,output,MID)
     assert result.returncode==2 and 'page rendering failed' in report['error']
     assert not output.exists()
@@ -130,9 +130,9 @@ def test_no_zip_is_delivered_for_unprovable_dynamic_asset_reference(tmp_path):
     (directory/'Guide.tsx').write_text('''import {moduleAssetUrl} from '@shuku/course-runtime/react/assets';
         function path(){return globalThis.location.hash.slice(1)||'image.png'}
         export function Guide(){return <img src={moduleAssetUrl(path())}/>}''',encoding='utf-8')
-    output=tmp_path/'must-not-convert.zip'
+    output=tmp_path/'must-not-convert.skzip'
     result,report=pack(root,output,MID)
-    assert result.returncode==2 and ('资源引用' in report['error'] or 'DYNAMIC_ASSET' in report['error'])
+    assert result.returncode==2 and ('资源引用' in report['error'] or 'DYNAMIC_ASSET' in report['error'] or 'unresolved/unverified' in report['error'])
     assert not output.exists()
 
 
@@ -148,7 +148,7 @@ def test_real_platform_ppt_renderer_checks_every_outline_page_before_delivery(tm
     scenes=[f"{{id:'{outline['pages'][0]['id']}',title:'Opening',render:()=> <div>Opening content</div>}}"]
     if not missing_scene: scenes.append(f"{{id:'{second}',title:'Second',render:()=> <div>Second content</div>}}")
     (directory/'Ppt.tsx').write_text("export const deck={id:'"+MID+"',title:'Delivery fixture',scenes:["+','.join(scenes)+"]}",encoding='utf-8')
-    output=tmp_path/'presentation.zip'
+    output=tmp_path/'presentation.skzip'
     result,report=pack(root,output,MID)
     if missing_scene:
         assert result.returncode==2 and not output.exists()
@@ -156,3 +156,43 @@ def test_real_platform_ppt_renderer_checks_every_outline_page_before_delivery(tm
     else:
         assert result.returncode==0,(report,result.stderr)
         assert report['verifiedDeliveries'][0]['captured']==2
+
+
+@pytest.mark.skipif(not SHUKU, reason='Explicit current Shuku required')
+def test_official_review_preparation_and_author_exclusions_preserve_source(tmp_path):
+    from PIL import Image
+    from skzip import verify_archive
+    root = tmp_path/'source'
+    directory = course(root)
+    (directory/'assets').mkdir()
+    Image.new('RGB',(2000,1000),'blue').save(directory/'assets/picture.png')
+    (directory/'assets/unused.txt').write_text('author elects to omit this')
+    (directory/'Guide.tsx').write_text("import {moduleAssetUrl} from '@shuku/course-runtime/react/assets';export function Guide(){return <img src={moduleAssetUrl('picture.png')}/>} ")
+    before = {p.relative_to(root).as_posix():p.read_bytes() for p in root.rglob('*') if p.is_file()}
+    config = tmp_path/'target.json'
+    config.write_text(json.dumps({'targetRoot':str(root)}))
+    output = tmp_path/'reviewed.skzip'
+    command = [sys.executable, str(SCRIPTS/'tools.py'), 'course.pack', '--module', MID,
+               '--shuku-root', SHUKU, '--output', str(output)]
+    env = {**os.environ, 'CREATOR_SKILL_TARGET_CONFIG':str(config)}
+    first = subprocess.run(command, env=env, capture_output=True, text=True, encoding='utf-8', timeout=120)
+    review_result = json.loads(first.stdout)
+    assert first.returncode == 1 and review_result['status'] == 'needs-resource-review', (review_result,first.stderr)
+    assert not output.exists()
+    review_file = Path(review_result['review'])
+    review = json.loads(review_file.read_bytes())
+    for row in review['resources']:
+        row['decision'] = 'keep' if row['path'].endswith('picture.webp') else 'exclude'
+    review_file.write_text(json.dumps(review),encoding='utf-8')
+    second = subprocess.run(command+['--resource-decisions',str(review_file)],env=env,
+                            capture_output=True,text=True,encoding='utf-8',timeout=120)
+    report = json.loads(second.stdout)
+    assert second.returncode == 0, (report, second.stderr)
+    manifest = verify_archive(output)
+    assert manifest['resourceReview']['confirmed'] is True
+    with zipfile.ZipFile(output) as archive:
+        assert not any(n.endswith(('picture.png','unused.txt')) for n in archive.namelist())
+        code = archive.read(next(n for n in archive.namelist() if n.endswith('/Guide.tsx')))
+        assert b'picture.webp' in code and b'shuku-edit-id' in code
+    after = {p.relative_to(root).as_posix():p.read_bytes() for p in root.rglob('*') if p.is_file()}
+    assert before == after

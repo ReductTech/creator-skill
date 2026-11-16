@@ -2,7 +2,8 @@
 
 Ordinary PNG/JPEG/WebP images exceeding a width of 1600 pixels or a height of 900
 pixels become WebP q=80, proportionally resized to satisfy both limits.
-Images within both limits stay byte-identical; images are never enlarged.
+Images within both limits stay byte-identical by default; --delivery also converts
+static in-bounds PNG/JPEG. Images are never enlarged.
 Thumbnails and covers instead use 1600x900 WebP q=20. Animation and high-bit-depth
 images are skipped. Sources are retained; in-place WebP writes require a backup.
 References must be updated explicitly to the reported real WebP filenames.
@@ -35,7 +36,7 @@ def is_link(path):
     return path.is_symlink() or bool(getattr(path.lstat(), 'st_file_attributes', 0) & 0x400)
 
 
-def convert(path, dry_run=False, backup=None):
+def convert(path, dry_run=False, backup=None, delivery=False):
     from PIL import Image, ImageOps
     from media.thumbnail_profiles import THUMBNAIL_SIZE, THUMBNAIL_QUALITY, thumbnail_image
 
@@ -59,7 +60,7 @@ def convert(path, dry_run=False, backup=None):
         result.update(target=str(target), before_size=list(before_size),
                       after_size=list(after_size), before=path.stat().st_size,
                       quality=quality, profile='thumbnail' if thumbnail else 'ordinary')
-        if not thumbnail and after_size == before_size:
+        if not thumbnail and after_size == before_size and not (delivery and original.format != 'WEBP'):
             return {**result, 'reason': 'within-bounds'}
         if target != path and target.exists():
             return {**result, 'reason': 'webp-already-exists'}
@@ -108,6 +109,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('directory', type=Path)
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--delivery', action='store_true', help='Official delivery: also convert in-bounds static PNG/JPEG to WebP')
     parser.add_argument('--report', type=Path)
     parser.add_argument('--backup-dir', type=Path,
                         help='Defaults to a sibling <directory>-image-originals directory')
@@ -126,7 +128,7 @@ def main():
         for name in sorted(names):
             path = base / name
             if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES:
-                rows.append(convert(path, args.dry_run, backup / path.relative_to(directory)))
+                rows.append(convert(path, args.dry_run, backup / path.relative_to(directory), args.delivery))
     if report and not args.dry_run:
         report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
