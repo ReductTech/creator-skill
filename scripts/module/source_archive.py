@@ -17,7 +17,7 @@ from skzip import (MANIFEST, MAX_BYTES, MAX_FILE_BYTES, MAX_FILES, MAX_MANIFEST,
 from module.source_inputs import linked
 
 TEXT = {'.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.css', '.html', '.json',
-        '.md', '.txt', '.csv', '.tsv', '.svg', '.xml', '.yaml', '.yml'}
+        '.md', '.txt', '.csv', '.tsv', '.svg', '.xml', '.yaml', '.yml', '.py'}
 
 
 def write_source_archive(files, report, output, producer):

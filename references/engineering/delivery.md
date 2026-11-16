@@ -12,10 +12,13 @@
 
 规则定义在 scripts/common/submission_policy.py，与服务器对应模块保持一致。
 
-1. 黑名单优先：Python、shell、PowerShell、批处理、系统可执行文件和动态库等扩展名，.env / .env.*、shell 启动文件，以及伪装的 ELF、PE、Mach-O 与危险解释器 shebang，均不入包。扩展名不区分大小写，.so.* 同样禁止，放入 assets 不豁免。只排除，不删除本地文件；逐项报告。已知字面量依赖被排除文件时报严重错误，动态依赖留待服务器完整检查，不声称本地已证明无依赖。
+1. 黑名单优先：shell、PowerShell、批处理、系统可执行文件、动态库、Python 字节码等扩展名，.env / .env.*、shell 启动文件，以及伪装的 ELF、PE、Mach-O 与危险解释器 shebang，均不入包。扩展名不区分大小写，.so.* 同样禁止，放入 assets 不豁免。课件和自定义风格中的禁用文件只排除，不删除本地文件；逐项给出 FILE_EXCLUDED 警告并继续打包。已知字面量依赖被排除文件时给出 EXCLUDED_FILE_REFERENCED 警告，提示后续构建或运行可能失败，不因此终止打包。动态依赖留待服务器完整检查，不声称本地已证明无依赖。
 2. 源码白名单 .ts/.tsx/.js/.jsx/.mjs/.cjs/.css，以及准确根路径 outlines.json、风格根路径 style.json 元数据，允许超过 100 KiB 留在 assets 外，仍受单文件上限约束。
 3. 其他文件包括普通 JSON：超过 102400 字节必须放在所属课件或风格的 assets/。等于限制允许在外。违规报严重错误，不自动搬移、不擅自修改源码引用。
 4. 链接/junction、越界与重复路径、非法源码编码、身份或已声明入口错误、超限和完整性错误阻止出包。保持 1 GiB 总量、128 MiB 单文件、少于 10000 源码文件限制。
+5. `.py` 源码和 `.bin` 数据允许入包，每个文件产生 `HIGH_RISK_FILE` 警告并标记 `riskLevel=high`；它们不属于超限源码白名单，超过 100 KiB 必须放在所属课件或风格的 `assets/`。Python 源码可保留 Python shebang，但 `.py` / `.bin` 都不能豁免原生可执行内容和 shell shebang 禁令。报告和包清单保存 `highRiskFiles`，包整体标为高危，服务器安全检查仍为待执行。本地仅存储和检查，不执行这些依赖；扩展名及文件头检查不保证代码无害或容器不会被穿透，服务器仍须独立审核并在受限环境中运行。
+
+本地字面量依赖检查只对收集到的文件清单做路径规范化和匹配，不把任意源码字符串传给文件系统解析。匹配时去除 `?raw` 等查询和片段；相对导入按源码所在目录定位，`moduleAssetUrl()` / `moduleJson()` 按课件 `assets/` 定位。已排除文件仍按上述黑名单规则处理，不因运行时使用而自动放行。
 
 ## 本地图片加工
 
@@ -25,7 +28,7 @@
 
 ## 两端契约
 
-清单仍为 shuku-skzip / schema 1，新策略 creator-source-v2，filePolicy 为 submission-files-v1，packageKind=source，sharedPolicy=server-provided，resourcePolicy=optimized-images。清单只登记实际上传文件；原图不在清单中时，由转换表明确说明。公开 workflowTag 不是防伪认证。
+清单仍为 shuku-skzip / schema 1，策略 creator-source-v2，filePolicy 为 submission-files-v2，packageKind=source，sharedPolicy=server-provided，resourcePolicy=optimized-images。本地 Python 和网页完整性校验器兼容旧 submission-files-v1；v2 必须具有与实际文件清单一致的 highRiskFiles 和 riskLevel。服务器文件策略也必须支持 v2；更新本 Skill 不代表服务器已经部署相同规则。清单只登记实际上传文件；原图不在清单中时，由转换表明确说明。公开 workflowTag 不是防伪认证。
 
 网页校验器支持新策略与历史 source-v1、delivery-v1/v2。服务器独立复核完整性、文件政策、转换范围及实际 WebP；在无凭据、无网络的入库隔离进程中迁移引用，然后才做资源完整性与平台源码检查。无法可靠迁移时明确失败，不构建残缺课件。服务器补编辑 ID、冻结源码、构建、处理未达标资源、截图并审核；图片格式尺寸达标不证明具体 q 值，本地报告也不能免除服务器检查。
 

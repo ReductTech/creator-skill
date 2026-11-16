@@ -7,18 +7,32 @@ Independently callable; returns valid modules, rejected inputs and warnings.
 import argparse
 import json
 from pathlib import Path
+import posixpath
 import re
 import sys
 
 sys.path[:0] = [str(Path(__file__).resolve().parents[1]), str(Path(__file__).resolve().parents[1] / 'common')]
 from course_metadata import module_errors
 from module.source_inputs import discover_modules, source_paths
-from common.submission_policy import outside_assets_violation, issue, OUTSIDE_ASSETS_LIMIT
+from common.submission_policy import outside_assets_violation, issue, OUTSIDE_ASSETS_LIMIT, high_risk_reason
 from module.source_styles import custom_style, DEFAULT_STYLE
 from skzip import MAX_FILE_BYTES, MAX_BYTES, MAX_FILES
 
 CODE = {'.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.css'}
 IMPORT = re.compile(r'''(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s*)['"](\.[^'"\r\n]+)['"]''')
+
+
+def local_reference(source_name: str, reference: str) -> str | None:
+    """Normalize a literal against inventory names without filesystem access.
+
+    Quoted source text may be arbitrary code, not a valid OS path. Never pass
+    it to Path.resolve/stat; inventory matching also handles ?raw and fragments.
+    """
+    value = reference.split('?', 1)[0].split('#', 1)[0].replace('\\', '/')
+    if not value or value.startswith('/') or re.match(r'^[a-zA-Z][\w+.-]*:', value):
+        return None
+    target = posixpath.normpath(posixpath.join(posixpath.dirname(source_name), value))
+    return None if target == '..' or target.startswith('../') else target
 
 
 def inspect_module(module, files):
@@ -52,10 +66,11 @@ def inspect_module(module, files):
         for reference in IMPORT.findall(text):
             if any(p.casefold() == 'shared' for p in reference.replace('\\', '/').split('/')):
                 continue
-            target = (path.parent / reference).resolve()
-            candidates = [target, *(Path(str(target) + ext) for ext in CODE | {'.json'}),
-                          *(target / ('index' + ext) for ext in CODE)]
-            if not target.is_relative_to(module) or not any(p.is_file() for p in candidates):
+            target = local_reference(name, reference)
+            candidates = ([] if target is None else
+                          [target, *(target + ext for ext in CODE | {'.json'}),
+                           *(target + '/index' + ext for ext in CODE)])
+            if not any(candidate in files for candidate in candidates):
                 warnings.append({'kind': 'unverified-import', 'module': module.name,
                                  'path': name, 'reference': reference})
     return {'id': doc['id'], 'title': doc.get('title') or '未命名标题',
@@ -76,7 +91,7 @@ def inspect_collection(directories):
                 exclusions.append({'module': module.name, **row})
                 warnings.append(issue('FILE_EXCLUDED', 'modules/'+module.name+'/'+row['path'],
                     '黑名单文件已从交付清单排除，原文件未删除。',
-                    '该文件不会上传；如课件依赖它，必须先移除或替换该依赖。',
+                    '此类型不允许入包；继续打包，如课件依赖它，后续构建或运行可能失败。',
                     '检查课件是否依赖此文件；需要其数据时改为允许的静态资源。', reason=row['reason']))
             for name, path in local.items():
                 if path.stat().st_size > MAX_FILE_BYTES:
@@ -90,7 +105,7 @@ def inspect_collection(directories):
                         size=path.stat().st_size, limitBytes=OUTSIDE_ASSETS_LIMIT, module=module.name))
                 else:
                     passed += 1
-            # Only literal references known to resolve to an excluded file block.
+            # Excluded dependencies warn; packaging never executes these files.
             excluded_names = {row['path'] for row in excluded}
             for name, path in local.items():
                 if not excluded_names:
@@ -100,17 +115,20 @@ def inspect_collection(directories):
                 if path.suffix.lower() not in CODE | {'.json', '.html', '.svg'}:
                     continue
                 text = path.read_text(encoding='utf-8-sig')
+                asset_starts = {m.end() for m in re.finditer(
+                    r'''\b(?:moduleAssetUrl|moduleJson)\s*\(\s*(?=['"])''', text)}
                 for match in re.finditer(r'''[\"']([^\"'\r\n]+)[\"']''', text):
-                    value = match.group(1).split('?', 1)[0].split('#', 1)[0]
-                    candidate = (path.parent/value).resolve()
-                    relative = candidate.relative_to(module).as_posix() if candidate.is_relative_to(module) else None
-                    if value in excluded_names or relative in excluded_names:
-                        serious.append(issue('EXCLUDED_FILE_REFERENCED', 'modules/'+module.name+'/'+name,
+                    value = match.group(1)
+                    clean = value.split('?', 1)[0].split('#', 1)[0]
+                    relative = local_reference(name, value)
+                    asset = local_reference('assets/_', value) if match.start() in asset_starts else None
+                    if clean in excluded_names or relative in excluded_names or asset in excluded_names:
+                        warnings.append(issue('EXCLUDED_FILE_REFERENCED', 'modules/'+module.name+'/'+name,
                             '源码引用了禁止打包的文件。', '文件已排除，继续交付会造成缺失资源或构建失败。',
                             '移除该依赖，或提取为允许的静态数据后更新引用。',
                             reference=value, line=text.count('\n', 0, match.start())+1, module=module.name))
             record, notes = inspect_module(module, local)
-            dependencies, style, selected = custom_style(module)
+            dependencies, style, selected = custom_style(module, warnings=warnings, exclusions=exclusions)
             if style:
                 styles[style['id']] = style
                 for logical, physical in dependencies.items():
@@ -141,7 +159,18 @@ def inspect_collection(directories):
         serious.append(issue('SOURCE_LIMIT_EXCEEDED', '', '文件数量或源码总量超过提交上限。',
             '不能进入图片加工和归档。', '减少所选课件范围，排除非交付文件，确保少于 10000 个文件、总量不超过 1 GiB。'))
     registry = {'schema':1, 'default_style':next(iter(default_styles), DEFAULT_STYLE), 'styles':list(styles.values())}
+    high_risk = []
+    for name in sorted(files):
+        reason = high_risk_reason(name)
+        if reason:
+            high_risk.append({'path': name, 'riskLevel': 'high', 'reason': reason})
+            warnings.append(issue('HIGH_RISK_FILE', name,
+                '允许交付的高危文件：Python 源码或二进制数据。',
+                '文件保留在包中；本地不执行，服务器必须独立进行安全审核。',
+                '确认该依赖确有必要；超过 100 KiB 必须放在所属课件或风格的 assets/。',
+                riskLevel='high', reason=reason))
     return files, {'status': 'passed' if accepted and not rejected and not serious else 'failed', 'modules': accepted,
+                   'highRiskFiles': high_risk, 'riskLevel': 'high' if high_risk else 'unassessed',
                    'moduleCount': len(accepted), 'rejectedModuleCount': len(rejected),
                    'rejectedModules': rejected, 'excludedShared': sorted(set(shared)),
                    'serious': serious, 'excludedFiles': exclusions, 'passedCheckCount': passed,

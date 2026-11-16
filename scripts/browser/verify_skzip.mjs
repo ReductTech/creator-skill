@@ -26,8 +26,9 @@ function safeName(name) {
 }
 
 export async function validateManifest(document) {
-  requireThat(document && document.format==='shuku-skzip' && document.schema===1 && ['creator-delivery-v1',POLICY,'creator-source-v1',SOURCE_POLICY].includes(document.policy),
-    '请选择官方打包程序生成的 SKZIP；格式或版本不受支持。','SKZIP_FORMAT');
+  requireThat(document && document.format==='shuku-skzip', '文件不是 SKZIP 课件包。','SKZIP_FORMAT');
+  requireThat(document.schema===1 && ['creator-delivery-v1',POLICY,'creator-source-v1',SOURCE_POLICY].includes(document.policy),
+    '当前网站尚未支持这个课件包，请更新上传入口。','SKZIP_COMPATIBILITY');
   const {workflowTag,...unsigned} = document;
   const key = await crypto.subtle.importKey('raw',encoder.encode(PUBLIC_KEY),{name:'HMAC',hash:'SHA-256'},false,['sign']);
   const expected = hex(await crypto.subtle.sign('HMAC',key,encoder.encode(canonical(unsigned))));
@@ -38,8 +39,12 @@ export async function validateManifest(document) {
       && canonical(document.serverPending)===canonical(SERVER_PENDING)
       && SERVER_PENDING.every(k=>document.checks?.[k]?.status==='server-pending'),
       '源码包检查不完整，或错误声明服务器检查已完成。','SKZIP_CHECKS');
-    if(document.policy===SOURCE_POLICY) requireThat(document.filePolicy==='submission-files-v1'
-      && Array.isArray(document.imageConversions), '源码转换清单缺失。','SKZIP_CHECKS');
+    if(document.policy===SOURCE_POLICY) {
+      requireThat(typeof document.filePolicy==='string' && Array.isArray(document.imageConversions),
+        '源码转换清单缺失。','SKZIP_CHECKS');
+      requireThat(['submission-files-v1','submission-files-v2'].includes(document.filePolicy),
+        '当前网站尚未支持这个课件包的文件规则，请更新上传入口。','SKZIP_COMPATIBILITY');
+    }
   } else {
     requireThat(document.checks && HARD_CHECKS.every(k=>document.checks[k]?.status==='passed'),
       '必要的交付检查未通过。','SKZIP_CHECKS');
@@ -55,6 +60,14 @@ export async function validateManifest(document) {
       'Invalid SKZIP file record'); bytes+=row.size;
   }
   requireThat(bytes<=MAX_BYTES, 'SKZIP 展开大小超过限制。');
+  if(document.filePolicy==='submission-files-v2') {
+    const risks = document.files.filter(row=>/\.(py|bin)$/i.test(row.path))
+      .sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0)
+      .map(row=>({path:row.path,riskLevel:'high',reason:/\.py$/i.test(row.path)?'python-source':'binary-data'}));
+    requireThat(canonical(document.highRiskFiles)===canonical(risks)
+      && document.riskLevel===(risks.length?'high':'unassessed'),
+      '高危文件清单缺失或不正确。','SKZIP_CHECKS');
+  }
   return document.files;
 }
 

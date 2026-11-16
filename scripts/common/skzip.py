@@ -9,6 +9,7 @@ from pathlib import PurePosixPath
 import stat
 import struct
 import zipfile
+from common.submission_policy import POLICY_REVISION, high_risk_reason, blocked_reason
 
 MANIFEST = 'skzip-manifest.json'
 PUBLIC_KEY = b'shuku-skzip-public-workflow-v1'
@@ -60,10 +61,14 @@ def source_envelope(rows, report, producer):
     checks = {'source': {'status': 'passed'}, 'paths': {'status': 'passed'},
               'images': {'status': report['images']['status']},
               **{name: {'status': 'server-pending'} for name in SERVER_PENDING}}
+    high_risk = [{'path': row['path'], 'riskLevel': 'high', 'reason': high_risk_reason(row['path'])}
+                 for row in sorted(rows, key=lambda row: row['path']) if high_risk_reason(row['path'])]
     document = seal({'format': 'shuku-skzip', 'schema': 1, 'policy': SOURCE_POLICY,
                      'packageKind': 'source', 'sharedPolicy': 'server-provided',
                      'resourcePolicy': 'optimized-images', 'producer': producer,
-                     'filePolicy': 'submission-files-v1',
+                     'filePolicy': POLICY_REVISION,
+                     'highRiskFiles': high_risk,
+                     'riskLevel': 'high' if high_risk else 'unassessed',
                      'imageConversions': report['images'].get('conversions', []),
                      'checks': checks, 'serverPending': list(SERVER_PENDING),
                      'report': report, 'files': rows})
@@ -87,7 +92,7 @@ def validate_manifest(document):
                 or document.get('serverPending') != list(SERVER_PENDING)
                 or any(not isinstance(checks.get(k), dict) or checks[k].get('status') != 'server-pending' for k in SERVER_PENDING)):
             raise ValueError('Incomplete source checks or falsely claimed server checks')
-        if document['policy'] == SOURCE_POLICY and (document.get('filePolicy') != 'submission-files-v1'
+        if document['policy'] == SOURCE_POLICY and (document.get('filePolicy') not in ('submission-files-v1', POLICY_REVISION)
                 or not isinstance(document.get('imageConversions'), list)):
             raise ValueError('Missing source file policy or image conversions')
     else:
@@ -113,6 +118,12 @@ def validate_manifest(document):
             raise ValueError('Invalid SKZIP file record: ' + name)
     if sum(row['size'] for row in rows) > MAX_BYTES:
         raise ValueError('SKZIP expanded size limit exceeded')
+    if document.get('filePolicy') == POLICY_REVISION:
+        expected = [{'path': row['path'], 'riskLevel': 'high', 'reason': high_risk_reason(row['path'])}
+                    for row in sorted(rows, key=lambda row: row['path']) if high_risk_reason(row['path'])]
+        if (document.get('highRiskFiles') != expected
+                or document.get('riskLevel') != ('high' if expected else 'unassessed')):
+            raise ValueError('Missing or incorrect high-risk file declaration')
     return rows
 
 
@@ -166,6 +177,11 @@ def verify_archive(path, *, require_extension=True):
                 raise ValueError('SKZIP size differs: ' + row['path'])
             calculated = hashlib.sha256()
             with archive.open(info) as stream:
+                if document.get('filePolicy') == POLICY_REVISION:
+                    header = stream.read(512)
+                    if blocked_reason(row['path'], header):
+                        raise ValueError('Forbidden SKZIP payload: ' + row['path'])
+                    calculated.update(header)
                 while block := stream.read(1024 * 1024):
                     calculated.update(block)
             if calculated.hexdigest() != row['sha256']:

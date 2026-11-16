@@ -2,13 +2,13 @@
 import json
 from pathlib import Path
 
-from common.submission_policy import outside_assets_violation
+from common.submission_policy import outside_assets_violation, issue
 from module.source_inputs import source_paths, linked
 
 DEFAULT_STYLE = '76018445-20ab-4dd9-9543-385d177eb159'
 
 
-def custom_style(module):
+def custom_style(module, *, warnings=None, exclusions=None):
     outline = json.loads((module/'outlines.json').read_text(encoding='utf-8-sig'))
     catalog_path = next((root/'course-styles.json' for root in (module.parent, module.parent.parent)
                          if (root/'course-styles.json').is_file()), None)
@@ -28,8 +28,15 @@ def custom_style(module):
         raise ValueError('自定义风格不得使用链接或越界路径')
     excluded = []
     local = source_paths(directory, [directory], excluded_files=excluded, preserve_shared=True)
-    if excluded:
-        raise ValueError('自定义风格包含黑名单文件，请移除依赖后重新打包：'+str(excluded))
+    for row in excluded:
+        logical = 'styles/'+selected+'/'+row['path']
+        if exclusions is not None:
+            exclusions.append({'module': module.name, 'style': selected, **row, 'path': logical})
+        if warnings is not None:
+            warnings.append(issue('FILE_EXCLUDED', logical,
+                '黑名单文件已从自定义风格交付清单排除，原文件未删除。',
+                '此类型不允许入包；继续打包，如风格依赖它，后续构建或运行可能失败。',
+                '检查风格是否依赖此文件，移除或替换该依赖。', reason=row['reason']))
     if 'style.json' not in local:
         raise ValueError('自定义风格缺少 style.json')
     for name, file in local.items():
