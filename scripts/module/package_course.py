@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Python/Pillow SKZIP pipeline: inspect, optimize images, inventory and archive.
+"""Python/Pillow ZIP pipeline: inspect original SVG/WebP bytes, inventory and archive.
 
 Never installs/runs Node, rewrites source, builds, captures, deletes or uploads.
 The server verifies image mappings and migrates references before compilation.
@@ -65,7 +65,7 @@ def export_source(directories):
             result = write_source_archive(files, {'modules': inspection['modules'], 'images': report['images']}, output, producer)
         report.update(result)
         report['outputCreated'] = True
-        report['coverage']['skzipIntegrity'] = True
+        report['coverage']['zipIntegrity'] = True
         record_stage(report, stage, stage_started, 'passed', files=result['files'], zipBytes=result['zipBytes'])
         return finish_report(report, started, 'passed')
     except (ValueError, OSError, UnicodeError, zipfile.BadZipFile) as error:

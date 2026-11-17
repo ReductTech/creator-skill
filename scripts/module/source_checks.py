@@ -93,6 +93,8 @@ def inspect_collection(directories):
                     '黑名单文件已从交付清单排除，原文件未删除。',
                     '此类型不允许入包；继续打包，如课件依赖它，后续构建或运行可能失败。',
                     '检查课件是否依赖此文件；需要其数据时改为允许的静态资源。', reason=row['reason']))
+            for shared_name in [name for name in local if any(part.casefold() == 'shared' for part in name.split('/'))]:
+                local.pop(shared_name)
             for name, path in local.items():
                 if path.stat().st_size > MAX_FILE_BYTES:
                     serious.append(issue('FILE_TOO_LARGE', 'modules/'+module.name+'/'+name,

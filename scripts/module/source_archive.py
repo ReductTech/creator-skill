@@ -1,4 +1,4 @@
-"""Stream an inspected inventory into a source SKZIP and verify its integrity.
+"""Stream an inspected inventory into a source ZIP and verify its integrity.
 
 Python standard library only. Does not inspect JS, alter images, build, or render.
 The caller supplies the inventory and report; this component does not rediscover it.
@@ -12,8 +12,7 @@ import tempfile
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'common'))
-from skzip import (MANIFEST, MAX_BYTES, MAX_FILE_BYTES, MAX_FILES, MAX_MANIFEST,
-                   canonical, safe_name, source_envelope, verify_archive)
+from skzip import (MAX_BYTES, MAX_FILE_BYTES, MAX_FILES, MAX_MANIFEST, safe_name)
 from module.source_inputs import linked
 
 TEXT = {'.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.css', '.html', '.json',
@@ -23,10 +22,10 @@ TEXT = {'.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.css', '.html', '.json',
 def write_source_archive(files, report, output, producer):
     """Hash bytes while writing once; re-read the resulting archive for integrity."""
     output = Path(output).expanduser().absolute()
-    if output.suffix.lower() != '.skzip':
-        raise ValueError('Output must have the .skzip extension')
+    if output.suffix.lower() != '.zip':
+        raise ValueError('Output must have the .zip extension')
     if output.exists() or output.is_symlink():
-        raise ValueError('Output already exists; choose a new .skzip path')
+        raise ValueError('Output already exists; choose a new .zip path')
     output = output.resolve()
     roots = [path.parent for name, path in files.items() if name.count('/') == 2 and name.endswith('/outlines.json')]
     if any(output.is_relative_to(root) for root in roots):
@@ -34,6 +33,9 @@ def write_source_archive(files, report, output, producer):
     seen, total, snapshots = set(), 0, {}
     for name, path in files.items():
         safe_name(name)
+        from common.submission_policy import blocked_reason
+        if blocked_reason(name, path.read_bytes()[:512]):
+            raise ValueError('Forbidden ZIP payload: ' + name)
         if name.casefold() in seen:
             raise ValueError('Duplicate or excluded Shared archive path: ' + name)
         seen.add(name.casefold())
@@ -43,9 +45,9 @@ def write_source_archive(files, report, output, producer):
         total += info.st_size
         snapshots[name] = (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
     if not files or len(files) >= MAX_FILES or total > MAX_BYTES - MAX_MANIFEST:
-        raise ValueError('Source exceeds SKZIP file-count or 1 GiB expanded-size limit')
+        raise ValueError('Source exceeds ZIP file-count or 1 GiB expanded-size limit')
     output.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary = tempfile.mkstemp(prefix='.source-pack-', suffix='.skzip', dir=output.parent)
+    descriptor, temporary = tempfile.mkstemp(prefix='.source-pack-', suffix='.zip', dir=output.parent)
     os.close(descriptor)
     temporary = Path(temporary)
     rows = []
@@ -73,15 +75,15 @@ def write_source_archive(files, report, output, producer):
                     if size != before.st_size or after.st_mtime_ns != before.st_mtime_ns:
                         raise ValueError('Source changed while packing: ' + name)
                 rows.append({'path': name, 'size': size, 'sha256': calculated.hexdigest()})
-            document = source_envelope(rows, report, producer)
-            manifest = canonical(document)
-            if len(manifest) > MAX_MANIFEST:
-                raise ValueError('SKZIP manifest exceeds 4 MiB')
-            archive.writestr(MANIFEST, manifest)
-        verify_archive(temporary)
+        with zipfile.ZipFile(temporary) as checked:
+            if checked.testzip() is not None:
+                raise ValueError('ZIP integrity check failed')
+            for row in rows:
+                if hashlib.sha256(checked.read(row['path'])).hexdigest() != row['sha256']:
+                    raise ValueError('ZIP file hash differs: ' + row['path'])
         os.link(temporary, output)  # Atomic and exclusive on Windows and POSIX.
     finally:
         temporary.unlink(missing_ok=True)
     return {'output': str(output), 'packageKind': 'source', 'files': len(rows),
             'sourceBytes': total, 'zipBytes': output.stat().st_size,
-            'serverPending': document['serverPending'], 'skzipIntegrity': True}
+            'serverPending': ['classification','security','admission','build','rendering'], 'zipIntegrity': True}

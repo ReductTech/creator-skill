@@ -1,6 +1,6 @@
 # 创作工具索引
 
-源码打包可直接运行 `python <Skill>/scripts/module/package_course.py <目录>`，`tools.py course.pack` 转发到同一入口。`course.pack`、`course.discover`、`course.inspect`、`course.images` 使用明确输入路径，不读工程配置，相对路径以调用目录为基准。其他工程工具仍使用 `target-root.json`。
+源码打包可直接运行 `python <Skill>/scripts/module/package_course.py <目录>`，`tools.py course.pack` 转发到同一入口。`course.pack`、`course.discover`、`course.inspect`、`course.images`、`course.videos`、`course.audio` 使用明确输入路径，不读工程配置，相对路径以调用目录为基准。其他工程工具仍使用 `target-root.json`。
 
 ## 发现与调用
 
@@ -24,6 +24,8 @@ python <Skill>/scripts/tools.py capture.slides --help
 | 资源分析、压缩、OSS | `assets.inspect`、`assets.compress`、`assets.upload`；[资源规则](engineering/module-assets.md)。实际压缩默认继续迁移引用并查漏，见[连续流程](engineering/asset-paths.md#压缩后的默认连续流程) |
 | 素材格式转换或改名后的引用迁移 | `assets.rewrite`；[静态与动态路径迁移](engineering/asset-paths.md)，独立于图片压缩 |
 | 本地媒体导入或样式检查 | `check.asset-imports`、`check.styles` |
+| 视频检查和本地压缩 | `course.videos <文件或目录>`，`--apply` 才转码；[视频准备](engineering/video-assets.md)。独立于打包，不读工程配置 |
+| 音频检查和本地压缩 | `course.audio <文件或目录>`，`--apply` 才转为 M4A/AAC，默认 96 kbps；[音频准备](engineering/audio-assets.md)。独立于打包，不读工程配置 |
 | 每页完成与交付前清理临时目录 | `scratchpad.clean <页面或课件目录> --apply`；见下方临时目录清理 |
 | 检查、导出与交付 | 一次运行 `course.pack <目录>`：独立组件连续检查源码并归档，无资源确认、本地构建或渲染；[官方交付](engineering/delivery.md) |
 | 可选源码/缩略图统计报告 | `analyze.pages --help`；静态近似统计不能证明实时状态 |

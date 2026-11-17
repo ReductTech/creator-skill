@@ -49,10 +49,10 @@
       "category": "module",
       "path": "scripts/module/package_course.py",
       "runtime": "python",
-      "description": "Python/Pillow SKZIP 流水线：文件黑白名单检查、普通图片优化、转换清单、精简归档与详细分级报告",
+      "description": "Python/Pillow ZIP 流水线：文件黑白名单检查、SVG/WebP 原图校验、只读归档与详细分级报告",
       "effects": "原工程不改不删；自动编号输出 SKZIP、JSON 和可读报告；服务器迁移引用、补 ID、构建截图；绝不安装或调用 Node",
       "dependencies": [
-        "Pillow（有普通图片需加工时）"
+        "Pillow（WebP 完整解码检查）"
       ],
       "arguments": []
     },
@@ -232,7 +232,7 @@
       "path": "scripts/media/compress-images.py",
       "runtime": "python",
       "description": "普通图片仅宽超过 1600 或高超过 900 时等比缩小，同时满足宽高两个上限，输出 WebP q=80；缩略图与封面为 1600×900 WebP q=20",
-      "effects": "独立维护默认保留小图；官方 --delivery 模式将小 PNG/JPEG 也转 WebP；保留原图、原地 WebP 先备份；引用迁移由官方交付入口编排",
+      "effects": "独立维护默认保留小图；官方 --delivery 模式将小 PNG/JPEG 也转 WebP；保留原图、原地 WebP 先备份；SVG 原样保留、不转换；引用迁移由作者维护阶段显式执行",
       "dependencies": [
         "Pillow"
       ],
@@ -355,6 +355,32 @@
       "description": "独立检查 PNG/JPEG/WebP 等图片文件头并统计；不解码、不转码",
       "effects": "只读明确传入的路径；无目标工程配置或第三方依赖；不安装、不构建、不上传",
       "dependencies": [],
+      "arguments": []
+    },
+    {
+      "id": "course.videos",
+      "category": "media",
+      "path": "scripts/media/prepare_videos.py",
+      "runtime": "python",
+      "description": "本地视频检查与 MP4/H.264 转码，最高 1280x720 / 30fps",
+      "effects": "明确输入路径、不读工程配置；默认只检查，--apply 新建成品；不覆盖原片或已有输出，不改引用，不在打包时运行",
+      "dependencies": [
+        "ffmpeg",
+        "ffprobe"
+      ],
+      "arguments": []
+    },
+    {
+      "id": "course.audio",
+      "category": "media",
+      "path": "scripts/media/prepare_audio.py",
+      "runtime": "python",
+      "description": "本地音频检查与 M4A/AAC-LC 压缩，默认 96 kbps",
+      "effects": "明确输入路径，不读工程配置；默认只检查，--apply 新建校验后成品；不覆盖原文件或已有输出，不改引用，不在打包时运行",
+      "dependencies": [
+        "ffmpeg",
+        "ffprobe"
+      ],
       "arguments": []
     }
   ]

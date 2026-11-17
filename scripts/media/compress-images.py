@@ -5,7 +5,8 @@ pixels become WebP q=80, proportionally resized to satisfy both limits.
 Images within both limits stay byte-identical by default; --delivery also converts
 static in-bounds PNG/JPEG. Images are never enlarged.
 Thumbnails and covers instead use 1600x900 WebP q=20. Animation and high-bit-depth
-images are skipped. Sources are retained; in-place WebP writes require a backup.
+images are skipped. SVG is always preserved unchanged, without rasterization.
+Sources are retained; in-place WebP writes require a backup.
 References must be updated explicitly to the reported real WebP filenames.
 """
 import argparse

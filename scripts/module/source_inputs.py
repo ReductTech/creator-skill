@@ -26,17 +26,17 @@ def default_output(directories):
             parent = Path(os.path.commonpath([str(p.parent) for p in roots]))
         except ValueError:  # Inputs on different Windows drives use the first input.
             parent = first.parent
-        candidate = parent / 'courses.skzip'
+        candidate = parent / 'courses.zip'
     elif (first / 'outlines.json').is_file():
-        candidate = first.with_name(first.name + '.skzip')
+        candidate = first.with_name(first.name + '.zip')
     elif (first / 'modules').is_dir():
-        candidate = first / 'modules.skzip'
+        candidate = first / 'modules.zip'
     else:
-        candidate = first.with_name(first.name + '.skzip')
+        candidate = first.with_name(first.name + '.zip')
     original, number = candidate, 2
     while (candidate.exists() or candidate.is_symlink() or candidate.with_suffix('.report.json').exists()
            or candidate.with_suffix('.report.md').exists()):
-        candidate = original.with_name(original.stem + '-' + str(number) + '.skzip')
+        candidate = original.with_name(original.stem + '-' + str(number) + '.zip')
         number += 1
     return candidate
 

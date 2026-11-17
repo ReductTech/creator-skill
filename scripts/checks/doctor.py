@@ -71,7 +71,7 @@ def diagnose(group: str, tool: str | None = None) -> list[dict]:
         if selected is None:
             raise ValueError(f"Unknown tool: {tool}")
         packages.update(
-            name for name in selected["dependencies"] if name not in {"ffmpeg", "node"}
+            name for name in selected["dependencies"] if name not in {"ffmpeg", "ffprobe", "node"}
         )
         if "playwright" in packages and "capture" not in groups:
             groups.append("capture")
@@ -131,6 +131,8 @@ def diagnose(group: str, tool: str | None = None) -> list[dict]:
         )
     if "media" in groups:
         checks.append({"name": "FFmpeg", "available": bool(shutil.which("ffmpeg"))})
+    if tool and 'ffprobe' in selected['dependencies']:
+        checks.append({'name': 'ffprobe', 'available': bool(shutil.which('ffprobe'))})
     return checks
 
 

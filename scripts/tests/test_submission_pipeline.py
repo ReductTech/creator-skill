@@ -79,53 +79,27 @@ def test_python_and_binary_payloads_are_retained_and_marked_high_risk(tmp_path, 
     assert any(w['code'] == 'HIGH_RISK_FILE' and w['riskLevel'] == 'high' for w in result['warnings'])
     with zipfile.ZipFile(result['output']) as archive:
         assert archive.read(logical) == raw
-        manifest = json.loads(archive.read(MANIFEST))
-    assert not any(k in manifest for k in ('policy','schema','filePolicy'))
-    assert manifest['highRiskFiles'] == result['highRiskFiles']
-    assert manifest['riskLevel'] == 'high'
-    assert manifest['checks']['security']['status'] == 'server-pending'
-    manifest['highRiskFiles'] = []
-    with pytest.raises(ValueError, match='high-risk'):
-        validate_manifest(seal(manifest))
-    manifest['filePolicy'] = 'submission-files-v1'
-    with pytest.raises(ValueError, match='high-risk'):
-        validate_manifest(seal(manifest))  # Labels cannot bypass content checks.
+        assert MANIFEST not in archive.namelist()  # Ordinary ZIP needs no client attestation.
+    assert result['serverPending'] and 'security' in result['serverPending']
 
 
 def test_archive_verification_rejects_disguised_executable_payload(tmp_path):
     payload = tmp_path/'disguised.bin'
     payload.write_bytes(b'\x7fELFhidden')
-    destination = tmp_path/'forbidden.skzip'
-    with pytest.raises(ValueError, match='Forbidden SKZIP payload'):
+    destination = tmp_path/'forbidden.zip'
+    with pytest.raises(ValueError, match='Forbidden ZIP payload'):
         write_source_archive({'modules/test/assets/disguised.bin': payload},
                              {'images': {'status': 'passed'}}, destination, {'name': 'test'})
     assert not destination.exists()
 
 
-def test_browser_verifier_reads_v2_risk_declarations(tmp_path):
+def test_plain_zip_does_not_require_official_manifest(tmp_path):
     root = course(tmp_path/'source')
-    (root/'prelude.py').write_text('print(1)')
     result = export_source([root])
-    verifier = Path(__file__).resolve().parents[1]/'browser/verify_skzip.mjs'
+    assert result['status'] == 'passed' and result['output'].endswith('.zip')
     with zipfile.ZipFile(result['output']) as archive:
-        manifest = json.loads(archive.read(MANIFEST))
-    manifest['highRiskFiles'] = []
-    tampered = tmp_path/'missing-risk.json'
-    tampered.write_text(json.dumps(seal(manifest)), encoding='utf-8')
-    script = """import fs from 'node:fs'; import {File} from 'node:buffer';
-      const {verifySkzip,validateManifest}=await import(process.argv[1]);
-      const result=await verifySkzip(new File([fs.readFileSync(process.argv[2])],'source.skzip'));
-      let rejected=false;
-      try {await validateManifest(JSON.parse(fs.readFileSync(process.argv[3],'utf8')));}
-      catch {rejected=true;}
-      if(!rejected) throw Error('Missing risk declaration accepted');
-      console.log(result.status);
-    """
-    execution = subprocess.run(['node', '--input-type=module', '-e', script,
-                                verifier.as_uri(), result['output'], str(tampered)],
-                               capture_output=True, text=True, timeout=30)
-    assert execution.returncode == 0, execution.stderr
-    assert execution.stdout.strip() == 'passed'
+        assert MANIFEST not in archive.namelist()
+        assert archive.testzip() is None
 
 
 def test_excluded_dependency_warns_and_packages_without_deleting_it(tmp_path):
@@ -191,46 +165,57 @@ def test_raw_import_of_included_file_has_no_missing_import_warning(tmp_path):
     assert not any(w.get('kind') == 'unverified-import' for w in result['warnings'])
 
 
-def test_image_optimization_saves_upload_bytes_without_node_or_source_edits(tmp_path):
-    root = course(tmp_path/'source')
-    assets = root/'assets'; assets.mkdir()
-    Image.new('RGB', (2400, 1200), 'red').save(assets/'large.png')
-    (root/'Guide.tsx').write_text("const url=moduleAssetUrl('assets/large.png');")
+@pytest.mark.parametrize('extension,kind', [('png','PNG'),('jpg','JPEG'),('avif','PNG'),('gif','GIF')])
+def test_forbidden_images_block_without_mutating_author_source(tmp_path, extension, kind):
+    root = course(tmp_path/'source'); assets = root/'assets'; assets.mkdir()
+    Image.new('RGB',(30,20),'red').save(assets/('picture.'+extension),format=kind)
     before = snapshot(root)
-    # The actual CLI runs with no node executable available on PATH.
-    cli = Path(__file__).resolve().parents[1]/'module/package_course.py'
-    execution = subprocess.run([sys.executable, str(cli), str(root)],
-        env={**os.environ, 'PATH': ''}, capture_output=True, text=True, encoding='utf-8', check=True)
-    result = json.loads(execution.stdout)
-    assert result['images']['converted'] == 1 and result['images']['savedBytes'] > 0
+    result = export_source([root])
+    assert result['status'] != 'passed' and not result['outputCreated']
     assert snapshot(root) == before
+
+
+@pytest.mark.parametrize('extension,kind', [('webp','WEBP'),('svg','SVG')])
+def test_allowed_images_keep_exact_bytes_and_names_without_node(tmp_path, extension, kind):
+    root = course(tmp_path/'source'); assets = root/'assets'; assets.mkdir()
+    name='picture.'+extension
+    if kind == 'SVG':
+        (assets/name).write_bytes(b'\xef\xbb\xbf<?xml version="1.0"?><!-- keep -->\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><path d="M0 0h30v20H0z" fill="red"/></svg>')
+    else:
+        Image.new('RGB',(30,20),'red').save(assets/name,format=kind)
+    before=snapshot(root)
+    cli=Path(__file__).resolve().parents[1]/'module/package_course.py'
+    execution=subprocess.run([sys.executable,str(cli),str(root)],env={**os.environ,'PATH':''},capture_output=True,text=True,encoding='utf-8',check=True)
+    result=json.loads(execution.stdout)
+    assert result['images']['converted']==0 and result['images']['conversions']==[]
+    assert snapshot(root)==before
     with zipfile.ZipFile(result['output']) as archive:
-        prefix = 'modules/'+root.name+'/'
-        assert prefix+'assets/large.png' not in archive.namelist()
-        assert archive.read(prefix+'Guide.tsx') == before['Guide.tsx']
-        manifest = json.loads(archive.read('skzip-manifest.json'))
-        conversion = manifest['imageConversions'][0]
-        assert conversion['source'] == prefix+'assets/large.png'
-        assert conversion['target'] == prefix+'assets/large.webp'
-        assert conversion['width'] == 1600 and conversion['height'] == 800
-        assert all(not Path(v).is_absolute() for v in (conversion['source'], conversion['target']))
+        assert archive.read('modules/'+root.name+'/assets/'+name)==before['assets/'+name]
 
 
-def test_no_duplicate_original_when_target_is_preexisting(tmp_path):
-    root = course(tmp_path/'source'); assets = root/'assets'; assets.mkdir()
-    Image.new('RGB', (2400, 1200), 'red').save(assets/'large.png')
-    Image.new('RGB', (20, 20), 'blue').save(assets/'large.webp')
+@pytest.mark.parametrize('name,raw', [
+    ('broken.svg', b'<svg><path></svg>'),
+    ('wrong-root.svg', b'<html/>'),
+    ('wrong-namespace.svg', b'<svg xmlns="urn:other"/>'),
+    ('disguised.webp', b'<svg xmlns="http://www.w3.org/2000/svg"/>'),
+    ('disguised.dat', b'\xef\xbb\xbf<!-- comment --><svg/>'),
+    ('disguised.svg', b'GIF89a'),
+])
+def test_invalid_or_disguised_svg_blocks_package(tmp_path, name, raw):
+    root = course(tmp_path/'source')
+    (root/'assets').mkdir()
+    (root/'assets'/name).write_bytes(raw)
+    before = snapshot(root)
     result = export_source([root])
-    assert not result['images']['conversions']
-    assert any(i['code'] == 'IMAGE_RETAINED' for i in result['warnings'])
+    assert result['status'] != 'passed' and not result['outputCreated']
+    assert snapshot(root) == before
 
 
-def test_valid_jpeg_uses_pillow_without_frontend_tools(tmp_path):
-    root = course(tmp_path/'source'); assets = root/'assets'; assets.mkdir()
-    Image.new('RGB', (2000, 1000), 'green').save(assets/'photo.jpg')
+def test_inline_svg_in_source_is_not_misclassified_as_image(tmp_path):
+    root = course(tmp_path/'source')
+    (root/'Guide.tsx').write_text('export function Guide(){return <svg viewBox="0 0 16 16"><path d="M0 0h16"/></svg>;}')
     result = export_source([root])
-    assert result['status'] == 'passed' and result['images']['converted'] == 1
-    assert result['images']['conversions'][0]['target'].endswith('/photo.webp')
+    assert result['status'] == 'passed' and result['outputCreated']
 
 
 @pytest.mark.parametrize('excluded_name', [None, 'setup.sh', 'assets/tool.EXE'])

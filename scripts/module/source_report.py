@@ -14,7 +14,7 @@ def start_report(directories, output):
             'outputCreated': False, 'serverPending': list(SERVER_PENDING),
             'startedAt': datetime.now(timezone.utc).isoformat(),
             'stages': [], 'issues': {'serious': [], 'warnings': []}, 'coverage': {
-                'sourceChecks': False, 'skzipIntegrity': False, 'realBuild': False,
+                'sourceChecks': False, 'zipIntegrity': False, 'realBuild': False,
                 'rendering': False, 'securityReview': False, 'productionUpload': False}}
 
 
@@ -33,11 +33,11 @@ def finish_report(report, started, status):
                 '严重错误会阻止出包；提醒需由作者决定修复或继续提交。',
                 '按文件路径核对元数据、入口和引用，修复后重新运行 course.pack。')
             group[index] = {**defaults, **item}
-    report['passedCheckCount'] = report.get('passedCheckCount', 0) + int(report['coverage']['skzipIntegrity'])
+    report['passedCheckCount'] = report.get('passedCheckCount', 0) + int(report['coverage']['zipIntegrity'])
     report.update(status=status, elapsedSeconds=round(time.monotonic() - started, 3),
                   seriousErrorCount=len(serious), warningCount=len(warnings),
                   warnings=warnings,
-                  uploadEligible=bool(report['outputCreated'] and not serious and report['coverage']['skzipIntegrity']),
+                  uploadEligible=bool(report['outputCreated'] and not serious and report['coverage']['zipIntegrity']),
                   uploadAuthorized=False, requiresUserConfirmation=True)
     if serious:
         report['agentNextAction'] = 'discuss-errors-and-repair-before-repacking'

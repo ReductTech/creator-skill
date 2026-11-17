@@ -15,6 +15,16 @@ compress = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(compress)
 
 
+def test_delivery_preserves_svg_without_creating_webp(tmp_path):
+    source = tmp_path / 'diagram.svg'
+    raw = b'<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1600"/>'
+    source.write_bytes(raw)
+    result = compress.convert(source, delivery=True)
+    assert result['status'] == 'skipped'
+    assert source.read_bytes() == raw
+    assert not source.with_suffix('.webp').exists()
+
+
 @pytest.mark.parametrize('size,expected', [
     ((2500, 1000), (1600, 640)), ((1000, 2500), (360, 900)),
     ((2000, 1000), (1600, 800)), ((1000, 2000), (450, 900)),

@@ -58,49 +58,27 @@ def test_directory_shapes_pack_source_and_exclude_shared(tmp_path, shape, shared
     output = default_output(inputs)
     result = export_source(inputs)
     assert result['status'] == 'passed'
-    expected = (first.with_name(first.name + '.skzip') if shape == 'single' else
-                collection / 'courses.skzip' if shape == 'multiple' else
-                project / 'modules.skzip' if shape == 'project' else project.with_name(project.name + '.skzip'))
+    expected = (first.with_name(first.name + '.zip') if shape == 'single' else
+                collection / 'courses.zip' if shape == 'multiple' else
+                project / 'modules.zip' if shape == 'project' else project.with_name(project.name + '.zip'))
     assert Path(result['output']) == expected
     assert len(result['modules']) == (1 if shape == 'single' else 2)
     assert {m.name: snapshot(m) for m in (first, second) if m} == before
-    manifest = verify_archive(output)
-    assert manifest['packageKind'] == 'source'
-    assert not any(k in manifest for k in ('policy', 'schema', 'filePolicy'))
-    assert manifest['checks']['build']['status'] == 'server-pending'
+    assert 'build' in result['serverPending']
     assert not result['coverage']['realBuild']
     with zipfile.ZipFile(output) as archive:
         assert f'modules/{first.name}/Guide.tsx' in archive.namelist()
         assert all('shared' not in p.lower().split('/') for p in archive.namelist())
 
 
-def test_original_inputs_are_preserved_while_package_optimizes_images(tmp_path):
-    directory = course(tmp_path / 'source')
-    assets = directory / 'assets'
-    assets.mkdir()
-    (assets / 'picture.png').write_bytes(PNG)
-    (assets / 'photo.jpeg').write_bytes(b'\xff\xd8\xff\xe0original-jpeg-bytes')
-    (assets / 'wrong.png').write_bytes(b'\xff\xd8\xff\xe0mismatched-header')
-    for name in ('_scratchpad/design.png', 'node_modules/cache.js', '.env.local', 'old.skzip'):
-        p = directory / name
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_bytes(b'leave-original-alone')
-    before = snapshot(directory)
-    output = default_output([directory])
-    result = export_source([directory])
-    assert result['images']['converted'] == 1
-    assert result['images']['counts']['inspected'] == 3
-    assert len(result['images']['issues']) >= 2
-    assert result['modules'][0]['missingThumbnails'] == 1
-    assert snapshot(directory) == before
-    with zipfile.ZipFile(output) as archive:
-        names = archive.namelist()
-        assert not any('_scratchpad' in p or 'node_modules' in p or '.env' in p or 'old.skzip' in p for p in names)
-        png = f'modules/{directory.name}/assets/picture.png'
-        assert png not in names
-        assert archive.read(png.replace('.png', '.webp'))[:4] == b'RIFF'
-        assert archive.getinfo(png.replace('.png', '.webp')).compress_type == zipfile.ZIP_STORED
-        assert archive.getinfo(f'modules/{directory.name}/Guide.tsx').compress_type == zipfile.ZIP_DEFLATED
+def test_original_inputs_are_preserved_when_image_format_is_rejected(tmp_path):
+    directory=course(tmp_path/'source')
+    assets=directory/'assets';assets.mkdir()
+    (assets/'picture.png').write_bytes(PNG)
+    before=snapshot(directory)
+    result=export_source([directory])
+    assert not result['outputCreated'] and result['seriousErrorCount']>0
+    assert snapshot(directory)==before
 
 
 def test_single_pipeline_does_not_execute_subprocesses_or_source(tmp_path, monkeypatch):
@@ -167,7 +145,7 @@ def test_automatic_output_never_overwrites_and_cannot_enter_source(tmp_path):
     assert output.read_bytes() == original
     files, report = inspect_collection([directory])
     with pytest.raises(ValueError, match='outside'):
-        write_source_archive(files, report, directory / 'forbidden.skzip', {})
+        write_source_archive(files, report, directory / 'forbidden.zip', {})
     assert not list(directory.glob('.source-pack-*'))
 
 
@@ -184,7 +162,8 @@ def test_cli_and_router_work_without_site_packages_node_config_or_shuku(tmp_path
                              str(directory)], env=env,
                             capture_output=True, text=True, encoding='utf-8', timeout=15)
     assert router.returncode == 0, (router.stdout, router.stderr)
-    assert verify_archive(Path(json.loads(router.stdout)['output']))['packageKind'] == 'source'
+    with zipfile.ZipFile(json.loads(router.stdout)['output']) as archive:
+        assert archive.testzip() is None and MANIFEST not in archive.namelist()
 
 
 @pytest.mark.parametrize('tool', ['course.discover', 'course.inspect', 'course.images'])
@@ -197,25 +176,17 @@ def test_components_are_independently_callable_and_read_only(tmp_path, tool):
     assert result.returncode == 0, (result.stdout, result.stderr)
     assert json.loads(result.stdout)['status'] == 'passed'
     assert snapshot(directory) == before
-    assert not list(tmp_path.rglob('*.skzip'))
+    assert not list(tmp_path.rglob('*.zip'))
 
 
-def test_source_policy_rejects_fabricated_server_pass_and_tampering(tmp_path):
-    directory = course(tmp_path / 'source')
-    output = Path(export_source([directory])['output'])
-    with zipfile.ZipFile(output) as archive:
-        files = {name: archive.read(name) for name in archive.namelist()}
-    document = json.loads(files[MANIFEST])
-    document['checks']['build']['status'] = 'passed'
-    files[MANIFEST] = canonical(seal(document))
-    with zipfile.ZipFile(output, 'w') as archive:
-        for name, raw in files.items(): archive.writestr(name, raw)
-    assert verify_archive(output)['checks']['build']['status'] == 'passed'
-    # Client labels are advisory; actual file integrity is still mandatory.
-    with zipfile.ZipFile(output, 'w') as archive:
-        for name, raw in files.items(): archive.writestr(name, raw if name == MANIFEST else raw + b'changed')
-    with pytest.raises(ValueError):
-        verify_archive(output)
+def test_plain_zip_contains_source_without_client_server_pass_claims(tmp_path):
+    directory=course(tmp_path/'source')
+    result=export_source([directory])
+    with zipfile.ZipFile(result['output']) as archive:
+        assert archive.testzip() is None
+        assert MANIFEST not in archive.namelist()
+        assert archive.read('modules/'+directory.name+'/Guide.tsx')==(directory/'Guide.tsx').read_bytes()
+    assert not result['coverage']['securityReview'] and not result['coverage']['realBuild']
 
 
 def test_symlinks_are_not_followed(tmp_path):
@@ -236,7 +207,7 @@ def test_duplicate_archive_paths_are_rejected(tmp_path):
     source = directory / 'Guide.tsx'
     files = {'modules/x/Guide.tsx': source, 'modules/x/guide.tsx': source}
     with pytest.raises(ValueError, match='Duplicate'):
-        write_source_archive(files, {}, tmp_path / 'duplicate.skzip', {})
+        write_source_archive(files, {}, tmp_path / 'duplicate.zip', {})
 
 
 def test_shared_only_is_not_a_course(tmp_path):
@@ -250,14 +221,14 @@ def test_detailed_report_allows_warnings_but_requires_upload_decision(tmp_path):
     directory = course(tmp_path / 'source')
     assets = directory / 'assets'
     assets.mkdir()
-    (assets / 'wrong.png').write_bytes(b'\xff\xd8\xff\xe0jpeg-header')
+    (directory/'Guide.tsx').write_text("import './missing'; export function Guide(){return null;}")
     result = export_source([directory])
     assert result['status'] == 'passed' and result['uploadEligible'] is True
     assert result['seriousErrorCount'] == 0 and result['warningCount'] == 1
     assert result['uploadAuthorized'] is False and result['requiresUserConfirmation'] is True
     assert result['userOptions'] == ['fix-and-repack', 'upload-current-package']
     assert [stage['name'] for stage in result['stages']] == ['source-checks', 'image-inspection', 'archive-and-integrity']
-    assert result['stages'][1]['status'] == 'warning'
+    assert result['stages'][0]['status'] == 'passed'
     assert json.loads(Path(result['reportPath']).read_text(encoding='utf-8')) == result
     assert result['summary']['zipBytes'] == Path(result['output']).stat().st_size
 
@@ -267,7 +238,8 @@ def test_clean_report_only_asks_for_upload_confirmation(tmp_path):
     doc = json.loads((directory / 'outlines.json').read_text())
     thumbnail = directory / 'assets/shuku-thumbnails' / (doc['pages'][0]['id'] + '.webp')
     thumbnail.parent.mkdir(parents=True)
-    thumbnail.write_bytes(b'RIFF\x08\x00\x00\x00WEBP')
+    from PIL import Image
+    Image.new('RGB',(16,9),'red').save(thumbnail,format='WEBP')
     result = export_source([directory])
     assert result['status'] == 'passed' and result['warningCount'] == 0
     assert result['agentNextAction'] == 'confirm-upload'
