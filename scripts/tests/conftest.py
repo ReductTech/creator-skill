@@ -12,6 +12,13 @@ sys.path[:0] = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def isolated_local_preferences(tmp_path, monkeypatch):
+    """Tests isolate consent and basic-pack fixtures; adaptive tests explicitly use auto."""
+    monkeypatch.setenv('CREATOR_SKILL_LOCAL_STATE',str(tmp_path/'local-state'))
+    monkeypatch.setenv('CREATOR_SKILL_CHECK_MODE','basic')
+
+
 @pytest.fixture
 def isolated_skill(tmp_path):
     """CLI tests get their own configured Skill instead of overriding another one."""

@@ -32,9 +32,9 @@ def test_component_mapping_and_existing_ids_are_preserved(tmp_path):
     assert [p["id"] for p in json.loads(file.read_text())["pages"]] == ["22222222-2222-4222-8222-222222222222", "44444444-4444-4444-8444-444444444444"]
 
 
-def test_missing_prose_and_duplicates_fail_without_writing(tmp_path):
-    file = write_module(tmp_path, [{"id": "one", "title": "标题", "snippet": ""},
-                                  {"id": "one", "title": "", "snippet": "讲稿"}])
+def test_invalid_prose_types_and_duplicates_fail_without_writing(tmp_path):
+    file = write_module(tmp_path, [{"id": "one", "title": "标题", "snippet": 123},
+                                  {"id": "one", "title": 123, "snippet": "讲稿"}])
     before = file.read_bytes()
     errors = process(tmp_path)["errors"]
     assert any("snippet" in error for error in errors)
@@ -75,3 +75,10 @@ def test_same_title_planned_pages_get_distinct_persistent_uuids(tmp_path):
     assert len(set(ids)) == 2
     assert all(UUID(value).version == 4 for value in ids)
     assert process(tmp_path, fix=True)["filledIds"] == 0
+
+
+def test_empty_narration_and_display_defaults_are_accepted_without_writing(tmp_path):
+    file = write_module(tmp_path, [{"id": "22222222-2222-4222-8222-222222222222", "title": "", "snippet": ""}])
+    before = file.read_bytes()
+    assert process(tmp_path)["errors"] == []
+    assert file.read_bytes() == before

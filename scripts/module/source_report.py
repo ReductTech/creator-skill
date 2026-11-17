@@ -38,19 +38,25 @@ def finish_report(report, started, status):
                   seriousErrorCount=len(serious), warningCount=len(warnings),
                   warnings=warnings,
                   uploadEligible=bool(report['outputCreated'] and not serious and report['coverage']['zipIntegrity']),
-                  uploadAuthorized=False, requiresUserConfirmation=True)
-    if serious:
-        report['agentNextAction'] = 'discuss-errors-and-repair-before-repacking'
-        report['userOptions'] = ['discuss-and-fix']
-        report['userPrompt'] = '发现严重错误，请先与用户确认修复方案；修复并重新打包后，再确认是否上传。'
+                  uploadAuthorized=False, requiresUserConfirmation=False)
+    if status in {'needs-input','needs-setup'}:
+        setup = report['dependencySetup']
+        report['agentNextAction'] = setup['nextAction']
+        report['requiresUserConfirmation'] = setup['policy']['askUser']
+        report['userOptions'] = ['allowed','declined'] if setup['policy']['askUser'] else []
+        report['userPrompt'] = setup['policy']['question'] or ('依赖安装意愿已保存；补齐授权依赖后重跑，不重复询问。' if status=='needs-setup' else '另一窗口已发起一次性询问，等待保存回答，不重复询问。')
+    elif serious:
+        report['agentNextAction'] = 'repair-and-repack'
+        report['userOptions'] = []
+        report['userPrompt'] = '按文件、行号和转换映射修复已授权范围内的问题，再运行 course.pack；仅在取舍不明或缺少条件时询问用户。'
     elif warnings:
-        report['agentNextAction'] = 'offer-repair-and-repack-or-confirm-current-upload'
-        report['userOptions'] = ['fix-and-repack', 'upload-current-package']
-        report['userPrompt'] = '是否先修复这些提醒再重新打包，还是接受当前状态并上传这个包？'
+        report['agentNextAction'] = 'review-warnings-and-repair-as-authorized'
+        report['userOptions'] = []
+        report['userPrompt'] = '检查提醒，自动修复任务范围内可确定的问题；媒体听感、动态引用与内容取舍按证据核对。打包不执行上传。'
     else:
-        report['agentNextAction'] = 'confirm-upload'
-        report['userOptions'] = ['upload-current-package']
-        report['userPrompt'] = '源码包已生成，是否确认上传？'
+        report['agentNextAction'] = 'deliver-package'
+        report['userOptions'] = []
+        report['userPrompt'] = '交付 ZIP 与简要结果。上传按用户已有授权及目标平台规则执行，打包本身不上传。'
     report['summary'] = {key: report.get(key) for key in (
         'moduleCount', 'rejectedModuleCount', 'files', 'sourceBytes', 'zipBytes',
         'passedCheckCount', 'seriousErrorCount', 'warningCount', 'elapsedSeconds', 'uploadEligible')}
@@ -84,3 +90,27 @@ def finish_report(report, started, status):
     except OSError as error:
         report['readableReportWriteWarning'] = str(error)
     return report
+
+
+def agent_summary(report, limit=20):
+    """Bound console output without hiding counts, failures or the full report location."""
+    problems = [dict(item, severity=severity) for severity in ('serious', 'warnings')
+                for item in report['issues'][severity]]
+    compact = {key: report.get(key) for key in (
+        'status', 'output', 'outputCreated', 'summary', 'reportPath', 'readableReportPath',
+        'coverage', 'serverPending', 'agentNextAction', 'uploadEligible',
+        'seriousErrorCount', 'warningCount', 'reportWriteWarning', 'readableReportWriteWarning')}
+    compact['issues'] = [{k: item[k] for k in ('severity', 'code', 'path', 'line', 'message',
+                          'source', 'target', 'expression', 'repair') if k in item}
+                         for item in problems[:limit]]
+    compact['remainingIssues'] = max(0, len(problems)-limit)
+    compact['media'] = {key: report.get('media', {}).get(key) for key in ('counts', 'savedBytes')}
+    compact['references'] = {key: report.get('media', {}).get('references', {}).get(key)
+                              for key in ('changedFiles', 'replacements')}
+    compact['images'] = {key: report.get('images', {}).get(key) for key in ('counts', 'converted')}
+    if 'dependencySetup' in report:
+        compact['dependencySetup'] = report['dependencySetup']
+    if 'localChecks' in report:
+        compact['localChecks'] = {key: report['localChecks'].get(key) for key in ('coverage','evidenceDirectory')}
+        compact['localCheckCounts'] = {status:sum(r['status']==status for r in report['localChecks']['checks']) for status in ('passed','failed','unverified','not-applicable')}
+    return compact

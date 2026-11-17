@@ -165,8 +165,8 @@ def test_raw_import_of_included_file_has_no_missing_import_warning(tmp_path):
     assert not any(w.get('kind') == 'unverified-import' for w in result['warnings'])
 
 
-@pytest.mark.parametrize('extension,kind', [('png','PNG'),('jpg','JPEG'),('avif','PNG'),('gif','GIF')])
-def test_forbidden_images_block_without_mutating_author_source(tmp_path, extension, kind):
+@pytest.mark.parametrize('extension,kind', [('avif','PNG')])
+def test_misnamed_images_block_without_mutating_author_source(tmp_path, extension, kind):
     root = course(tmp_path/'source'); assets = root/'assets'; assets.mkdir()
     Image.new('RGB',(30,20),'red').save(assets/('picture.'+extension),format=kind)
     before = snapshot(root)
@@ -187,7 +187,7 @@ def test_allowed_images_keep_exact_bytes_and_names_without_node(tmp_path, extens
     cli=Path(__file__).resolve().parents[1]/'module/package_course.py'
     execution=subprocess.run([sys.executable,str(cli),str(root)],env={**os.environ,'PATH':''},capture_output=True,text=True,encoding='utf-8',check=True)
     result=json.loads(execution.stdout)
-    assert result['images']['converted']==0 and result['images']['conversions']==[]
+    assert result['images']['converted']==0
     assert snapshot(root)==before
     with zipfile.ZipFile(result['output']) as archive:
         assert archive.read('modules/'+root.name+'/assets/'+name)==before['assets/'+name]

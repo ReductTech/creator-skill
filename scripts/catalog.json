@@ -27,7 +27,7 @@
       "path": "scripts/module/add_edit_ids.mjs",
       "runtime": "node",
       "description": "为安全 JSX 标签自动补稳定 shuku-edit-id，已有 ID 保留",
-      "effects": "默认只读盘点；--apply 补稳定属性并备份；--check 对缺失、无效和重复 ID 返回失败；Shared 只读；独立维护工具，不在源码打包中自动调用",
+      "effects": "默认只读盘点；--apply 补稳定属性并备份；--check 对缺失、无效和重复 ID 返回失败；Shared 只读；独立工具保留，自动打包在副本中调用",
       "dependencies": [
         "Node.js >=24",
         "player-preview 的 npm 依赖（@babel/parser）"
@@ -49,11 +49,9 @@
       "category": "module",
       "path": "scripts/module/package_course.py",
       "runtime": "python",
-      "description": "Python/Pillow ZIP 流水线：文件黑白名单检查、SVG/WebP 原图校验、只读归档与详细分级报告",
-      "effects": "原工程不改不删；自动编号输出 SKZIP、JSON 和可读报告；服务器迁移引用、补 ID、构建截图；绝不安装或调用 Node",
-      "dependencies": [
-        "Pillow（WebP 完整解码检查）"
-      ],
+      "description": "按环境自动执行媒体准备、原有本地检测、构建与浏览器检查并交付ZIP",
+      "effects": "缺依赖读取一次性安装意愿；处理交付副本，原工程保留；不上传；stdout精简报告",
+      "dependencies": [],
       "arguments": []
     },
     {
@@ -381,6 +379,40 @@
         "ffmpeg",
         "ffprobe"
       ],
+      "arguments": []
+    },
+    {
+      "id": "context.create",
+      "category": "environment",
+      "path": "scripts/checks/local_settings.py",
+      "runtime": "python",
+      "description": "为当前窗口创建独立工程与可选课程绑定，不修改全局目标",
+      "effects": "仅写本机配置；不安装依赖、不访问服务器",
+      "dependencies": [],
+      "arguments": [
+        "context"
+      ]
+    },
+    {
+      "id": "dependencies.policy",
+      "category": "environment",
+      "path": "scripts/checks/local_settings.py",
+      "runtime": "python",
+      "description": "读取或保存本机一次性依赖安装意愿，多窗口共用",
+      "effects": "仅写本机配置；不安装依赖、不访问服务器",
+      "dependencies": [],
+      "arguments": [
+        "policy"
+      ]
+    },
+    {
+      "id": "dependencies.install",
+      "category": "environment",
+      "path": "scripts/checks/install_dependencies.py",
+      "runtime": "python",
+      "description": "规划本机依赖安装；--apply 仅在已保存同意时执行，多窗口安装互斥",
+      "effects": "默认只读计划；--apply可安装本机Node、Python包、浏览器和有需要的FFmpeg，不访问服务器",
+      "dependencies": [],
       "arguments": []
     }
   ]

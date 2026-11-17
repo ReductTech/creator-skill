@@ -48,7 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def diagnose(group: str, tool: str | None = None) -> list[dict]:
     """Return dependency availability without importing optional packages or models."""
-    root = ROOT or get_target_root()
+    path_tools = {'course.pack', 'course.discover', 'course.inspect', 'course.images', 'course.videos', 'course.audio'}
+    root = None if tool in path_tools else ROOT or get_target_root()
     groups = (
         list(GROUPS)
         if group == "all"
@@ -60,9 +61,9 @@ def diagnose(group: str, tool: str | None = None) -> list[dict]:
             "available": sys.version_info >= (3, 10),
             "detail": sys.version.split()[0],
         },
-        {"name": "repository modules", "available": modules_directory(root).is_dir()},
-        {"name": "Node", "available": bool(shutil.which("node"))},
     ]
+    if root is not None:
+        checks.append({"name": "repository modules", "available": modules_directory(root).is_dir()})
     packages = {name for key in groups for name in GROUPS[key]}
     if tool:
         from tools import catalog
@@ -70,6 +71,12 @@ def diagnose(group: str, tool: str | None = None) -> list[dict]:
         selected = next((item for item in catalog() if item["id"] == tool), None)
         if selected is None:
             raise ValueError(f"Unknown tool: {tool}")
+        if selected['runtime'] == 'node' or 'node' in selected['dependencies']:
+            checks.append({'name': 'Node', 'available': bool(shutil.which('node'))})
+        if tool == 'course.pack':
+            checks.extend({'name': name, 'available': bool(shutil.which(name)), 'optional': True,
+                           'detail': '仅处理音视频时需要；可通过打包参数指定可执行文件路径。'}
+                          for name in ('ffmpeg', 'ffprobe'))
         packages.update(
             name for name in selected["dependencies"] if name not in {"ffmpeg", "ffprobe", "node"}
         )
@@ -104,7 +111,7 @@ def diagnose(group: str, tool: str | None = None) -> list[dict]:
         checks.append(
             {
                 "name": "completed course build",
-                "available": (root / "dist").is_dir(),
+                "available": root is not None and (root / "dist").is_dir(),
                 "detail": "default targetRoot/dist; external build output can be passed with --build-output",
             }
         )
@@ -143,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         checks = diagnose(args.group, args.tool)
     except (ValueError, OSError) as exc:
         return report_error(exc)
-    passed = all(check["available"] for check in checks)
+    passed = all(check["available"] or check.get('optional') for check in checks)
     emit_result({"checks": checks}, status="passed" if passed else "failed")
     return 0 if passed else 1
 

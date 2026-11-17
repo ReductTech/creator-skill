@@ -14,7 +14,7 @@ export function buildParser() {
 }
 function pageSources(directory) {
     return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-        if (entry.name === '_scratchpad') return [];
+        if (['_scratchpad','assets','vendor','shared','node_modules','dist'].includes(entry.name)) return [];
         const file = path.join(directory, entry.name);
         return entry.isDirectory() ? pageSources(file) : entry.name.endsWith('.tsx') ? [file] : [];
     });
@@ -55,7 +55,7 @@ function classesFromSource(source) {
 export function analyzeStyles(moduleName) {
     const REPOSITORY = getTargetRoot();
     const moduleRoot = coursePaths.resolveModule(REPOSITORY, moduleName);
-    const pagesRoot = path.join(moduleRoot, 'pages');
+    const pagesRoot = fs.existsSync(path.join(moduleRoot,'pages')) ? path.join(moduleRoot,'pages') : moduleRoot;
     const pageFiles = pageSources(pagesRoot);
     const usage = new Map();
     for (const file of pageFiles) {

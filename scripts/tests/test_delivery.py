@@ -71,13 +71,13 @@ def test_directory_shapes_pack_source_and_exclude_shared(tmp_path, shape, shared
         assert all('shared' not in p.lower().split('/') for p in archive.namelist())
 
 
-def test_original_inputs_are_preserved_when_image_format_is_rejected(tmp_path):
+def test_original_inputs_are_preserved_when_image_is_converted(tmp_path):
     directory=course(tmp_path/'source')
     assets=directory/'assets';assets.mkdir()
     (assets/'picture.png').write_bytes(PNG)
     before=snapshot(directory)
     result=export_source([directory])
-    assert not result['outputCreated'] and result['seriousErrorCount']>0
+    assert result['outputCreated'] and result['media']['counts']['imageConverted']==1
     assert snapshot(directory)==before
 
 
@@ -104,7 +104,7 @@ def test_serious_module_errors_block_entire_request_and_drafts_can_ship_as_sourc
     assert report['status'] == 'failed'
     assert len(report['rejectedModules']) == 1
     assert report['seriousErrorCount'] == 1 and not report['uploadEligible']
-    assert report['agentNextAction'] == 'discuss-errors-and-repair-before-repacking'
+    assert report['agentNextAction'] == 'repair-and-repack'
     assert not Path(report['output']).exists()
     assert json.loads(Path(report['reportPath']).read_text(encoding='utf-8'))['status'] == 'failed'
     # An explicitly selected valid scope can be packaged separately.
@@ -217,7 +217,7 @@ def test_shared_only_is_not_a_course(tmp_path):
         discover_modules([shared])
 
 
-def test_detailed_report_allows_warnings_but_requires_upload_decision(tmp_path):
+def test_detailed_report_allows_authorized_repairs_without_uploading(tmp_path):
     directory = course(tmp_path / 'source')
     assets = directory / 'assets'
     assets.mkdir()
@@ -225,25 +225,25 @@ def test_detailed_report_allows_warnings_but_requires_upload_decision(tmp_path):
     result = export_source([directory])
     assert result['status'] == 'passed' and result['uploadEligible'] is True
     assert result['seriousErrorCount'] == 0 and result['warningCount'] == 1
-    assert result['uploadAuthorized'] is False and result['requiresUserConfirmation'] is True
-    assert result['userOptions'] == ['fix-and-repack', 'upload-current-package']
-    assert [stage['name'] for stage in result['stages']] == ['source-checks', 'image-inspection', 'archive-and-integrity']
+    assert result['uploadAuthorized'] is False and result['requiresUserConfirmation'] is False
+    assert result['userOptions'] == []
+    assert [stage['name'] for stage in result['stages']] == ['source-checks', 'media-and-references', 'archive-and-integrity']
     assert result['stages'][0]['status'] == 'passed'
     assert json.loads(Path(result['reportPath']).read_text(encoding='utf-8')) == result
     assert result['summary']['zipBytes'] == Path(result['output']).stat().st_size
 
 
-def test_clean_report_only_asks_for_upload_confirmation(tmp_path):
+def test_clean_report_delivers_without_uploading(tmp_path):
     directory = course(tmp_path / 'source')
     doc = json.loads((directory / 'outlines.json').read_text())
     thumbnail = directory / 'assets/shuku-thumbnails' / (doc['pages'][0]['id'] + '.webp')
     thumbnail.parent.mkdir(parents=True)
     from PIL import Image
-    Image.new('RGB',(16,9),'red').save(thumbnail,format='WEBP')
+    Image.new('RGB',(1600,900),'red').save(thumbnail,format='WEBP')
     result = export_source([directory])
     assert result['status'] == 'passed' and result['warningCount'] == 0
-    assert result['agentNextAction'] == 'confirm-upload'
-    assert result['userOptions'] == ['upload-current-package']
+    assert result['agentNextAction'] == 'deliver-package'
+    assert result['userOptions'] == []
 
 
 def test_archive_failure_returns_full_serious_error_report(tmp_path, monkeypatch):

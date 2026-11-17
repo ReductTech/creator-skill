@@ -1,6 +1,6 @@
 # Player Preview：本地播放器与课件预览
 
-查看制作中的课件、翻页和讲稿，也可单独开发播放器。仓库保留源码、配置与锁文件；依赖、缓存和构建结果由使用者在本机生成，不提交 Git。
+可选开发者入口；course.pack会在依赖齐全时自动执行本地构建与浏览器检查；缺依赖遵循已保存安装意愿。查看制作中的课件、翻页和讲稿，也可单独开发播放器。仓库保留源码、配置与锁文件；依赖、缓存和构建结果由使用者在本机生成，不提交 Git。
 
 ## 快速开始
 
@@ -59,7 +59,7 @@ npm run typecheck
 npm run build
 ```
 
-类型检查覆盖播放器与预览入口；播放器库构建结果为 `dist/index.js`、类型声明和 `dist/style.css`。这不是课程发布包，也不是可直接部署的课程网站；课程 SKZIP 只通过官方 [course.pack] 入口交付(../references/engineering/delivery.md)。
+类型检查覆盖播放器与预览入口；播放器库构建结果为 `dist/index.js`、类型声明和 `dist/style.css`。这不是课程发布包，也不是可直接部署的课程网站；课程源码 ZIP 通过 [course.pack](../references/engineering/delivery.md) 交付。
 
 提交时保留 `src/`、`preview/`、`scripts/`、配置、`.env.example` 和 `package-lock.json`。已忽略 `node_modules/`、`dist/`、`.npm-cache/`、Vite/TypeScript 缓存、日志和本地环境文件。已有本地构建可以保留，Git 不会将它们纳入新提交。
 

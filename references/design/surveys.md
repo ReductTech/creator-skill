@@ -8,7 +8,7 @@
 - [标准控件预览源码](../../player-preview/preview/survey-template-demo.tsx)：三张演示页，分别展示标准模板、替换单题外观和十种题型。
 - [场景预览源码](../../player-preview/preview/survey-demo.tsx)：图片投票、综合调研、表格与管理者结果的界面示意。
 
-先按 [Player Preview](../../player-preview/README.md) 的现有配置启动 `npm run dev`，打开终端实际地址并添加 `?demo=survey-template`。默认端口 5174；被占用时可运行 `npm run dev -- --port 5175`。已有服务可用就复用，不为预览另写网站、播放器或接口服务。启动后实际打开页面，确认三页及相关交互可用，再给用户链接；运行期间保持服务。
+优先复用已有问卷预览与组件；本地环境齐全时可直接使用[Player Preview](../../player-preview/README.md)检查。缺依赖按[一次性安装意愿](../engineering/local-environment.md)决定补齐或标记未验证，不因需要Node就默认移交服务器。
 
 标准控件演示使用 Shuku 的真实控件和本地回调，不连接数据库，不模拟真实登录，也不能证明线上保存成功。预览别名 `@preview/*` 只用于工具，不能复制进课程源码。
 

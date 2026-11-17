@@ -1,82 +1,53 @@
 ---
 name: creator-skill
-description: 规划、设计、制作或修改 React 交互演示，包括大纲、口播、PPT/PDF 改编、问卷与投票，以及通过纯 Python course.pack 流水线检查源码并交付 Shuku ZIP 源码包。适用于教学、科研和商业汇报，不用于普通网站或一般文档。
+description: 规划、设计、制作和修改 React 交互演示，支持主题创作、PPT/PDF 改编、大纲、口播、问卷及 Shuku 源码 ZIP 交付。适用于教学、科研和商业演示。
 ---
 
 # React 演示创作
 
-## 强制约束：执行前逐项核对
+先判断当前任务与已有进度。纯讨论不创建工程；局部修改只处理受影响页面及必要依赖，沿用有效确认，不从头重做。
 
-以下规则独立列出，允许与后文重复。新建或更新前先判断任务类型；设计、实现和交付时均须遵守，不因已有示例或其他参考说明而省略。
+## 核心约束
 
-1. **先分清新建与更新，正确处理 UUID。**
-   - **新建课件**：强烈推荐为课件及每一页全部生成新的 UUID；从示例或已有课件复制为独立新课件时，必须更换课件 UUID 和所有页面 UUID，不得沿用示例身份。同步课程目录、`outlines.json.id`、`moduleIdentity.id`，以及 PPT、Guide、讲稿、跳转和资源中的身份引用。
-   - **UUID 必须用规范生成器生成**，例如 Python `uuid.uuid4()` 或 JavaScript `crypto.randomUUID()`，使用标准小写、带连字符的 UUID v4。禁止猜测、手写、随意拼接、顺序编号或根据标题、路径推导 UUID；不要直接复用文档中的示例值。
-   - **更新已有课件**：课件 UUID 和已有页面 UUID 保持不变；改标题、讲稿、内容、样式或页序均不重新生成身份。仅新增的独立页面使用生成器分配新 UUID，不连带修改其他页面。
-2. **细致复刻用户给出的设计示意图，不得偷懒。** 逐项对齐布局、比例、间距、字号、颜色、图形、素材位置与交互意图，不能仅保留大致结构或自行简化。真实渲染后与设计图对照，修正可见差异；不能把整张设计图贴作背景代替正式实现。所有画布仍遵守不添加页码的要求。
-3. **预览模块在本 Skill 根目录的 `player-preview/`。** 交付不安装或启动本地播放器、Node 或浏览器；预览使用服务器提供的当前版本链接，不以预览作为出包前提。
-4. **模块示例在本 Skill 根目录的 `modules/`。** 可读取和复制示例作为起点；新建时执行上面的 UUID 更换规则，不为制作用户课件而修改原示例。用户课件保存到已配置的目标工程。
-5. **不允许修改 Shared。** 本 Skill 根目录的 `shared/` 和目标工程中的 Shared 都只读使用；允许原样复制到缺失的目标位置，禁止改动其源码、样式、资源、`style.json` 或公共行为，也不覆盖已有 Shared。课程专属调整留在课程目录，不能通过改 Shared 让当前页达标。
+- 新建课程与新增页面使用生成器分配 UUID v4；复制为独立课件时更换课程及全部页面身份。更新保留已有 UUID。课程目录、`outlines.json.id`、`moduleIdentity.id` 一致；页面 UUID 贯通大纲、PPT、Guide 和讲稿。详见[身份与资源](references/engineering/module-assets.md)。
+- 按“大纲确认 → 当前页 ImageGen 设计图 → 设计确认 → React 实现与自检 → 用户验收”推进；当前页验收后进入下一页。已有确认和用户明确指定的流程范围按[共用流程](references/workflow/common.md)接续。
+- 设计前实际查看相关成对正反例，并把具体取舍写入 prompt。忠实实现确认的布局、比例、文字、素材和交互，不用整页设计图替代正式实现。设计与正式画布均不添加页码。
+- 画布为 1600×900，外层等比例缩放。封面独立设计，其余页默认用 Shared `ContentBlock` 标准标题区，独立文字用 `Typography`；用户指定版式按其范围执行。
+- Shared 与内置示例只读。缺失时可原样复制完整 `shared/`，已有时不覆盖；课程专属内容留在课程目录。`modules/` 是示例，用户成果保存到目标工程。
+- 视觉组件从 `@shuku/course-style/react` 导入，资源、请求与状态从 `@shuku/course-runtime/react/...` 导入。资源 helper 只接收一个完整真实相对路径；动态选择使用完整路径列表，不拼接路径。
+- 标题缺失或空白时使用“未命名标题”；讲稿 `snippet` 缺失补空字符串，允许为空，不编造讲稿。身份与入口不可用展示默认值替代。
+- 页面放 `pages/<语义页目录>/`，正式资源放课程 `assets/`。中间文件放所属页或模块 `_scratchpad/`；逐页收尾与提交前调用 `scratchpad.clean <范围> --apply`，先转存需保留的设计、素材和记录。清理参数见[工具索引](references/tools.md)。
 
-6. **创作逐页清理临时目录，创作收尾和提交前再清理。** 每完成一页并完成必要核对，运行 `scratchpad.clean <该页目录> --apply`；创作收尾或 Git 提交前，对本次课件目录再运行一次，确保没有遗留 `_scratchpad`。先将需长期保留的设计图、正式素材和必要记录放到正式位置或用户交付目录；清理后不能仍引用临时路径。支持直接指定绝对路径，递归清理所有嵌套层级的 `_scratchpad`，不按普通目录名称排除；仅不跟随链接/junction，防止越界。此临时目录清理适用于 Shared 下的 `_scratchpad`，不得修改其他 Shared 文件。仅打包时不清理或改写原目录，脚本自动排除 `_scratchpad`。命令默认只预览，实际删除须带 `--apply`，详见[临时目录清理](references/tools.md#临时目录清理)。
+## 工程与依赖
 
-7. **正式页面缩略图必须统一保存在课件自己的 `assets/shuku-thumbnails/`。** 新建、更新和仅维护缩略图均使用唯一正式路径 `<课件目录>/assets/shuku-thumbnails/<页面UUID>.webp`，在用户要求制作或维护缩略图时，全部实际页面各一张，统一为 1600×900、WebP q=20，直接平铺在该目录，不另建子目录。不得改用其他目录名，不得将正式页面缩略图保存到工程根目录、其他课件、Shared、`_scratchpad` 或交付目录。生成后核对本地路径，并确保最终 ZIP 保留同一课件内的 `assets/shuku-thumbnails/<页面UUID>.webp` 路径。检查用截图、总览和报告仍按各自规则保存，不作为正式页面缩略图交付。
+每个窗口先用 `context.create` 绑定用户指定的工程绝对路径，可进一步限定课程。之后调用 `tools.py --context <返回的绝对配置路径> <工具>`。每个窗口有独立配置，命令只向子进程传递目标，不改共享的“当前工程”。旧 `target-root.json` 仍兼容，只作为单窗口默认值；新任务不靠改它切换工程。具体命令与边界见[本地环境与窗口](references/engineering/local-environment.md)。
 
-## 开始与续作
+按实际任务探测 Python、Node、解析依赖、课程运行时、构建依赖、浏览器与 FFmpeg。已有依赖默认启用原有检查；齐全时默认类型检查、本地构建、真实浏览器检查。有音视频就处理，没有就跳过。Node解析器可用时优先复用原有完整引用迁移，Python解析作为受限补充，不替代或删除原有能力。
 
-**交付只运行一次 Python 入口：`python <Skill>/scripts/module/package_course.py <输入目录>`。** 本地只使用 Python、Pillow，必要时可用轻量 Python 包；绝不安装或调用 Node/npm、Shuku、浏览器。入口识别课件，检查元数据、编码、文件黑白名单，仅验证图片真实格式（只允许 SVG、WebP；SVG 校验 XML 结构并原样保留，WebP 完整解码），不转换、不缩放、不改名，再归档和核验完整性。原工程不修改。源码引用保持原样；服务器复核结构、黑名单和图片，再分类、检查代码安全、补编辑 ID、构建、截图和审核。Shared 不打包；浏览器和服务器发现上传 Shared 均拒收，提示仅单独打包课程模块。明确依赖的自定义风格完整保留。详见[ZIP 交付](references/engineering/delivery.md)。
+缺依赖先读持久化安装意愿，只问一次，并用 `dependencies.policy` 保存回答。多窗口共用同一份偏好；`pending` 不重复提问，`allowed` 直接补依赖重试，`declined` 继续可执行检查并标明未验证范围。安装失败不能再次询问意愿。配置缺失与安装意愿分开处理。详见[依赖流程](references/engineering/local-environment.md)。
 
-先确定目标、已有成果和当前阶段。仅讨论主线、大纲、讲稿或设计时，无需工程配置或创建文件；工程操作按下方配置定位课程。
+本地尽量发现并修复错误；服务器仍独立入库、安全检查和正式构建，生成正式缩略图并发布。本地截图与交互证据须对应本次交付副本，不以设计图冒充实现。`player-preview/` 及原有Node检测工具全部保留。
 
-- 创作、改编与续作：读[流程共用说明](references/workflow/common.md)，再选[从零创作](references/workflow/from-scratch.md)或[参考改编](references/workflow/reference-adaptation.md)。修改已有模块沿用原流程，从当前阶段接续。
-- 缩略图、截图和正式构建由服务器执行；本地交付不调用截图工具。
-- 引用迁移和编辑 ID 交给服务器；本地不调用 Node 维护工具。
-- 打包不优化或转换图片；仅允许 SVG、WebP；SVG 原样保留、不转换，GIF、PNG、JPEG 等其他格式须由作者转换为 WebP 并更新引用。平台按 SHA-256 入库并维护路径映射，不要求作者维护存储地址。
-- 视频在作者本地准备为 MP4 / H.264，保持比例、不超过 1280×720 和 30 帧，音频 AAC；默认 CRF 24、音频 96 kbps。使用独立工具 `course.videos <文件或目录>` 检查，`--apply` 才转码，不在打包或服务器端自动执行。按[视频准备](references/engineering/video-assets.md)复核清晰度、声音和输出，再将选定成品放入课程 `assets/` 并更新引用；原视频不覆盖。此工具额外依赖 FFmpeg/ffprobe，不安装 Node 或浏览器。
-- 独立音频使用本地工具 `course.audio <文件或目录>`，默认只检查，`--apply` 才压缩为 M4A / AAC-LC，默认 96 kbps；保留单声道或双声道，采样率不超过 48 kHz。按[音频准备](references/engineering/audio-assets.md)试听、提升成品到正式 `assets/` 并更新引用；不覆盖原片、不在打包或服务器端自动转码。依赖 FFmpeg/ffprobe，音乐可按需要提高码率。
-- 实际压缩课件音视频时，继续完成成品路径和引用核对，不以转码成功收尾：逐条对照工具返回的源文件与输出路径，确认文件真实存在；将选定成品提升到本课件正式 `assets/` 后，更新 TSX、CSS、JSON 等实际引用并搜索旧路径残留，检查动态来源及引用文件是否存在。不得引用 `_scratchpad` 或把本机绝对路径写进课件；清理前确认成品和必要记录已转存。压缩工具不自动修改引用，智能体需按任务范围完成并说明静态核对与实际播放各自的验证结果；没有真实课件可核对时明确说明。
-- 按下表读取当前动作所需资料；仍在上下文中的内容不重复读，不预读整个参考目录。已有确认、检查和产物仅在仍对应当前版本与范围时复用。
+## 按当前动作读取
 
-## 工程定位
-
-除明确传入路径的 `course.pack`、`course.discover`、`course.inspect`、`course.images`、`course.videos`、`course.audio` 外，工程操作前读本 Skill 的本地 `target-root.json`：`{"targetRoot":"用户指定的课程工程绝对路径"}`。首次按用户提供的有效目录创建，缺少目录时询问；该文件由 Git 忽略。后续沿用，不按 cwd、Skill 位置或旧环境变量猜测或切换工程。
-
-`CREATOR_SKILL_TARGET_CONFIG` 可指定本次调用专用配置，仍只含 `targetRoot`，不改变本地绑定。工具发现、`--help` 与 Skill 自身检查无需目标配置。源码打包不需要 `target-root.json`、`--shuku-root` 或 Shuku 工程；相对输入路径以调用时工作目录为基准。
-
-## 关键约束
-
-- 每页围绕一个主要信息或问题，视觉和交互承担解释功能。教学方法、习题与 Guide 按任务需要采用。
-- 每页按“ImageGen 设计图 → 用户确认 → React 实现与自检 → 用户验收”推进，当前页验收后进入下一页。已有有效确认继续沿用；确认范围、局部修改与用户明确调整流程的规则见[共用说明](references/workflow/common.md#设计实现与确认)。
-- 生图前读设计指导并实际查看相关成对正反例，把借鉴与避让决策写入提示词；工具边界见[页面设计指导](references/design/design.md#视觉设计图的工具约束)。
-- React 使用 1600×900 固定画布、外层等比例缩放。第一页独立设计封面，其余页默认使用 Shared `ContentBlock` 标准标题区；独立文字用 `Typography`。用户明确指定的版式按指定范围执行。
-- 所有课件的设计示意图与正式页面画布均不添加页码、总页数或页序角标；每次生图提示词明确写“不添加页码”，参考原稿和样例中的页码也不保留。
-- 课程目录 UUID、`outlines.json.id`、`moduleIdentity.id` 相等；`moduleIdentity` 只含 `version`、`id`。每页登记稳定 UUID，与 PPT、Guide、讲稿一致，新增用 UUID v4。课程或页面标题缺失、空白时默认“未命名标题”；讲稿 `snippet` 缺失时补空字符串，允许为空，不编造讲稿。身份、入口等必要字段不使用展示默认值替代。
-- 页面放 `pages/<语义页目录>/<同名组件及样式>`，按实际制作进度建目录。逐页中间产物放页内 `_scratchpad/`，整体原稿和记录放模块级 `_scratchpad/`；正式素材放课程 `assets/`。
-- 视觉组件从 `@shuku/course-style/react` 导入；资源、请求与状态从 `@shuku/course-runtime/react/...` 导入。`moduleAssetUrl('真实相对路径')` 与 `moduleJson('真实相对路径')` 仅接受一个参数。素材路径必须完整写出目录、文件名与扩展名，不拼接字段构造路径；动态切换时从完整路径列表中选择，详见[资源引用](references/engineering/module-assets.md#资源引用平台强制约定)。不从 Shared 导入内核接口，不维护历史资源映射。
-- 初始化用户工程时，直接将本 Skill 根目录的完整 `shared/` 复制到目标工程的 `modules/shared/`（平铺布局用 `shared/`）；目标已有 Shared 时复用，不覆盖。路径、风格登记与 UUID 规则见[复制内置 Shared](references/engineering/module-assets.md#复制内置-shared)。
-- 课程源码与风格在课程工程，正式构建与运行时在 Shuku。制作时可用内置 Player Preview 预览源码；需要展示或截图验收时使用服务器已有构建产物；源码打包不以预览、渲染或构建为前置条件。
-
-## 按动作读取
-
-| 当前动作 | 资料 |
+| 动作 | 资料 |
 |---|---|
-| 主线、章节、开场、大纲（含纯聊天） | [大纲](references/design/course-outline.md) |
-| 逐页讲稿、口播或 TTS | [口播](references/design/spoken-narration.md) |
-| 页面构图与交互设计 | [设计](references/design/design.md) |
-| React 实现、入口与布局 | [工程实现](references/engineering/implementation.md) |
-| 课程/风格 UUID、素材、OSS | [身份与资源](references/engineering/module-assets.md) |
-| 本地开发预览、安装或构建播放器 | [Player Preview](player-preview/README.md) |
-| 页面检查与验收 | [基础检查](references/eval/checks.md) |
-| 检查、打包、导出与上传交付 | 一次运行 `course.pack <目录>`，不先预检或本地构建；[源码 ZIP 交付](references/engineering/delivery.md) |
-| 执行工具、参数与依赖 | [工具索引](references/tools.md)，优先 `describe <ID>` 与 `<ID> --help` |
-| 习题 / 大模型 / GPU | [习题](references/design/quiz.md) / [大模型](references/computing/llm.md) / [计算](references/computing/gpu.md) |
-| 问卷、投票、调研、标准控件与 Custom 交互 | [问卷接入与可复制示例](references/design/surveys.md)，先复用标准控件，再按需要替换单题外观 |
-| 用户明确要求评分 / 个人偏好 | [Rubric](references/eval/rubric-evaluation.md) / [偏好](references/preferences.md) |
+| 创作、改编与续作 | [共用流程](references/workflow/common.md)，再选[从零创作](references/workflow/from-scratch.md)或[参考改编](references/workflow/reference-adaptation.md) |
+| 主线、章节与逐页大纲 | [大纲](references/design/course-outline.md) |
+| 讲稿与 TTS | [口播](references/design/spoken-narration.md) |
+| 页面构图与交互 | [设计](references/design/design.md) |
+| React、入口与沙箱输入 | [实现](references/engineering/implementation.md) |
+| 身份、Shared 与素材 | [身份与资源](references/engineering/module-assets.md) |
+| 检查与验收 | [基础检查](references/eval/checks.md)；用户要求评分时再读 [Rubric](references/eval/rubric-evaluation.md) |
+| 习题、问卷、模型与计算 | [习题](references/design/quiz.md) / [问卷](references/design/surveys.md) / [大模型](references/computing/llm.md) / [GPU](references/computing/gpu.md) |
+| 工具、参数及可选本地预览 | [工具索引](references/tools.md) / [开发者预览](player-preview/README.md) |
 
-## 完成
+只读当前动作需要的资料；仍在上下文且适用的内容不重复加载。
 
-打包允许课件需要的 `.py` / `.bin`，逐文件标记高危并保留在报告和包清单；超过 100 KiB 必须放在所属课件或风格的 `assets/`。shell、系统可执行文件和动态库等仍按黑名单排除，逐文件警告并继续打包，源码引用了被排除文件也只警告；原文件不删除。改名或放在 assets 不豁免文件头检查。高危标记不代表安全审核通过，详见[源码 ZIP 交付](references/engineering/delivery.md#文件规则)。
+## 源码交付
 
-创作和修改按影响范围核对内容与相关交互，未验证项如实说明。交付直接运行一次打包入口，不串行运行独立预检，不安装 Node，不本地构建、截图或补编辑 ID。出口返回 JSON，并保存同级 `.report.json` 与 `.report.md`。通过项仅汇总数量；警告和严重错误逐项给出代码、课件、路径、已知行号、实测情况、影响、修复方法和复验方式。黑名单文件自动排除但绝不删除；已知引用依赖被排除文件则报严重错误。严重错误阻止出包，不静默跳过坏课件；由用户决定修复方案或明确调整提交范围。有警告时说明后让用户选择修复重打或接受现状提交。已有覆盖当前包与提醒的明确上传授权继续有效。服务器检查不得标为本地通过，工具本身不上传。
+运行 `python <Skill>/scripts/module/package_course.py <课程或工程目录>`，或 `tools.py course.pack <目录>`。一次完成环境调度、源码检查、媒体准备、引用迁移、可用的本地深入检查、归档与完整性核验。转换与改引用仅发生在临时副本，原工程不修改。默认 Shared、缓存与临时文件不入包，明确依赖的自定义风格保留。
 
-源码包不向用户提供或要求选择 V1/V2 等版本。新包不写版本策略字段；旧包的版本标签不作为拒收依据。前端、服务器和沙箱按实际清单、路径、哈希与内容规则校验，不信任客户端声称的构建或安全检查结果。
+stdout 是精简 JSON，完整转换映射、问题与行号保存在同级 `.report.json`，简明说明在 `.report.md`。智能体先修复授权范围内可确定的问题再重跑；不可靠的转换路径、碰撞或转换失败阻止出包，不猜测修复。详见[交付与依赖](references/engineering/delivery.md)。
+
+交付普通 ZIP，不要求用户选择版本标签。工具不上传；Shuku 独立进行入库、安全、编译和运行检查，正式缩略图与内容审核单独执行。未执行的服务器检查不能标为本地通过。

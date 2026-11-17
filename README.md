@@ -85,17 +85,14 @@
 git clone https://github.com/ReductTech/creator-skill.git creator-skill
 ```
 
-仅讨论内容、主线或设计，以及查看工具清单与帮助时，无需配置目标。首次需要访问工程时，由 AI 助手根据你指定的课程工程绝对路径，在 Skill 根目录创建本地配置 `target-root.json`。文件不随仓库提供，并已加入 `.gitignore`。格式只有一个字段：
+仅讨论内容或查看帮助无需绑定工程。需要工程操作时，每个窗口使用 `context.create` 创建独立绑定，不共同改写一个“当前工程”：
 
-```json
-{
-  "targetRoot": "D:/Courses/MyProject"
-}
+```powershell
+python <Skill>/scripts/tools.py context.create --target-root <工程绝对路径> --context-directory <当前窗口工作目录> [--module <课程UUID>]
+python <Skill>/scripts/tools.py --context <返回的target-root.json绝对路径> course.pack <课程目录>
 ```
 
-上面的路径仅为格式示例，实际创建时使用你指定的已存在目录；Windows 路径推荐使用 `/`。未配置或路径无效时工程工具会报错，不会猜测目标，也不会自动创建目录。配置确定后沿用，工具不再以 Skill 所在目录或 `IDL_REPOSITORY_ROOT` 推算工程位置。
-
-目标工程支持 `modules/<UUID>/` 和根目录 `<UUID>/` 两种布局；统一 npm 依赖、运行时、预览与构建由 Shuku 提供。Skill 可独立安装，也可放在课程工程内；构建上传包须排除 Skill。
+旧的Skill根目录target-root.json仍兼容单窗口默认；新窗口不改它。绑定支持modules/<UUID>/与平铺<UUID>/布局。依赖安装意愿保存在本机账号的独立配置，只问一次，跨窗口共用；详见[本地环境与窗口](references/engineering/local-environment.md)。
 
 本仓库根目录已附带完整 `shared/`。初始化用户工程时，AI 助手可直接复制到目标的 `modules/shared/`（平铺布局用 `shared/`），保留风格 UUID；已有 Shared 则复用。详见[复制内置 Shared](references/engineering/module-assets.md#复制内置-shared)。
 
@@ -155,9 +152,11 @@ python creator-skill/scripts/tools.py capture.slides --help
 
 工具覆盖模块初始化、资源检查、原稿提取、真实页面截图和布局校验等任务。详细参数与执行效果见[创作工具索引](references/tools.md)。
 
-### 4. 本地预览课件
+### 4. 可选：开发者本地预览
 
-本仓库附带 `player-preview/`，使用 Node.js 24+。首次拉取后在本机安装依赖并构建：
+普通作者按环境启用本地检测：已有Node和相关依赖时默认执行静态、类型、本地构建及浏览器检查；缺依赖只问一次并保存安装意愿。Shuku仍独立复核入库、安全和正式发布。媒体处理依赖见[交付说明](references/engineering/delivery.md)。
+
+以下仅用于开发者主动选择本地预览。仓库附带 `player-preview/`，使用 Node.js 24+：
 
 ```powershell
 cd player-preview
@@ -229,6 +228,6 @@ creator-skill/
 
 ## 与术库的关系
 
-本仓库维护创作规范、辅助工具与测试。源码交付只需 `python scripts/module/package_course.py <目录>`，自动识别模块并排除 Shared，一次串联独立的源码检查、Pillow 图片加工和归档组件，最后返回汇总。无需 Node、npm、浏览器、Shuku 工程或工程配置；本地允许 Pillow 图片优化，不在本机构建、渲染、截图、迁移引用或补编辑 ID，不要求资源确认。平台分类、安全审查、导入和构建由服务器执行。详见[源码 SKZIP 交付](references/engineering/delivery.md)。
+本仓库维护作者规范、辅助工具与测试。运行 `python scripts/module/package_course.py <目录>`，自动完成媒体压缩、可确定引用迁移、源码检查与普通 ZIP 交付；处理只发生在临时副本，原工程保留。图片用 Python/Pillow，引用迁移用 Python Tree-sitter，音视频另需 FFmpeg/ffprobe，按本地环境选择Node完整检测或Python补充。精简 stdout 指向完整转换与诊断报告，智能体按报告修复后重跑。本地先尽量检查与修复，Shuku仍独立校验、正式编译、生成缩略图并发布；平台工具与服务由 Shuku 自身维护。详见[源码 ZIP 交付](references/engineering/delivery.md)。
 
 逐页确认与每页 ImageGen 设计图是必需流程，见 [流程共用说明](references/workflow/common.md) 和 [页面设计指导](references/design/design.md)。

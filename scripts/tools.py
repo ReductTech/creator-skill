@@ -24,6 +24,12 @@ def catalog():
 
 def main(argv=None):
     argv=list(sys.argv[1:] if argv is None else argv)
+    context_file = None
+    if argv[:1] == ['--context']:
+        if len(argv) < 3:
+            print('Usage: tools.py --context <absolute target-root.json> <tool-id> ...', file=sys.stderr)
+            return 2
+        context_file, argv = argv[1], argv[2:]
     try:tools=catalog()
     except (ValueError,OSError) as exc:print(f'Tool catalog error: {exc}',file=sys.stderr);return 2
     if not argv or argv[0] in {'list','--help','-h','--json'}:
@@ -49,17 +55,63 @@ def main(argv=None):
     if not executable:print('Node.js is unavailable; run environment.doctor.',file=sys.stderr);return 2
     command=[executable,str(SKILL/tool['path']),*tool.get('arguments',[]),*argv[1:]]
     try:
+        environment = os.environ.copy()
+        metadata = None
+        if context_file:
+            from local_context import context_metadata
+            metadata = context_metadata(context_file)
+            environment['CREATOR_SKILL_TARGET_CONFIG'] = str(Path(context_file).resolve())
+            if metadata.get('shukuRoot'):
+                environment['SHUKU_ROOT'] = metadata['shukuRoot']
         help_only = any(arg in {'--help', '-h'} for arg in argv[1:])
         explicit_paths = key in {'course.pack', 'course.discover', 'course.inspect', 'course.images', 'course.videos', 'course.audio'}
-        root = Path.cwd() if explicit_paths else SKILL if key in {'check.skill', 'scratchpad.clean'} or help_only else get_target_root()
-        if key not in {'check.skill', 'scratchpad.clean'} and not explicit_paths and not help_only:
+        root = (Path(metadata['targetRoot']) if metadata else Path.cwd()) if explicit_paths else SKILL if key in {'check.skill', 'scratchpad.clean', 'environment.doctor', 'context.create', 'dependencies.policy', 'dependencies.install'} or help_only else get_target_root(context_file)
+        if metadata and not help_only:
+            bound_root = Path(metadata['targetRoot'])
+            bound_module = metadata.get('module')
+            scope_root = bound_root
+            if bound_module:
+                from _common import resolve_module
+                scope_root = resolve_module(bound_module,bound_root)[0]
+                if key=='module.identity' and '--check' not in argv:
+                    raise ValueError('module.identity writes globally; use --check or an explicitly unbound project context')
+                if key=='module.init':
+                    raise ValueError('Create a new module from a project context, not a context bound to an existing course')
+            if key in {'module.edit-ids','scratchpad.clean','assets.compress','course.videos','course.audio'}:
+                if len(argv)<2 or argv[1].startswith('--'):
+                    raise ValueError('Provide an explicit path within this window context')
+                candidate=Path(argv[1])
+                candidate=(candidate if candidate.is_absolute() else bound_root/candidate).resolve()
+                if not candidate.is_relative_to(scope_root):
+                    raise ValueError('Requested path leaves this window course/project scope')
+                command[len(tool.get('arguments',[]))+2]=str(candidate)
+                for option in ('--output','--report','--backup-dir'):
+                    if option in argv:
+                        value=Path(argv[argv.index(option)+1])
+                        value=(value if value.is_absolute() else bound_root/value).resolve()
+                        if not value.is_relative_to(scope_root):
+                            raise ValueError('Output path leaves this window course/project scope')
+            module_tools = {'check.module', 'check.outlines', 'check.course', 'check.styles', 'check.asset-imports',
+                            'capture.slides', 'capture.thumbnails', 'capture.inspect', 'assets.rewrite', 'analyze.pages', 'assets.upload'}
+            if bound_module and key in module_tools:
+                from _common import resolve_module
+                bound = resolve_module(bound_module, bound_root)[0]
+                selected = next((a.split('=',1)[1] for a in argv[1:] if a.startswith('--module=')),None)
+                if '--module' in argv:
+                    selected = argv[argv.index('--module')+1]
+                if selected:
+                    if resolve_module(selected, bound_root)[0] != bound:
+                        raise ValueError('Requested module conflicts with this window context')
+                else:
+                    command.extend(['--module', bound_module])
+        if key not in {'check.skill', 'scratchpad.clean', 'environment.doctor', 'context.create', 'dependencies.policy', 'dependencies.install'} and not explicit_paths and not help_only:
             for index, argument in enumerate(argv[1:], 1):
                 option, separator, value = argument.partition('=')
                 if option in {'--repository', '--root'}:
                     value = value if separator else argv[index+1] if index+1 < len(argv) else ''
                     if not value or Path(value).resolve() != root:
                         raise ValueError('Target overrides must match targetRoot in target-root.json')
-        return subprocess.run(command,cwd=root,check=False).returncode
+        return subprocess.run(command,cwd=root,env=environment,check=False).returncode
     except ValueError as exc:return report_error(exc)
     except KeyboardInterrupt:return 130
     except OSError as exc:print(f'Could not run {key}: {exc}',file=sys.stderr);return 2

@@ -1,6 +1,6 @@
 # 工具脚本规范
 
-`course.pack`、`course.discover`、`course.inspect`、`course.images`、`course.videos`、`course.audio` 接收明确路径，不读取目标配置；相对路径按调用目录解析。打包入口只编排独立的发现、源码检查、Pillow 图片加工、归档组件，绝不安装 Node 或触发本地构建。`scratchpad.clean` 按用户指定的绝对路径清理，可不配置工程；相对路径仍按 `targetRoot` 解析。其他工程工具的目标工程根目录从明确指定的 `target-root.json` 读取，独立使用默认位于 Skill 根目录；平台可显式指定本次调用的配置文件。Python 使用 `_common.get_target_root()`／`project_path()`，Node 使用 `common/_target_root.mjs` 的 `getTargetRoot()`；相对工程路径以配置为基准，不使用当前工作目录、脚本父目录层数或旧环境变量推算。Skill 自己的文档、模板、检查器和浏览器启动文件按脚本自身位置读取。旧的 `--root`／`--repository` 参数只能确认同一目标，不能覆盖配置。
+`course.pack`、`course.discover`、`course.inspect`、`course.images`、`course.videos`、`course.audio` 无上下文时接收明确路径，相对路径按调用目录解析；使用--context时路径受本窗口工程与课程约束。打包入口只编排独立的发现、源码检查、媒体准备、Python引用迁移与归档组件，默认调度所有可用本地检测、构建与浏览器检查，缺依赖遵循保存的一次性安装意愿。`scratchpad.clean` 按用户指定的绝对路径清理，可不配置工程；相对路径仍按 `targetRoot` 解析。其他工程工具的目标工程根目录从明确指定的 `target-root.json` 读取，独立使用默认位于 Skill 根目录；平台可显式指定本次调用的配置文件。Python 使用 `_common.get_target_root()`／`project_path()`，Node 使用 `common/_target_root.mjs` 的 `getTargetRoot()`；相对工程路径以配置为基准，不使用当前工作目录、脚本父目录层数或旧环境变量推算。Skill 自己的文档、模板、检查器和浏览器启动文件按脚本自身位置读取。旧的 `--root`／`--repository` 参数只能确认同一目标，不能覆盖配置。
 
 用于维护 `scripts/` 中供智能体调用的工具。按用途分为 `module/`、`checks/`、`media/`、`analysis/`、`common/`、`tests/`，模板单独放在 `templates/`，不再增加更深层级。统一入口、清单与依赖文件保留在根目录；测试和内部辅助文件不强套命令行模板。
 
@@ -41,13 +41,11 @@
 
 页面几何与渲染字数逻辑共用 `common/_page_checks.js`，由 `capture.slides` 和 `check.bounds` 在浏览器中执行；交互继续复用截图动作格式，不增加评分框架。源码统计保持近似口径，与实际状态统计分开标记。
 
-## 唯一创作实现与 Shuku 调用
+## 作者工具与平台工具边界
 
-创作规则、工具和行为测试只在外部 `creator-skill` 仓库维护。Shuku 不再保留 `tooling/authoring/` 或根目录 `scripts/` 中的创作副本，只通过 `shared/creator_skill.py` 调用这里的入口。平台运行时、存储和编译服务继续属于 Shuku。
+本仓库维护作者创作规范及本地工具。Shuku 的 `tooling/authoring/` 随平台版本维护和发布其独立校验、素材上传与公共辅助代码，平台不依赖外部 Skill 检出目录或作者本机配置。两边按实际课件契约和行为测试对齐，不要求作者维护服务器实现。
 
-独立使用默认读取 Skill 的 `target-root.json`。平台为每次调用创建临时的同结构 JSON，通过 `CREATOR_SKILL_TARGET_CONFIG` 指定；不改本地绑定，也不把临时配置写入课程。Python 与 Node 共用各自的课程发现函数，支持 `modules/<课程>/` 和平铺 `<课程>/`，混合布局明确报错。课程选择支持目录名、ID、alias 与 UUID。
-
-公共素材上传协议在本仓库维护，Shuku 旧上传入口仅转发；平台的私有代码存储与权限交付由 Shuku 管理。真实上传需显式配置和任务授权，dry-run 不读取凭据或联系 OSS。Worker 镜像从外部 Skill 的冻结源码构建，发布记录版本并把其字节纳入镜像缓存键；不能重新引入手工同步的副本。
+普通作者默认按环境启用原有Node静态检查、引用迁移、编辑ID、类型、本地构建和浏览器检查。缺依赖时读取持久化意愿；只问一次，拒绝后继续已有能力，不把未执行项写成通过。Python解析是受限后备，FFmpeg只在有音视频时使用。
 
 ## 检查结果归因
 

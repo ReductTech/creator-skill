@@ -34,7 +34,7 @@ def default_output(directories):
     else:
         candidate = first.with_name(first.name + '.zip')
     original, number = candidate, 2
-    while (candidate.exists() or candidate.is_symlink() or candidate.with_suffix('.report.json').exists()
+    while (candidate.exists() or candidate.is_symlink() or candidate.with_suffix('.lock').exists() or candidate.with_suffix('.checks').exists() or candidate.with_suffix('.report.json').exists()
            or candidate.with_suffix('.report.md').exists()):
         candidate = original.with_name(original.stem + '-' + str(number) + '.zip')
         number += 1

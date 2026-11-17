@@ -241,7 +241,11 @@ function scanModule(directory, outline) {
 }
 function collectMetrics(repository) {
     root = path.resolve(repository);
-    ts = require(path.join(root, 'node_modules/typescript'));
+    const {createRequire} = require('node:module');
+    for(const base of [root,path.resolve(__dirname,'../../player-preview'),process.env.SHUKU_ROOT&&path.join(process.env.SHUKU_ROOT,'tooling/course-build')].filter(Boolean)){
+        try{ts=createRequire(path.join(base,'package.json'))('typescript');break;}catch{}
+    }
+    if(!ts)throw Error('TypeScript is unavailable in the project, Player Preview or configured Shuku tooling');
     cache.clear();
     const pages = [], modules = [];
     for (const dir of fs.readdirSync(modulesDirectory(root)).sort()) {
