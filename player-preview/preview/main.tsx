@@ -10,27 +10,25 @@ function Catalog() {
   const [search, setSearch] = useState('');
   const visible = courses.filter(course => `${course.title} ${course.id}`.toLowerCase().includes(search.toLowerCase()));
   return <main className="preview-catalog">
-    <header><span className="preview-eyebrow">术库 / 本地开发</span><h1>课程播放器预览</h1>
-      <p>选择课程查看效果，或先打开播放器交互演示。</p>
-      <a className="preview-demo" href="?demo=1">打开播放器交互演示 →</a>
-      <a className="preview-demo" style={{marginLeft: 24}} href="?demo=survey">预览问卷与调研 →</a>
+    <header><span className="preview-eyebrow">Creator Paper</span><h1>论文图预览</h1>
+      <p>选择图组，逐页查看或浏览整套论文配图。</p>
     </header>
-    <label className="preview-search">查找课程<input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="输入课程名称或 UUID" /></label>
-    <p className="preview-count">共 {visible.length} 门课程</p>
+    <label className="preview-search">查找图组<input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="输入图组名称或 UUID" /></label>
+    <p className="preview-count">共 {visible.length} 个图组</p>
     <div className="preview-grid">{visible.map(course => <article key={course.id}>
-      <span className="preview-eyebrow">{course.badge || '教学课程'} · {course.pages.length} 页</span>
-      <h2>{course.title}</h2><p>{course.description || '本地课件预览'}</p>
-      <footer>{course.ppt?.entry && <a href={`?course=${course.id}&view=ppt`}>播放课件 →</a>}
-        {course.entry && <a href={`?course=${course.id}&view=guide`}>课程导览</a>}
+      <span className="preview-eyebrow">{course.badge || '论文配图'} · {course.pages.length} 页</span>
+      <h2>{course.title}</h2><p>{course.description || '可编辑论文配图'}</p>
+      <footer>{course.ppt?.entry && <a href={`?course=${course.id}&view=ppt`}>逐页查看 →</a>}
+        {course.entry && <a href={`?course=${course.id}&view=guide`}>查看整套图 →</a>}
         {!course.entry && !course.ppt?.entry && <span>尚无可预览入口</span>}</footer>
     </article>)}</div>
-    {!visible.length && <p>{courses.length ? '没有匹配的课程。' : '尚无可预览课程。请按使用说明配置课程工程，然后重启预览。'}</p>}
+    {!visible.length && <p>{courses.length ? '没有匹配的图组。' : '尚无可预览图组。请在 modules/ 中添加完整的图组源码与 outlines.json。'}</p>}
   </main>;
 }
 
 async function openCourse(id: string) {
   const course = courses.find(course => course.id === id);
-  if (!course) throw Error('没有找到课程：' + id);
+  if (!course) throw Error('没有找到图组：' + id);
   document.title = course.title + ' · 本地预览';
   Reflect.set(globalThis, '__SHUKU_COURSE_ID__', course.assetId);
   Reflect.set(globalThis, '__SHUKU_ASSET_BASE__', location.origin);
@@ -68,8 +66,8 @@ if (params.get('demo') === 'survey-template') {
 } else if (params.has('demo')) {
   import('./demo').then(({Demo}) => root.render(<Demo />));
 } else if (params.has('course')) {
-  root.render(<p className="preview-status">正在加载课程…</p>);
+  root.render(<p className="preview-status">正在加载论文图…</p>);
   openCourse(params.get('course')!).catch(error => root.render(<main className="preview-status" role="alert">
-    <h1>课程加载失败</h1><p>{String(error.message || error)}</p><p>详细信息可查看终端和浏览器控制台。</p><a href="/">返回课程列表</a>
+    <h1>图组加载失败</h1><p>{String(error.message || error)}</p><p>详细信息可查看终端和浏览器控制台。</p><a href="/">返回图组列表</a>
   </main>));
 } else root.render(<Catalog />);

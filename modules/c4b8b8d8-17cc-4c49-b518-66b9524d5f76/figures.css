@@ -1,0 +1,6 @@
+.ictone-figure-page { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-width: 0; min-height: 0; background: #fff; }
+.ictone-figure-svg { display: block; width: 1560px; height: auto; max-width: 100%; max-height: 100%; flex: 0 1 1560px; }
+.ictone-figure-svg text { font-family: "Times New Roman", Times, serif; user-select: text; }
+.ictone-guide { position: relative; width: 100%; background: #f5f5f5; }
+.ictone-guide-canvas { position: absolute; left: 0; width: 1600px; height: 900px; transform-origin: top left; background: white; }
+.ictone-emoji { font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif !important; }

@@ -11,7 +11,7 @@ export function Demo() {
   const [count, setCount] = useState(0);
   const page = pages.find(item => item.id === activeId)!;
   return <PptPlayer title="播放器独立开发" pages={pages} activeId={activeId} onSelect={setActiveId}
-    canEdit={false} onEdit={() => {}} onHome={() => location.assign('/')}
+    onHome={() => location.assign('/')}
     slide={<div style={{width: 1600, height: 900, boxSizing: 'border-box', padding: 100, background: 'linear-gradient(130deg,#f0f5ff,#fff)'}}>
       <p style={{fontSize: 24, color: '#536482'}}>SHUKU · LOCAL PREVIEW</p>
       <h1 style={{fontSize: 64, margin: '60px 0 30px'}}>{page.title}</h1>

@@ -1,0 +1,1090 @@
+[
+  {
+    "asset": "photos/case-1-content.png",
+    "figure": 1,
+    "source_box": [
+      0,
+      0,
+      163,
+      255
+    ],
+    "design_box": [
+      0,
+      0,
+      163,
+      255
+    ]
+  },
+  {
+    "asset": "photos/case-1-reference.png",
+    "figure": 1,
+    "source_box": [
+      0,
+      261,
+      163,
+      516
+    ],
+    "design_box": [
+      0,
+      261,
+      163,
+      516
+    ]
+  },
+  {
+    "asset": "photos/case-1-stylized.png",
+    "figure": 1,
+    "source_box": [
+      170,
+      0,
+      495,
+      516
+    ],
+    "design_box": [
+      170,
+      0,
+      495,
+      516
+    ]
+  },
+  {
+    "asset": "photos/case-2-content.png",
+    "figure": 1,
+    "source_box": [
+      508,
+      0,
+      671,
+      255
+    ],
+    "design_box": [
+      508,
+      0,
+      671,
+      255
+    ]
+  },
+  {
+    "asset": "photos/case-2-reference.png",
+    "figure": 1,
+    "source_box": [
+      508,
+      261,
+      671,
+      516
+    ],
+    "design_box": [
+      508,
+      261,
+      671,
+      516
+    ]
+  },
+  {
+    "asset": "photos/case-2-stylized.png",
+    "figure": 1,
+    "source_box": [
+      678,
+      0,
+      1003,
+      516
+    ],
+    "design_box": [
+      678,
+      0,
+      1003,
+      516
+    ]
+  },
+  {
+    "asset": "photos/case-3-content.png",
+    "figure": 1,
+    "source_box": [
+      1015,
+      0,
+      1178,
+      255
+    ],
+    "design_box": [
+      1015,
+      0,
+      1178,
+      255
+    ]
+  },
+  {
+    "asset": "photos/case-3-reference.png",
+    "figure": 1,
+    "source_box": [
+      1015,
+      261,
+      1178,
+      516
+    ],
+    "design_box": [
+      1015,
+      261,
+      1178,
+      516
+    ]
+  },
+  {
+    "asset": "photos/case-3-stylized.png",
+    "figure": 1,
+    "source_box": [
+      1185,
+      0,
+      1510,
+      516
+    ],
+    "design_box": [
+      1185,
+      0,
+      1510,
+      516
+    ]
+  },
+  {
+    "asset": "photos/case-4-content.png",
+    "figure": 1,
+    "source_box": [
+      1522,
+      0,
+      1685,
+      255
+    ],
+    "design_box": [
+      1522,
+      0,
+      1685,
+      255
+    ]
+  },
+  {
+    "asset": "photos/case-4-reference.png",
+    "figure": 1,
+    "source_box": [
+      1522,
+      261,
+      1685,
+      516
+    ],
+    "design_box": [
+      1522,
+      261,
+      1685,
+      516
+    ]
+  },
+  {
+    "asset": "photos/case-4-stylized.png",
+    "figure": 1,
+    "source_box": [
+      1692,
+      0,
+      2016,
+      516
+    ],
+    "design_box": [
+      1692,
+      0,
+      2016,
+      516
+    ]
+  },
+  {
+    "asset": "photos/case-5-content.png",
+    "figure": 1,
+    "source_box": [
+      0,
+      535,
+      163,
+      790
+    ],
+    "design_box": [
+      0,
+      535,
+      163,
+      790
+    ]
+  },
+  {
+    "asset": "photos/case-5-reference.png",
+    "figure": 1,
+    "source_box": [
+      0,
+      796,
+      163,
+      1052
+    ],
+    "design_box": [
+      0,
+      796,
+      163,
+      1052
+    ]
+  },
+  {
+    "asset": "photos/case-5-stylized.png",
+    "figure": 1,
+    "source_box": [
+      170,
+      535,
+      495,
+      1052
+    ],
+    "design_box": [
+      170,
+      535,
+      495,
+      1052
+    ]
+  },
+  {
+    "asset": "photos/case-6-content.png",
+    "figure": 1,
+    "source_box": [
+      508,
+      535,
+      671,
+      790
+    ],
+    "design_box": [
+      508,
+      535,
+      671,
+      790
+    ]
+  },
+  {
+    "asset": "photos/case-6-reference.png",
+    "figure": 1,
+    "source_box": [
+      508,
+      796,
+      671,
+      1052
+    ],
+    "design_box": [
+      508,
+      796,
+      671,
+      1052
+    ]
+  },
+  {
+    "asset": "photos/case-6-stylized.png",
+    "figure": 1,
+    "source_box": [
+      678,
+      535,
+      1003,
+      1052
+    ],
+    "design_box": [
+      678,
+      535,
+      1003,
+      1052
+    ]
+  },
+  {
+    "asset": "photos/case-7-content.png",
+    "figure": 1,
+    "source_box": [
+      1015,
+      535,
+      1178,
+      790
+    ],
+    "design_box": [
+      1015,
+      535,
+      1178,
+      790
+    ]
+  },
+  {
+    "asset": "photos/case-7-reference.png",
+    "figure": 1,
+    "source_box": [
+      1015,
+      796,
+      1178,
+      1052
+    ],
+    "design_box": [
+      1015,
+      796,
+      1178,
+      1052
+    ]
+  },
+  {
+    "asset": "photos/case-7-stylized.png",
+    "figure": 1,
+    "source_box": [
+      1185,
+      535,
+      1510,
+      1052
+    ],
+    "design_box": [
+      1185,
+      535,
+      1510,
+      1052
+    ]
+  },
+  {
+    "asset": "photos/case-8-content.png",
+    "figure": 1,
+    "source_box": [
+      1522,
+      535,
+      1685,
+      790
+    ],
+    "design_box": [
+      1522,
+      535,
+      1685,
+      790
+    ]
+  },
+  {
+    "asset": "photos/case-8-reference.png",
+    "figure": 1,
+    "source_box": [
+      1522,
+      796,
+      1685,
+      1052
+    ],
+    "design_box": [
+      1522,
+      796,
+      1685,
+      1052
+    ]
+  },
+  {
+    "asset": "photos/case-8-stylized.png",
+    "figure": 1,
+    "source_box": [
+      1692,
+      535,
+      2016,
+      1052
+    ],
+    "design_box": [
+      1692,
+      535,
+      2016,
+      1052
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r1-c1.png",
+    "figure": 2,
+    "source_box": [
+      549,
+      308,
+      705,
+      429
+    ],
+    "design_box": [
+      454,
+      255,
+      583,
+      355
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r1-c2.png",
+    "figure": 2,
+    "source_box": [
+      740,
+      308,
+      895,
+      429
+    ],
+    "design_box": [
+      612,
+      255,
+      740,
+      355
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r1-c3.png",
+    "figure": 2,
+    "source_box": [
+      912,
+      308,
+      1065,
+      429
+    ],
+    "design_box": [
+      754,
+      255,
+      881,
+      355
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r1-c4.png",
+    "figure": 2,
+    "source_box": [
+      1112,
+      308,
+      1271,
+      429
+    ],
+    "design_box": [
+      920,
+      255,
+      1051,
+      355
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r2-c1.png",
+    "figure": 2,
+    "source_box": [
+      549,
+      442,
+      705,
+      565
+    ],
+    "design_box": [
+      454,
+      366,
+      583,
+      467
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r2-c2.png",
+    "figure": 2,
+    "source_box": [
+      740,
+      442,
+      895,
+      565
+    ],
+    "design_box": [
+      612,
+      366,
+      740,
+      467
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r2-c3.png",
+    "figure": 2,
+    "source_box": [
+      912,
+      442,
+      1065,
+      565
+    ],
+    "design_box": [
+      754,
+      366,
+      881,
+      467
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r2-c4.png",
+    "figure": 2,
+    "source_box": [
+      1112,
+      442,
+      1271,
+      565
+    ],
+    "design_box": [
+      920,
+      366,
+      1051,
+      467
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r3-c1.png",
+    "figure": 2,
+    "source_box": [
+      549,
+      573,
+      705,
+      693
+    ],
+    "design_box": [
+      454,
+      474,
+      583,
+      573
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r3-c2.png",
+    "figure": 2,
+    "source_box": [
+      740,
+      573,
+      895,
+      693
+    ],
+    "design_box": [
+      612,
+      474,
+      740,
+      573
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r3-c3.png",
+    "figure": 2,
+    "source_box": [
+      912,
+      573,
+      1065,
+      693
+    ],
+    "design_box": [
+      754,
+      474,
+      881,
+      573
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r3-c4.png",
+    "figure": 2,
+    "source_box": [
+      1112,
+      573,
+      1271,
+      693
+    ],
+    "design_box": [
+      920,
+      474,
+      1051,
+      573
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r4-c1.png",
+    "figure": 2,
+    "source_box": [
+      549,
+      704,
+      705,
+      825
+    ],
+    "design_box": [
+      454,
+      582,
+      583,
+      682
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r4-c2.png",
+    "figure": 2,
+    "source_box": [
+      740,
+      704,
+      895,
+      825
+    ],
+    "design_box": [
+      612,
+      582,
+      740,
+      682
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r4-c3.png",
+    "figure": 2,
+    "source_box": [
+      912,
+      704,
+      1065,
+      825
+    ],
+    "design_box": [
+      754,
+      582,
+      881,
+      682
+    ]
+  },
+  {
+    "asset": "photos/pipeline-r4-c4.png",
+    "figure": 2,
+    "source_box": [
+      1112,
+      704,
+      1271,
+      825
+    ],
+    "design_box": [
+      920,
+      582,
+      1051,
+      682
+    ]
+  },
+  {
+    "asset": "photos/raw-1.png",
+    "figure": 2,
+    "source_box": [
+      79,
+      172,
+      233,
+      293
+    ],
+    "design_box": [
+      65,
+      142,
+      193,
+      242
+    ]
+  },
+  {
+    "asset": "photos/raw-2.png",
+    "figure": 2,
+    "source_box": [
+      235,
+      172,
+      384,
+      293
+    ],
+    "design_box": [
+      194,
+      142,
+      318,
+      242
+    ]
+  },
+  {
+    "asset": "photos/raw-3.png",
+    "figure": 2,
+    "source_box": [
+      127,
+      272,
+      288,
+      393
+    ],
+    "design_box": [
+      105,
+      225,
+      238,
+      325
+    ]
+  },
+  {
+    "asset": "photos/raw-4.png",
+    "figure": 2,
+    "source_box": [
+      291,
+      272,
+      449,
+      393
+    ],
+    "design_box": [
+      241,
+      225,
+      371,
+      325
+    ]
+  },
+  {
+    "asset": "photos/triplet-r1-c1.png",
+    "figure": 2,
+    "source_box": [
+      1946,
+      177,
+      2111,
+      297
+    ],
+    "design_box": [
+      1610,
+      146,
+      1746,
+      246
+    ]
+  },
+  {
+    "asset": "photos/triplet-r1-c2.png",
+    "figure": 2,
+    "source_box": [
+      2121,
+      177,
+      2285,
+      297
+    ],
+    "design_box": [
+      1754,
+      146,
+      1890,
+      246
+    ]
+  },
+  {
+    "asset": "photos/triplet-r1-c3.png",
+    "figure": 2,
+    "source_box": [
+      2295,
+      177,
+      2459,
+      297
+    ],
+    "design_box": [
+      1898,
+      146,
+      2034,
+      246
+    ]
+  },
+  {
+    "asset": "photos/triplet-r2-c1.png",
+    "figure": 2,
+    "source_box": [
+      1946,
+      307,
+      2111,
+      446
+    ],
+    "design_box": [
+      1610,
+      254,
+      1746,
+      369
+    ]
+  },
+  {
+    "asset": "photos/triplet-r2-c2.png",
+    "figure": 2,
+    "source_box": [
+      2121,
+      307,
+      2285,
+      446
+    ],
+    "design_box": [
+      1754,
+      254,
+      1890,
+      369
+    ]
+  },
+  {
+    "asset": "photos/triplet-r2-c3.png",
+    "figure": 2,
+    "source_box": [
+      2295,
+      307,
+      2459,
+      446
+    ],
+    "design_box": [
+      1898,
+      254,
+      2034,
+      369
+    ]
+  },
+  {
+    "asset": "photos/triplet-r3-c1.png",
+    "figure": 2,
+    "source_box": [
+      1946,
+      457,
+      2111,
+      592
+    ],
+    "design_box": [
+      1610,
+      378,
+      1746,
+      490
+    ]
+  },
+  {
+    "asset": "photos/triplet-r3-c2.png",
+    "figure": 2,
+    "source_box": [
+      2121,
+      457,
+      2285,
+      592
+    ],
+    "design_box": [
+      1754,
+      378,
+      1890,
+      490
+    ]
+  },
+  {
+    "asset": "photos/triplet-r3-c3.png",
+    "figure": 2,
+    "source_box": [
+      2295,
+      457,
+      2459,
+      592
+    ],
+    "design_box": [
+      1898,
+      378,
+      2034,
+      490
+    ]
+  },
+  {
+    "asset": "photos/triplet-r4-c1.png",
+    "figure": 2,
+    "source_box": [
+      1946,
+      643,
+      2111,
+      780
+    ],
+    "design_box": [
+      1610,
+      532,
+      1746,
+      645
+    ]
+  },
+  {
+    "asset": "photos/triplet-r4-c2.png",
+    "figure": 2,
+    "source_box": [
+      2121,
+      643,
+      2285,
+      780
+    ],
+    "design_box": [
+      1754,
+      532,
+      1890,
+      645
+    ]
+  },
+  {
+    "asset": "photos/triplet-r4-c3.png",
+    "figure": 2,
+    "source_box": [
+      2295,
+      643,
+      2459,
+      780
+    ],
+    "design_box": [
+      1898,
+      532,
+      2034,
+      645
+    ]
+  },
+  {
+    "asset": "photos/train-input-1.png",
+    "figure": 3,
+    "source_box": [
+      53,
+      222,
+      282,
+      377
+    ],
+    "design_box": [
+      47,
+      196,
+      249,
+      333
+    ]
+  },
+  {
+    "asset": "photos/train-input-2.png",
+    "figure": 3,
+    "source_box": [
+      53,
+      392,
+      282,
+      546
+    ],
+    "design_box": [
+      47,
+      346,
+      249,
+      482
+    ]
+  },
+  {
+    "asset": "photos/train-m-1.png",
+    "figure": 3,
+    "source_box": [
+      414,
+      131,
+      654,
+      260
+    ],
+    "design_box": [
+      365,
+      116,
+      577,
+      229
+    ]
+  },
+  {
+    "asset": "photos/train-m-2.png",
+    "figure": 3,
+    "source_box": [
+      665,
+      102,
+      906,
+      260
+    ],
+    "design_box": [
+      587,
+      90,
+      799,
+      229
+    ]
+  },
+  {
+    "asset": "photos/train-n-1.png",
+    "figure": 3,
+    "source_box": [
+      415,
+      357,
+      654,
+      513
+    ],
+    "design_box": [
+      366,
+      315,
+      577,
+      453
+    ]
+  },
+  {
+    "asset": "photos/train-n-2.png",
+    "figure": 3,
+    "source_box": [
+      665,
+      357,
+      906,
+      513
+    ],
+    "design_box": [
+      587,
+      315,
+      799,
+      453
+    ]
+  },
+  {
+    "asset": "photos/rank-top-1.png",
+    "figure": 3,
+    "source_box": [
+      1553,
+      141,
+      1720,
+      249
+    ],
+    "design_box": [
+      1370,
+      124,
+      1518,
+      220
+    ]
+  },
+  {
+    "asset": "photos/rank-top-2.png",
+    "figure": 3,
+    "source_box": [
+      1726,
+      141,
+      1889,
+      249
+    ],
+    "design_box": [
+      1523,
+      124,
+      1667,
+      220
+    ]
+  },
+  {
+    "asset": "photos/rank-top-3.png",
+    "figure": 3,
+    "source_box": [
+      1894,
+      137,
+      2061,
+      249
+    ],
+    "design_box": [
+      1671,
+      121,
+      1819,
+      220
+    ]
+  },
+  {
+    "asset": "photos/rank-bottom-1.png",
+    "figure": 3,
+    "source_box": [
+      1558,
+      275,
+      1694,
+      479
+    ],
+    "design_box": [
+      1375,
+      243,
+      1495,
+      423
+    ]
+  },
+  {
+    "asset": "photos/rank-bottom-2.png",
+    "figure": 3,
+    "source_box": [
+      1701,
+      335,
+      1916,
+      479
+    ],
+    "design_box": [
+      1501,
+      296,
+      1691,
+      423
+    ]
+  },
+  {
+    "asset": "photos/rank-bottom-3.png",
+    "figure": 3,
+    "source_box": [
+      1924,
+      275,
+      2061,
+      479
+    ],
+    "design_box": [
+      1698,
+      243,
+      1819,
+      423
+    ]
+  }
+]

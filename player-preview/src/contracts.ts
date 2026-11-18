@@ -9,14 +9,10 @@ export interface PlayerProps {
  activeId:string;
  notes?:string;
  slide:ReactNode;
- narration?:ReactNode;
- subtitle?:string;
  error?:string;
  download?:string;
  actions?:ReactNode;
- canEdit:boolean;
  renderThumbnail?:(page:PlayerPage,active:boolean)=>ReactNode;
  onHome:()=>void;
- onEdit:()=>void;
  onSelect:(id:string)=>void;
 }

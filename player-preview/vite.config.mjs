@@ -76,10 +76,25 @@ export default defineConfig(({mode}) => {
       }
     },
     configureServer(server) {
-      server.watcher.add(courses.map(course => path.join(course.directory, 'outlines.json')));
-      server.watcher.on('change', file => {
-        if (file.endsWith('outlines.json')) void server.restart();
+      // Metadata can be added or removed after startup, not only edited in place.
+      if (coursesRoot) server.watcher.add(coursesRoot);
+      let catalogRefresh;
+      server.watcher.on('all', (event, file) => {
+        const outlineChanged = path.basename(file) === 'outlines.json';
+        const moduleFolderChanged = ['addDir', 'unlinkDir'].includes(event) &&
+          coursesRoot && path.dirname(path.resolve(file)) === coursesRoot;
+        if (!outlineChanged && !moduleFolderChanged) return;
+        clearTimeout(catalogRefresh);
+        catalogRefresh = setTimeout(() => {
+          try {
+            const next = coursesRoot ? readCourses(coursesRoot) : [];
+            if (JSON.stringify(next) !== JSON.stringify(courses)) void server.restart();
+          } catch (error) {
+            server.config.logger.warn(`图组目录更新失败：${error.message}`);
+          }
+        }, 150);
       });
+      server.httpServer?.once('close', () => clearTimeout(catalogRefresh));
       server.middlewares.use((request, _response, next) => {
         const url = new URL(request.url || '/', 'http://localhost');
         // Single-argument moduleAssetUrl uses the current course identity.
@@ -108,7 +123,9 @@ export default defineConfig(({mode}) => {
   };
   return {
     root, envDir: root, publicDir: false,
-    cacheDir: path.join(root, 'node_modules/.vite'),
+    cacheDir: path.join(root, 'node_modules/.vite-creator-paper'),
+    // Load only the selected course; optional survey demos need a newer Shuku checkout.
+    optimizeDeps: {noDiscovery: true, include: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'lucide-react']},
     plugins: [plugin, react(), tailwind()],
     resolve: {
       dedupe: ['react', 'react-dom', 'lucide-react'],

@@ -1,74 +1,64 @@
-# Player Preview：本地播放器与课件预览
+# 论文图网页预览
 
-可选开发者入口；course.pack会在依赖齐全时自动执行本地构建与浏览器检查；缺依赖遵循已保存安装意愿。查看制作中的课件、翻页和讲稿，也可单独开发播放器。仓库保留源码、配置与锁文件；依赖、缓存和构建结果由使用者在本机生成，不提交 Git。
+本目录提供论文图的网页 PPT、前后翻页和多页导览。图组源码保存在 `modules/`，通过现有页面入口加载。
 
-## 快速开始
+本文命令均在 `creator-paper/` 根目录执行，路径相对于仓库根目录。
 
-需要 **Node.js 24+**（含 npm）。在 Creator Skill 根目录执行：
+## 环境要求
 
-```powershell
-cd player-preview
-npm ci --cache .npm-cache
-npm run build
-npm run dev
+从 [Node.js 官方下载页](https://nodejs.org/en/download) 安装 Node.js 24 或更高版本，安装包包含 npm。
+
+```sh
+node --version
+npm --version
 ```
 
-打开 [本地预览](http://127.0.0.1:5174/)。终端保持运行，按 `Ctrl+C` 停止；端口被占用时使用 `npm run dev -- --port 5175`。
+## 安装与启动
 
-先看播放器本身，可打开 [交互演示](http://127.0.0.1:5174/?demo=1)，体验按钮、方向键、大纲与全屏，不需要后端服务。
+首次使用且尚未安装依赖时：
 
-问卷与调研的界面效果可打开 [问卷演示](http://127.0.0.1:5174/?demo=survey)，包含图片投票、综合问卷、表格量表与管理者统计。使用本地示例数据，刷新后恢复初始状态，不连接数据库，也不模拟真实登录或线上提交。
-
-[标准问卷控件预览](http://127.0.0.1:5174/?demo=survey-template) 包含标准模板、自定义卡片与十种题型，可直接对照修改。服务端口以终端的 `Local` 地址为准，例如本次使用 5175 时，将上述链接的端口改为 5175。实现入口在 `preview/survey-template-demo.tsx`；智能体接入与可复制源码见[问卷参考](../references/design/surveys.md)。
-
-`npm run build` 生成独立播放器库；课程列表和课件预览通过 `npm run dev` 运行，不要求先构建所有课程。修改源码时开发服务会热更新；拉取新的依赖后重新执行 `npm ci`，需要新的库产物时执行 `npm run build`。
-
-## 查看自己的课件
-
-预览复用 Creator Skill 根目录的 `target-root.json`，与创作工具读取同一份课程工程配置。例如：
-
-```json
-{
-  "targetRoot": "D:/Courses/MyProject"
-}
+```sh
+npm --prefix player-preview ci
 ```
 
-路径必须是已存在的课程工程绝对路径。支持 `modules/<课程UUID>/outlines.json` 和平铺 `<课程UUID>/outlines.json` 两种布局。课件源码与素材保留在目标工程，不搬进播放器目录；默认风格从目标的 `modules/shared/` 或 `shared/` 读取，目标缺少时使用本仓库附带的默认 `shared/`。
+启动预览：
 
-课件预览还需要 **Shuku 源码的课程运行时**。默认读取与 Creator Skill 同级的 `Shuku/`。位置不同时，将本目录 `.env.example` 复制为 `.env.local`，填写：
-
-```dotenv
-SHUKU_ROOT=D:/Projects/Shuku
+```sh
+npm --prefix player-preview run dev -- --host 127.0.0.1 --port 5176 --strictPort
 ```
 
-可选设置 `CREATOR_SKILL_TARGET_CONFIG=D:/Courses/target-root.json`，让本次预览使用另一份目标配置；JSON 仍只含 `targetRoot`。
+打开 [预览首页](http://127.0.0.1:5176/)。保持终端运行，按 `Ctrl+C` 停止。若服务已经运行，直接打开页面即可。
 
-保存配置后重启 `npm run dev`，从课程列表选择“播放课件”或“课程导览”。只有大纲、没有实现入口的课程不能播放。深链接格式为：
+命令适用于 Windows、macOS 和 Linux。PowerShell 若限制 `npm.ps1`，用 `npm.cmd` 替换命令中的 `npm`。由 AI 助手安装依赖时，遵循已保存的安装偏好。
+
+## 打开图组
 
 ```text
-http://127.0.0.1:5174/?course=<课程UUID>&view=ppt&page=<页面UUID>
-http://127.0.0.1:5174/?course=<课程UUID>&view=guide
+http://127.0.0.1:5176/?course=<图组UUID>&view=ppt&page=<页面UUID>
+http://127.0.0.1:5176/?course=<图组UUID>&view=guide
 ```
 
-`page` 可省略，不使用旧 `slide` 参数。Guide 使用与 TSX 文件名同名的命名导出，PPT 入口导出 `deck`，与当前 Shuku 保持一致。
+`course` 是现有播放器的图组参数，`page` 对应 `outlines.json` 中的单页 UUID。`view=ppt` 按页查看，`view=guide` 纵向查看整套图。
 
-## 检查与构建
+图组应位于 `modules/<图组UUID>/`，包含 `outlines.json`、PPT 入口、Guide 入口及对应页面实现。修改已有图保留 UUID，新增页面再分配新的 UUID。
 
-```powershell
-npm run typecheck
-npm run build
+## 配置与检查
+
+启动命令使用项目已有预览配置。机器相关设置放在 `player-preview/.env.local` 等本地配置中；迁移项目时检查配置，不在公共文档中写入固定机器目录。
+
+- 列表为空：检查图组是否位于 `modules/`，`outlines.json` 与页面入口是否完整。
+- 配置缺失：按终端提示补齐项目配置，再重新启动。
+- 素材加载失败：检查图组 `assets/` 和 `moduleAssetUrl` 的相对素材路径。
+- 端口占用：优先使用已有预览；确需新服务时，将启动命令中的 `--port 5176` 换为可用端口，并返回实际地址。
+- 页面修改：开发服务会热更新，实际核对字号、连线、边界与素材显示。
+
+按任务需要执行播放器检查：
+
+```sh
+npm --prefix player-preview run typecheck
+npm --prefix player-preview run build
 ```
 
-类型检查覆盖播放器与预览入口；播放器库构建结果为 `dist/index.js`、类型声明和 `dist/style.css`。这不是课程发布包，也不是可直接部署的课程网站；课程源码 ZIP 通过 [course.pack](../references/engineering/delivery.md) 交付。
+`build` 构建播放器库，不是把单张论文图导出为 PDF。论文图应从当前网页按实际比例导出。
 
-提交时保留 `src/`、`preview/`、`scripts/`、配置、`.env.example` 和 `package-lock.json`。已忽略 `node_modules/`、`dist/`、`.npm-cache/`、Vite/TypeScript 缓存、日志和本地环境文件。已有本地构建可以保留，Git 不会将它们纳入新提交。
-
-## 常见问题
-
-- **列表为空**：检查目标路径、课程 UUID 目录与 `outlines.json`；新增课程目录或修改配置后重启预览。
-- **找不到课程运行时**：核对 `SHUKU_ROOT`，应包含 `packages/course-runtime/`。不需要启动 Shuku 前端，但需要对应源码。
-- **素材加载失败**：素材放在课程 `assets/`，通过单参数 `moduleAssetUrl('真实相对路径')` 读取。
-- **模型、评阅、训练不可用**：这些功能通过术库宿主 RPC 调用服务，要在 Shuku 学习页面验证；本地预览不模拟登录、GPU 或云端返回。
-- **预览正常是否代表官网可用**：还须执行平台校验、真实构建及最终产物验收，本地源码预览不能代替官网验收。
-
-`src/` 为播放器，`preview/` 为课程列表与装配入口，`scripts/` 负责发现课程。这里的修改不会回写 Shuku 或课程工程。
+依赖、缓存和构建产物不纳入正式论文图素材。主要绘图流程见根目录的 [README](../README.md) 和 [SKILL.md](../SKILL.md)。

@@ -20,3 +20,9 @@ Thumbs.db
 !.env.example
 /target-root.json
 /.local/
+
+# Local paper-figure inspection, build and validation outputs.
+/docs/ictone-reference/
+/modules/*.checks/
+/modules/*.report.json
+/modules/*.report.md

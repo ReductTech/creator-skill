@@ -1,53 +1,124 @@
 ---
-name: creator-skill
-description: 规划、设计、制作和修改 React 交互演示，支持主题创作、PPT/PDF 改编、大纲、口播、问卷及 Shuku 源码 ZIP 交付。适用于教学、科研和商业演示。
+name: creator-paper
+description: 使用可编辑的 HTML、React 和 SVG 创建、复刻及修改论文方法图、流程图、对比图和案例拼图，支持从 PDF 提取素材、本地网页 PPT 预览及高清 PDF 导出。
 ---
 
-# React 演示创作
+# 论文图网页绘制
 
-先判断当前任务与已有进度。纯讨论不创建工程；局部修改只处理受影响页面及必要依赖，沿用有效确认，不从头重做。
+本仓库用于论文配图及多页网页 PPT。优先保留可编辑的文字、几何形状、箭头、照片与布局；已有图只修改用户指定的内容。所有命令默认在 `creator-paper/` 根目录执行，文档和示例使用相对路径。
 
-## 核心约束
+## 本地网页预览
 
-- 新建课程与新增页面使用生成器分配 UUID v4；复制为独立课件时更换课程及全部页面身份。更新保留已有 UUID。课程目录、`outlines.json.id`、`moduleIdentity.id` 一致；页面 UUID 贯通大纲、PPT、Guide 和讲稿。详见[身份与资源](references/engineering/module-assets.md)。
-- 按“大纲确认 → 当前页 ImageGen 设计图 → 设计确认 → React 实现与自检 → 用户验收”推进；当前页验收后进入下一页。已有确认和用户明确指定的流程范围按[共用流程](references/workflow/common.md)接续。
-- 设计前实际查看相关成对正反例，并把具体取舍写入 prompt。忠实实现确认的布局、比例、文字、素材和交互，不用整页设计图替代正式实现。设计与正式画布均不添加页码。
-- 画布为 1600×900，外层等比例缩放。封面独立设计，其余页默认用 Shared `ContentBlock` 标准标题区，独立文字用 `Typography`；用户指定版式按其范围执行。
-- Shared 与内置示例只读。缺失时可原样复制完整 `shared/`，已有时不覆盖；课程专属内容留在课程目录。`modules/` 是示例，用户成果保存到目标工程。
-- 视觉组件从 `@shuku/course-style/react` 导入，资源、请求与状态从 `@shuku/course-runtime/react/...` 导入。资源 helper 只接收一个完整真实相对路径；动态选择使用完整路径列表，不拼接路径。
-- 标题缺失或空白时使用“未命名标题”；讲稿 `snippet` 缺失补空字符串，允许为空，不编造讲稿。身份与入口不可用展示默认值替代。
-- 页面放 `pages/<语义页目录>/`，正式资源放课程 `assets/`。中间文件放所属页或模块 `_scratchpad/`；逐页收尾与提交前调用 `scratchpad.clean <范围> --apply`，先转存需保留的设计、素材和记录。清理参数见[工具索引](references/tools.md)。
+### 环境准备
 
-## 工程与依赖
+- 安装 [Node.js 24 或更高版本](https://nodejs.org/en/download)，并确认 `node` 和 `npm` 可用。
+- Python 辅助工具按需使用 Python 3.10+；只做网页修改与预览时，不为无关检查增加依赖。
+- 页面预览目录为 `player-preview/`，图组源码在 `modules/`。
+- 项目使用现有预览配置。机器相关设置保存在 `player-preview/.env.local` 等本地配置文件中，不在公共文档中记录个人环境路径。
 
-每个窗口先用 `context.create` 绑定用户指定的工程绝对路径，可进一步限定课程。之后调用 `tools.py --context <返回的绝对配置路径> <工具>`。每个窗口有独立配置，命令只向子进程传递目标，不改共享的“当前工程”。旧 `target-root.json` 仍兼容，只作为单窗口默认值；新任务不靠改它切换工程。具体命令与边界见[本地环境与窗口](references/engineering/local-environment.md)。
+### 安装与启动
 
-按实际任务探测 Python、Node、解析依赖、课程运行时、构建依赖、浏览器与 FFmpeg。已有依赖默认启用原有检查；齐全时默认类型检查、本地构建、真实浏览器检查。有音视频就处理，没有就跳过。Node解析器可用时优先复用原有完整引用迁移，Python解析作为受限补充，不替代或删除原有能力。
+先检查 `http://127.0.0.1:5176/` 是否已能打开。已有服务可用时直接返回页面链接，不重复启动或停止其他项目的服务。
 
-缺依赖先读持久化安装意愿，只问一次，并用 `dependencies.policy` 保存回答。多窗口共用同一份偏好；`pending` 不重复提问，`allowed` 直接补依赖重试，`declined` 继续可执行检查并标明未验证范围。安装失败不能再次询问意愿。配置缺失与安装意愿分开处理。详见[依赖流程](references/engineering/local-environment.md)。
+首次使用且用户已授权安装依赖时，在仓库根目录执行：
 
-本地尽量发现并修复错误；服务器仍独立入库、安全检查和正式构建，生成正式缩略图并发布。本地截图与交互证据须对应本次交付副本，不以设计图冒充实现。`player-preview/` 及原有Node检测工具全部保留。
+```sh
+npm --prefix player-preview ci
+```
 
-## 按当前动作读取
+依赖就绪后启动：
 
-| 动作 | 资料 |
-|---|---|
-| 创作、改编与续作 | [共用流程](references/workflow/common.md)，再选[从零创作](references/workflow/from-scratch.md)或[参考改编](references/workflow/reference-adaptation.md) |
-| 主线、章节与逐页大纲 | [大纲](references/design/course-outline.md) |
-| 讲稿与 TTS | [口播](references/design/spoken-narration.md) |
-| 页面构图与交互 | [设计](references/design/design.md) |
-| React、入口与沙箱输入 | [实现](references/engineering/implementation.md) |
-| 身份、Shared 与素材 | [身份与资源](references/engineering/module-assets.md) |
-| 检查与验收 | [基础检查](references/eval/checks.md)；用户要求评分时再读 [Rubric](references/eval/rubric-evaluation.md) |
-| 习题、问卷、模型与计算 | [习题](references/design/quiz.md) / [问卷](references/design/surveys.md) / [大模型](references/computing/llm.md) / [GPU](references/computing/gpu.md) |
-| 工具、参数及可选本地预览 | [工具索引](references/tools.md) / [开发者预览](player-preview/README.md) |
+```sh
+npm --prefix player-preview run dev -- --host 127.0.0.1 --port 5176 --strictPort
+```
 
-只读当前动作需要的资料；仍在上下文且适用的内容不重复加载。
+Windows、macOS 和 Linux 使用同一组相对路径命令。终端保持运行，按 `Ctrl+C` 停止该前台服务。PowerShell 若限制 `npm.ps1`，使用 `npm.cmd` 代替 `npm`。
 
-## 源码交付
+需要后台预览时记录进程和日志；Windows 后台进程使用隐藏窗口。不要把其他电脑的预装 Node 路径、盘符、用户目录或跨项目目录联接当作通用启动方式。
 
-运行 `python <Skill>/scripts/module/package_course.py <课程或工程目录>`，或 `tools.py course.pack <目录>`。一次完成环境调度、源码检查、媒体准备、引用迁移、可用的本地深入检查、归档与完整性核验。转换与改引用仅发生在临时副本，原工程不修改。默认 Shared、缓存与临时文件不入包，明确依赖的自定义风格保留。
+### 页面链接
 
-stdout 是精简 JSON，完整转换映射、问题与行号保存在同级 `.report.json`，简明说明在 `.report.md`。智能体先修复授权范围内可确定的问题再重跑；不可靠的转换路径、碰撞或转换失败阻止出包，不猜测修复。详见[交付与依赖](references/engineering/delivery.md)。
+播放器继续使用现有 `course` 参数表示图组 ID，`page` 表示单页 UUID，无须为改名重构播放器。
 
-交付普通 ZIP，不要求用户选择版本标签。工具不上传；Shuku 独立进行入库、安全、编译和运行检查，正式缩略图与内容审核单独执行。未执行的服务器检查不能标为本地通过。
+```text
+http://127.0.0.1:5176/?course=<图组UUID>&view=ppt&page=<页面UUID>
+http://127.0.0.1:5176/?course=<图组UUID>&view=guide
+```
+
+当前 ICTone 三页图组：`c4b8b8d8-17cc-4c49-b518-66b9524d5f76`。
+
+- [图1：案例拼图](http://127.0.0.1:5176/?course=c4b8b8d8-17cc-4c49-b518-66b9524d5f76&view=ppt&page=e47ad853-d766-47d4-81ed-f2010270a665)
+- [图2：数据集构建](http://127.0.0.1:5176/?course=c4b8b8d8-17cc-4c49-b518-66b9524d5f76&view=ppt&page=d4d982cc-62a2-4b36-b80d-9e6a7d85482b)
+- [图3：两阶段训练](http://127.0.0.1:5176/?course=c4b8b8d8-17cc-4c49-b518-66b9524d5f76&view=ppt&page=ecd21b35-097b-4d71-95d3-ad61e1d04750)
+
+## 论文图创建与修改流程
+
+### 1. 理解内容与定位原图
+
+- 根据论文 Method、技术上下文和用户要求，确认要表达的贡献、数据流、输入输出及子图关系。
+- 从 PDF 复刻时先定位指定 Figure，提取嵌入的原始图片和文字，并实际查看原图；不要把整页正文、页眉和页码一并贴入。
+- 优先提取独立照片素材。文字、模块框、箭头、图例和栅格由 HTML/SVG 重画，避免使用整图截图冒充可编辑复刻。
+- 记录素材来源与裁剪坐标，不重新生成、锐化或改写实验结果。需要生成式处理时必须获得用户明确要求，并保留原素材与处理说明。
+
+### 2. 确定排版并直接实现
+
+- 用户提供明确参考图或已确认版式时，按参考实现；不强制先生成 ImageGen 设计稿或逐页重复确认。
+- 新图尚无明确布局时，先简短说明布局、阅读顺序和配色，再实现可审阅的版本。用户要求连续制作多页时连续完成。
+- 把主要视觉空间留给文章贡献。基础骨干、编码器等模块可用统一中性色；颜色、形状和标识用于区分确有必要的语义。
+- 文字默认 Times New Roman；忠实复刻时沿用参考字体。英文标识沿用用户确认的大小写和方法名。
+- 引线从准确的 bbox 边缘连接到对应局部图；优先简洁直线，复杂数据流再用对齐的直角线。避免穿过文字、无意义绕线和大段空白。
+- 全图、局部放大图与坐标示意的含义要明确；只在网页中设置裁剪和缩放时，保留未改动的原始素材。
+
+### 3. 图组与源码组织
+
+```text
+modules/<图组UUID>/
+  outlines.json
+  <名称>Ppt.tsx
+  <名称>Guide.tsx
+  pages/<语义页目录>/<组件>.tsx
+  assets/photos/
+  assets/source-manifest.json
+  figures.css
+```
+
+- 新图组和新增页面用规范生成器创建 UUID v4。已有图组、页面的 UUID 保持稳定，改标题、内容或页序不重新分配身份。
+- 图组目录名、`outlines.json.id`、`moduleIdentity.id` 一致。页面列表保存稳定的 `id`、`title` 和 `snippet`；无备注时 `snippet` 留空，不编造讲述内容。
+- `SceneDeck` 负责翻页，Guide 负责多页导览。保留现有框架入口和必要元数据，按论文图版式呈现，不额外添加演示封面或无关交互。
+- 播放画布为 1600×900，论文图在内部保持自己的 SVG `viewBox` 和长宽比；不要为了填满屏幕拉伸图像。不添加可见页码。
+- 单页组件、样式和必要数据按语义组织，坐标、标签和素材引用应便于 agent 定点修改。
+- 正式素材放本图组 `assets/`。使用 `moduleAssetUrl('完整真实相对路径')`；动态选择引用时维护明确的完整路径列表。
+- Shared 和已有示例只读。论文图样式放自己的模块，不通过修改 Shared 修复单图布局，也不覆盖原有图组。
+
+### 4. 预览、自检与迭代
+
+- 在真实浏览器打开当前图，检查素材加载、文字和连线遮挡、bbox 位置、字号、颜色、对齐、整体空白与边界。
+- 查看截图核对视觉效果，不能只依据构建成功。新增或调整页序时检查前后翻页及 Guide 顺序。
+- 改动局部文字、字号、间距时只检查受影响页面，不默认重跑完整打包流程。
+- 有现成依赖时运行适当的源码、类型和本地打包检查；不为检查方便而自动安装额外依赖。无法执行的检查如实标为未验证。
+- 用户提出修正后在同一图组持续修改，最终返回准确的页面链接和文件路径。
+
+## PDF 与源码导出
+
+- 按用户指定的页面导出，不把整个 PPT 或播放器控件混入单图 PDF。
+- 从当前网页直接导出；文字、边框、箭头保留矢量，照片嵌入原像素，等待字体与图片加载完成，不以整页截图替代高清导出。
+- PDF 页面按图的实际比例设置，裁掉播放器留白，不额外添加页眉、页码或水印。
+- 用户指定约 3 MB 等目标时，在网页导出阶段调整照片编码质量，检查细节和最终大小；用户要求重新导出时不要改为压缩旧 PDF。
+- 导出后检查页数、文字、图片完整性、边缘裁切与最终文件大小。覆盖指定文件属于已授权操作。
+- 只有用户需要源码 ZIP 时才调用 `tools.py course.pack <图组目录>`。这是底层既有工具名，不是每次改图、预览或导出 PDF 的必经步骤。
+
+## 依赖与整理
+
+- 先复用本机现有 Node、Python、浏览器和解析工具。安装意愿由 `dependencies.policy` 持久化；已拒绝安装时继续可执行工作，不反复询问或擅自安装。
+- 安装偏好与具体机器配置分开处理。迁移项目时检查环境与配置，示例命令使用仓库相对路径，不写入个人机器路径。
+- 正式图片、导出 PDF、需要保留的来源记录放稳定目录。临时文件放 `_scratchpad/`，收尾时清理相应范围。
+- `.checks`、`.report.json/.md` 是检查产物，最终不依赖时可在用户要求的范围内清理；先核对路径和引用，保留图组源码、正式素材、预装运行环境和依赖。
+
+## 按需参考
+
+- 本地播放器参数与兼容接口：[player-preview/README.md](player-preview/README.md)。
+- UUID、资源路径和播放器入口：[references/engineering/module-assets.md](references/engineering/module-assets.md)、[references/engineering/implementation.md](references/engineering/implementation.md)。
+- 独立上下文与已有依赖策略：[references/engineering/local-environment.md](references/engineering/local-environment.md)。
+- 工具命令查询：[references/tools.md](references/tools.md)。
+
+这些底层文档仅用于接口和工具查询。论文图的制作范围、流程和交付以本文件及用户当前要求为准，不继承与论文图无关的内容生产流程。

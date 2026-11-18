@@ -33,7 +33,7 @@ export function SurveyTemplateDemo() {
     if(question.kind==='custom')return <div className="survey-template-preview-custom"><p>这里可以放图片标注、坐标选择或其他实验交互。</p><button type="button" onClick={()=>onChange({format:'annotation-example',version:1,data:{x:120,y:80}})}>记录一个示例标注</button><small>{value?'标注已记录':'等待操作'}</small></div>;
     return undefined;
   };
-  return <PptPlayer title="标准问卷控件 · 可复制模板" pages={pages} activeId={activeId} onSelect={onSelect} canEdit={false} onEdit={()=>{}} onHome={()=>location.assign('/')} actions={<a className="survey-template-preview-back" href="?demo=survey">问卷场景预览</a>}
+  return <PptPlayer title="标准问卷控件 · 可复制模板" pages={pages} activeId={activeId} onSelect={onSelect} onHome={()=>location.assign('/')} actions={<a className="survey-template-preview-back" href="?demo=survey">问卷场景预览</a>}
     renderThumbnail={page=><div className="survey-template-preview-thumbnail"><span>标准问卷控件</span><strong>{page.title?.split(' · ')[0]}</strong></div>}
     slide={<main className="survey-template-preview cw-native"><header><div><span>SHUKU / 标准控件与作者模板</span><h1>{gallery?'选一种题型，对着改就行':custom?'换一种外观，仍然是同一道题':'一份标准控件，作为大家的起点'}</h1></div><span className="survey-template-preview-badge">本地控件预览</span></header><div className="survey-template-preview-grid"><div className="survey-template-preview-control">
       {!custom&&!gallery?<SurveyExample onSubmit={setResult}/>:<SurveyTemplate key={gallery?kind:'custom'} definition={definition} answers={answers} onChange={setAnswers} renderQuestion={renderer} onSubmit={setResult} footer="本地演示：只展示答案，不保存到平台。"/>}

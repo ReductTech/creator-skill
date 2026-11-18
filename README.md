@@ -1,233 +1,197 @@
 <div align="center">
 
-# Creator Skill
+# Creator Paper Figure
 
-### 把专业知识，变成可以观看、操作和探索的交互演示。
+**你来构思，Agent来画：让你专注论文表达，把繁琐绘制操作交给 Agent。**
 
-面向 AI 编程助手的 React 演示创作 Skill。<br />
-从主题与原稿出发，完成大纲、讲稿、视觉设计、页面实现与真实效果检查。
+根据论文内容或参考图绘制配图，支持网页预览、持续编辑与高清 PDF 导出。
 
-**教学课件 · 科研汇报 · 商业演示**
-
-[开始使用](#开始使用) · [创作流程](#创作流程) · [实际效果](#实际效果) · [文档导航](#文档导航)
+[上手示例](#开始使用) · [制作规范](SKILL.md) · [打开本地预览](http://127.0.0.1:5176/)
 
 </div>
 
-![Creator Skill：创作规范、可复用组件与页面模板](docs/images/creator-skill.webp)
+## 从单张图到整篇论文配图
 
-<p align="center"><sub>上图及下方展示均截取自实际运行的 Creator Guide 课件。静态截图仅展示一个状态，交互由 React 页面实现。</sub></p>
+既可以复刻、修改一张已有图，也可以根据论文的叙事顺序组织一整套图。先明确每张图要回答的问题，再确定图型与信息密度。
 
-## 做出能讲清楚、也能动手探索的演示
+| 配图类型 | 主要表达 | 常见布局 |
+| --- | --- | --- |
+| Teaser / 整体效果图 | 任务是什么，方法能带来什么结果 | 代表性案例、输入输出、关键局部与简短标识 |
+| 方法总览图 | 输入如何经过方法得到输出，贡献在哪里 | 主流程与分支、基础模块、创新模块、对应子图 |
+| 机制与模块图 | 一个关键设计具体如何工作 | 局部放大、坐标映射、token、注意力或条件注入 |
+| 数据与训练流程图 | 数据如何构建，模型如何训练 | 数据筛选、预处理、样本对、两阶段训练、损失连接 |
+| 定性对比图 | 与其他方法相比有哪些可观察的差异 | 方法列、案例行、统一裁剪与局部放大区域 |
+| 消融与分析图 | 某个设计或参数如何影响结果 | 使用真实数据绘制的曲线、柱状图、热图及对应案例 |
+| 补充材料图 | 更多场景、细节或失败案例 | 延续正文风格的多页案例和对比图组 |
 
-一段文字、一篇论文、一份已有 PPT，都可以成为创作的起点。Creator Skill 为 AI 编程助手提供持续使用的创作流程、设计依据和工程约定，让内容构思与交互实现衔接起来。
+整套配图统一字体、字号层级、模块颜色、箭头样式、方法名和缩写。每张图围绕一个明确目的组织内容，同一模块在不同图中保持一致的视觉标识。
 
-| 创作环节 | 具体支持 |
-| :--- | :--- |
-| **组织内容** | 明确受众与表达目标，梳理主线，编写逐页题目与口播讲稿 |
-| **设计表达** | 参考成对视觉案例，选择图形、布局、动画与交互方式 |
-| **实现页面** | 使用 React 和配套公共组件，制作 1600 × 900 固定画布演示 |
-| **改编原稿** | 从已有 PPT、PDF 或逐页截图出发，重新组织与实现内容 |
-| **检查与迭代** | 截取真实页面，检查布局边界、文字与交互，按反馈继续修改 |
+## 创作结果示例
 
-## 实际效果
+以下示例复刻自论文 **[Towards In-Context Tone Style Transfer with A Large-Scale Triplet Dataset](https://arxiv.org/abs/2604.16114)**（ICTone）的图2和图3，分别展示数据集构建流程和两阶段评分器训练流程。
 
-<table>
-  <tr>
-    <td width="50%">
-      <img src="docs/images/intuitive-learning.webp" alt="虫洞交互示例：通过参数与几何观察建立直觉" width="100%" />
-      <br /><strong>让抽象概念可以操作</strong><br />
-      调整参数、观察几何与路径变化，把直观体验连接到专业解释。
-    </td>
-    <td width="50%">
-      <img src="docs/images/ui-kit.webp" alt="公共组件示例：按钮、滑杆与页面模板" width="100%" />
-      <br /><strong>用公共组件搭建页面</strong><br />
-      在统一的视觉与交互基础上，组合课程需要的内容和操作。
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="docs/images/human-collaboration.webp" alt="人与 AI 协作：内容判断与页面实现相配合" width="100%" />
-      <br /><strong>保留人的内容判断</strong><br />
-      作者提供专业知识、表达目标和反馈，AI 辅助设计与实现。
-    </td>
-    <td width="50%">
-      <img src="docs/images/progressive-disclosure.webp" alt="渐进展示示例：按理解顺序展开内容" width="100%" />
-      <br /><strong>按理解顺序展开内容</strong><br />
-      根据讲解节奏逐步呈现，给观察、思考和讨论留下空间。
-    </td>
-  </tr>
-</table>
+### 数据集构建流程
 
-[查看截图来源与完整说明 →](docs/showcase.md)
+数据预处理、候选生成与质量筛选。
 
-## 创作流程
+[![图2：数据集构建流程](docs/images/paper-examples/dataset-pipeline.webp)](docs/images/paper-examples/dataset-pipeline.webp)
 
-**明确目标 → 组织大纲与讲稿 → 设计页面 → 确认设计 → React 实现 → 真实检查与验收**
+### 两阶段训练流程
 
-支持两种起点：
+对比学习与偏好学习。
 
-- **从零创作**：根据主题、文字、论文或其他材料组织演示。
-- **参考改编**：根据已有 PPT、PDF 或页面截图，分析原稿并重新制作。
+[![图3：两阶段训练流程](docs/images/paper-examples/scorer-training.webp)](docs/images/paper-examples/scorer-training.webp)
 
-已有作品可以从当前阶段继续，局部修改只处理受影响页面及必要依赖。具体确认节点和制作批次由对应流程与用户要求决定。
+## 工作方式
 
-![课件中的创作流程模拟：大纲、对话与交互预览](docs/images/creation-workflow.webp)
+**理解论文与图意 → 规划图组 → 整理素材 → HTML / SVG 绘制 → 网页检查与修改 → PDF 导出**
 
-<p align="center"><sub>Creator Guide 内的流程模拟：展示从教学要求到页面预览的协作方式，不代表本仓库自带在线 Agent 服务。</sub></p>
+### 1. 提供内容或参考
+
+可以从以下材料开始：
+
+- 论文草稿、Method 技术上下文、写作大纲或模块说明。
+- 一张想复刻布局与风格的论文图。
+- PDF 中指定的 Figure 1、Figure 2、Figure 3。
+- 输入、输出、baseline、局部裁剪、glyph、mask 等本地素材。
+- 已有网页图，需要调整标签、颜色、连线、坐标、字号或排版。
+
+从 PDF 复刻时，先定位原图并拆出照片素材，再绘制标题、流程框、箭头、图例、边界框与整体排版。
+
+### 2. 规划与绘制
+
+整体配图先整理每张图的表达目的、子图关系和所需素材，再逐张落地。有明确参考版式时直接复刻，局部修改在现有实现上继续。
+
+- 以论文贡献为重点，基础骨干与编码器使用克制、统一的视觉样式。
+- 区分数据、模块和结果；识别文本、bbox 等结构化输出用可编辑文字表示。
+- 对比图保持方法标签、图片宽高、行列间距和局部裁剪的一致性。
+- bbox 与放大图准确对应，引线简洁、清晰。
+- 根据论文正文布局安排长宽比，保持图片比例。
+
+### 3. 预览与持续修改
+
+每张图对应一页网页 PPT，可以前后翻页，也可以在 Guide 中纵向查看整套图。文字、照片、模块、箭头和颜色均可分别调整。
+
+在网页中检查素材加载、文字大小、连线、边界框位置和整体留白。
+
+### 4. 导出论文文件
+
+从当前网页导出单张 PDF，按论文图的实际比例裁切，保留文字、框和箭头的矢量形式，并嵌入清晰照片。若有约 3 MB 等体积要求，在导出阶段调整照片编码质量，核对细节与文件大小。
+
+源码与素材用于继续编辑，PDF 用于论文排版，也可导出 PNG 或打包源码 ZIP。
 
 ## 开始使用
 
-### 1. 获取 Skill，指定目标工程
+让 AI 助手先阅读 [SKILL.md](SKILL.md)，然后给出目标图、素材和希望保留或修改的内容。
 
-将 Skill 克隆到固定位置，可以与课程工程分开放置：
-
-```bash
-git clone https://github.com/ReductTech/creator-skill.git creator-skill
-```
-
-仅讨论内容或查看帮助无需绑定工程。需要工程操作时，每个窗口使用 `context.create` 创建独立绑定，不共同改写一个“当前工程”：
-
-```powershell
-python <Skill>/scripts/tools.py context.create --target-root <工程绝对路径> --context-directory <当前窗口工作目录> [--module <课程UUID>]
-python <Skill>/scripts/tools.py --context <返回的target-root.json绝对路径> course.pack <课程目录>
-```
-
-旧的Skill根目录target-root.json仍兼容单窗口默认；新窗口不改它。绑定支持modules/<UUID>/与平铺<UUID>/布局。依赖安装意愿保存在本机账号的独立配置，只问一次，跨窗口共用；详见[本地环境与窗口](references/engineering/local-environment.md)。
-
-本仓库根目录已附带完整 `shared/`。初始化用户工程时，AI 助手可直接复制到目标的 `modules/shared/`（平铺布局用 `shared/`），保留风格 UUID；已有 Shared 则复用。详见[复制内置 Shared](references/engineering/module-assets.md#复制内置-shared)。
-
-预期位置如下：
+**规划整篇论文配图：**
 
 ```text
-your-course-project/
-├── creator-skill/          # 本仓库
-│   ├── SKILL.md
-│   ├── target-root.json    # 首次使用时创建，Git 忽略
-│   ├── references/
-│   ├── assets/
-│   ├── shared/             # 可直接复制给目标工程的完整默认风格包
-│   └── scripts/
+请先阅读 SKILL.md。
+
+根据我的论文草稿和 Method 技术说明，整理整篇论文需要的配图：
+包括 teaser、方法总览、关键模块、数据流程和定性对比。
+说明每张图要表达什么、有哪些子图、需要哪些素材，
+再将确认后的图绘制成可修改的 HTML / SVG 网页页面。
+```
+
+**复刻 PDF 中的图：**
+
+```text
+请先阅读 SKILL.md。
+
+将 ICTone_CR.pdf 的图1、图2、图3重绘为3页网页 PPT，
+保留原图的布局、配色和照片素材，
+文字、模块框、箭头与图例需要能够单独编辑。
+保存到 modules/ 下的新图组中。
+```
+
+**修改已有图并导出：**
+
+```text
+修改现有图组第2页：统一模块蓝色，放大方法名，
+让局部图的引线连接到对应 bbox，保留其他页面。
+检查网页后导出新的 method.pdf，文件约3 MB。
+```
+
+## 环境安装与网页预览
+
+本文所有命令均从 `creator-paper/` 根目录执行，文件路径均相对此目录。
+
+### 1. 安装 Node.js
+
+从 [Node.js 官方下载页](https://nodejs.org/en/download) 下载并安装 **Node.js 24 或更高版本**，安装包包含 npm。Windows 和 macOS 均使用各自系统的安装包。
+
+安装后重新打开终端，确认命令可用：
+
+```sh
+node --version
+npm --version
+```
+
+### 2. 安装项目依赖
+
+首次使用、尚未安装依赖时执行：
+
+```sh
+npm --prefix player-preview ci
+```
+
+已有依赖时直接启动。
+
+### 3. 启动网页预览
+
+```sh
+npm --prefix player-preview run dev -- --host 127.0.0.1 --port 5176 --strictPort
+```
+
+打开 **http://127.0.0.1:5176/**，保持终端运行；按 `Ctrl+C` 停止。
+
+上述命令适用于 Windows、macOS 和 Linux。若 PowerShell 限制运行 `npm.ps1`，可使用 `npm.cmd` 执行相同命令。
+
+预览配置保存在 `player-preview/.env.local`。
+
+## 已有图组：ICTone Figures 1–3
+
+图组目录：[modules/c4b8b8d8-17cc-4c49-b518-66b9524d5f76](modules/c4b8b8d8-17cc-4c49-b518-66b9524d5f76)。
+
+| 页面 | 内容 |
+| --- | --- |
+| 图1 | 8组色调迁移案例，24张独立照片 |
+| 图2 | 数据收集、归一化、预设应用及数据筛选 |
+| 图3 | 对比学习和偏好学习的两阶段训练 |
+
+素材映射和编辑入口见[该图组说明](modules/c4b8b8d8-17cc-4c49-b518-66b9524d5f76/README.md)。
+
+## 文件与编辑入口
+
+```text
+creator-paper/
+├── SKILL.md                   # 面向 AI 助手的论文图制作规范
+├── README.md                  # 项目说明、用法与本地预览
 ├── modules/
-│   ├── shared/             # 配套公共组件与播放器
-│   └── <课程UUID>/
-└── course-styles.json      # 风格登记（如有）
+│   ├── <图组UUID>/
+│   │   ├── outlines.json      # 图组及页面信息
+│   │   ├── <名称>Ppt.tsx      # 网页 PPT 入口
+│   │   ├── <名称>Guide.tsx    # 多页导览入口
+│   │   ├── pages/            # 各图独立的可编辑组件
+│   │   ├── assets/           # 照片、原始素材和来源记录
+│   │   └── figures.css       # 图组共用样式
+│   └── shared/               # 只读公共样式与播放器适配
+├── player-preview/           # 本地网页预览服务
+├── scripts/                  # 素材、检查与导出等辅助工具
+├── references/               # 底层接口与工程参考
+└── docs/                     # 原图参照、网页效果和必要记录
 ```
 
-### 2. 让 AI 助手读取 Skill
+通常在 `pages/` 修改当前图，在样式文件中调整字体和配色，在 `assets/` 管理独立图片。修改已有图时保持图组和页面 UUID 不变；新增图再生成新的页面 UUID。
 
-在能够读取工程文件、编写 React 代码并使用所需工具的 AI 编程助手中，明确指定入口：
+预览链接使用 `course=<图组UUID>` 和 `page=<页面UUID>` 分别定位图组和页面。
 
-```text
-请先阅读 creator-skill/SKILL.md，并按其中的流程开展创作。
+## 检查与交付
 
-我要制作一份面向大学低年级学生的交互演示，主题是“为什么需要梯度下降”。
-先和我讨论主线、大纲与逐页讲稿，再按确认后的设计实现页面。
-```
+检查素材引用、页面顺序、文字与图像完整性、字号、对齐、连线和画布边界，并进行类型检查与本地打包检查。
 
-继续修改已有课件时，可以这样描述：
+PDF 导出后检查页数、裁切、字体、图片细节和文件大小，按需交付 PDF、PNG 与源码包。
 
-```text
-请先阅读 creator-skill/SKILL.md。
-
-继续修改 modules/Your-Course：把第 3 页改成可以调节学习率的演示。
-先检查已有实现与依赖，保留其他页面，完成后检查真实渲染与交互。
-```
-
-### 3. 按需使用创作工具
-
-在配套课程工程根目录运行：
-
-下面命令以工程内安装为例；独立安装时，用 `tools.py` 的绝对路径调用。执行入口会自动切换到配置的目标工程；查看清单、工具描述和检查 Skill 文档不要求配置目标。
-
-```bash
-# 查看工具清单，不执行创作或上传任务
-python creator-skill/scripts/tools.py list
-
-# 查看截图工具的用途与依赖
-python creator-skill/scripts/tools.py describe capture.slides
-
-# 查看具体参数
-python creator-skill/scripts/tools.py capture.slides --help
-```
-
-工具覆盖模块初始化、资源检查、原稿提取、真实页面截图和布局校验等任务。详细参数与执行效果见[创作工具索引](references/tools.md)。
-
-### 4. 可选：开发者本地预览
-
-普通作者按环境启用本地检测：已有Node和相关依赖时默认执行静态、类型、本地构建及浏览器检查；缺依赖只问一次并保存安装意愿。Shuku仍独立复核入库、安全和正式发布。媒体处理依赖见[交付说明](references/engineering/delivery.md)。
-
-以下仅用于开发者主动选择本地预览。仓库附带 `player-preview/`，使用 Node.js 24+：
-
-```powershell
-cd player-preview
-npm ci --cache .npm-cache
-npm run build
-npm run dev
-```
-
-打开 [本地预览](http://127.0.0.1:5174/) 或 [播放器演示](http://127.0.0.1:5174/?demo=1)。课件预览复用根目录的 `target-root.json`，并需要 Shuku 的课程运行时。路径配置、目录与常见问题见 [Player Preview 使用说明](player-preview/README.md)。依赖、缓存和 `dist/` 已由 `.gitignore` 排除，源码与 `package-lock.json` 保留，用户自行构建。
-
-### 使用环境
-
-本仓库提供 **Skill、参考资料、辅助工具、默认 Shared 和本地播放器预览源码**；课程运行时和平台后端仍由 Shuku 提供。本地开发预览与官网上传发布分别执行。
-
-| 功能 | 所需环境 |
-| :--- | :--- |
-| 阅读与执行创作规范 | 支持工程文件读取与代码编辑的 AI 编程助手 |
-| 页面实现与预览 | Node.js 24+、Player Preview、目标课程工程与 Shuku 课程运行时 |
-| Python 辅助工具 | Python 3.10+；额外依赖按工具需要安装 |
-| 页面截图 | Python Playwright、Chromium 和 Pillow |
-| PPTX 原稿导出 | Windows 与桌面版 Microsoft PowerPoint |
-| 视觉设计图 | 当前 Skill 流程要求可用的 ImageGen 工具 |
-| AI 评阅或 GPU 实验 | 配套服务与配置，按页面功能接入 |
-
-截图依赖可以在宿主工程中按需安装：
-
-```bash
-python -m pip install -r creator-skill/scripts/requirements-capture.txt
-python -m playwright install chromium
-```
-
-## 仓库内容
-
-```text
-creator-skill/
-├── SKILL.md               # AI 助手的创作入口
-├── target-root.json       # 使用时创建的本地配置，不纳入 Git
-├── references/
-│   ├── workflow/          # 从零创作、参考改编与续作规则
-│   ├── design/            # 大纲、口播、视觉设计与习题
-│   ├── engineering/       # React 实现、资源与脚本约定
-│   ├── eval/              # 基础检查与按需评分
-│   ├── computing/         # AI 评阅与计算接入说明
-│   └── tools.md           # 工具发现与调用说明
-├── assets/visual_samples/ # 成对视觉正反例
-├── scripts/               # 工具、模板与回归测试
-├── shared/                # 完整默认风格包
-├── player-preview/        # 播放器与预览源码，使用者自行安装构建
-└── docs/                  # 对外展示与实际课件截图
-```
-
-## 文档导航
-
-| 我想做什么 | 从这里开始 |
-| :--- | :--- |
-| 让 AI 助手开始创作 | [Skill 入口](SKILL.md) |
-| 从一个主题开始制作 | [从零创作流程](references/workflow/from-scratch.md) |
-| 改编已有 PPT 或 PDF | [参考改编流程](references/workflow/reference-adaptation.md) |
-| 梳理主线、大纲与逐页讲稿 | [大纲设计](references/design/course-outline.md) · [口播写作](references/design/spoken-narration.md) |
-| 设计页面与交互 | [页面设计指导](references/design/design.md) · [视觉案例](assets/visual_samples/) |
-| 编写 React 页面、管理素材 | [工程实现](references/engineering/implementation.md) · [资源约定](references/engineering/module-assets.md) |
-| 检查实际页面 | [基础检查与验收](references/eval/checks.md) |
-| 本地预览课件、构建播放器 | [Player Preview](player-preview/README.md) |
-| 查找工具与参数 | [创作工具索引](references/tools.md) |
-
----
-
-<p align="center"><strong>从知识出发，让表达可以被体验。</strong></p>
-
-## 与术库的关系
-
-本仓库维护作者规范、辅助工具与测试。运行 `python scripts/module/package_course.py <目录>`，自动完成媒体压缩、可确定引用迁移、源码检查与普通 ZIP 交付；处理只发生在临时副本，原工程保留。图片用 Python/Pillow，引用迁移用 Python Tree-sitter，音视频另需 FFmpeg/ffprobe，按本地环境选择Node完整检测或Python补充。精简 stdout 指向完整转换与诊断报告，智能体按报告修复后重跑。本地先尽量检查与修复，Shuku仍独立校验、正式编译、生成缩略图并发布；平台工具与服务由 Shuku 自身维护。详见[源码 ZIP 交付](references/engineering/delivery.md)。
-
-逐页确认与每页 ImageGen 设计图是必需流程，见 [流程共用说明](references/workflow/common.md) 和 [页面设计指导](references/design/design.md)。
+**后续修改从可编辑网页源码继续，最终论文使用从最新网页导出的配图文件。**
