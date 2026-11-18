@@ -61,14 +61,16 @@ async function openCourse(id: string) {
 
 if (params.get('demo') === 'survey-template') {
   document.title = '标准问卷控件 · 本地预览';
-  import('./survey-template-demo').then(({SurveyTemplateDemo}) => root.render(<SurveyTemplateDemo />));
+  import('virtual:preview-survey-template').then(({SurveyTemplateDemo}) => root.render(SurveyTemplateDemo
+    ? <SurveyTemplateDemo />
+    : <main className="preview-status"><p>标准问卷模板需要配置 Shuku 源码。</p><a href="?demo=survey">打开独立问卷演示</a></main>));
 } else if (params.get('demo') === 'survey') {
   document.title = '问卷与调研 · 本地效果预览';
   import('./survey-demo').then(({SurveyDemo}) => root.render(<SurveyDemo />));
 } else if (params.has('demo')) {
   import('./demo').then(({Demo}) => root.render(<Demo />));
 } else if (params.has('course')) {
-  root.render(<p className="preview-status">正在加载课程…</p>);
+  root.render(<p className="preview-status" aria-busy="true">正在加载课程…</p>);
   openCourse(params.get('course')!).catch(error => root.render(<main className="preview-status" role="alert">
     <h1>课程加载失败</h1><p>{String(error.message || error)}</p><p>详细信息可查看终端和浏览器控制台。</p><a href="/">返回课程列表</a>
   </main>));

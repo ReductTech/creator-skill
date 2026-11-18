@@ -71,8 +71,12 @@ def test_every_catalog_help_and_python_import_work_without_a_target(tmp_path, is
 
 def test_typecheck_attributes_real_new_errors_and_missing_environment(tmp_path):
     runner = SCRIPTS / 'tests/typecheck_scaffold.mjs'
+    config = tmp_path / 'typecheck-target.json'
+    config.write_text(json.dumps({'targetRoot': str(SCRIPTS.parent / 'player-preview')}), encoding='utf-8')
+    env = {**os.environ, 'CREATOR_SKILL_TARGET_CONFIG': str(config)}
+    env.pop('CREATOR_SKILL_TEST_SHUKU_ROOT', None)
     result = subprocess.run(['node', str(runner)], input=json.dumps({'Broken.tsx': 'export const count: number = "wrong";'}),
-                            text=True, capture_output=True, timeout=60)
+                            env=env, text=True, capture_output=True, timeout=60)
     report = json.loads(result.stdout)
     assert result.returncode == 1 and report['status'] == 'failed'
     assert any(issue['code'] == 2322 for issue in report['newIssues'])

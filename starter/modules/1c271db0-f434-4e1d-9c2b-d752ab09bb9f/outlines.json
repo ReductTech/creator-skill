@@ -1,0 +1,12 @@
+{
+  "id": "1c271db0-f434-4e1d-9c2b-d752ab09bb9f",
+  "title": "放大如何改变长度和面积",
+  "description": "拖动滑杆，对照同一个正方形的边长和面积。",
+  "path": "/modules/1c271db0-f434-4e1d-9c2b-d752ab09bb9f",
+  "moduleIdentity": {"version": 1, "id": "1c271db0-f434-4e1d-9c2b-d752ab09bb9f"},
+  "ppt": {"entry": "StarterPpt.tsx"},
+  "pages": [
+    {"id": "6c47e6e0-5aa9-4de0-8ab4-d65009c27185", "title": "放大如何改变长度和面积", "snippet": "同一个图形放大两倍时，面积会变成几倍？"},
+    {"id": "3038844d-94cf-4d7f-9581-a4236055b8f8", "title": "动手调整放大倍数", "snippet": "先把倍数调到二。观察边长和面积分别是初始值的多少倍。"}
+  ]
+}

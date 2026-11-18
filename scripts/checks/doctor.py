@@ -14,12 +14,13 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import SCRIPTS, get_target_root, modules_directory, emit_result, report_error
+from _common import SCRIPTS, TARGET_ROOT_CONFIG, get_target_root, modules_directory, emit_result, report_error
 
 ROOT = None
 
 GROUPS = {
     "core": [],
+    "preview": [],
     "capture": ["playwright", "PIL"],
     "upload": ["oss2"],
     "skill": ["yaml"],
@@ -49,7 +50,10 @@ def build_parser() -> argparse.ArgumentParser:
 def diagnose(group: str, tool: str | None = None) -> list[dict]:
     """Return dependency availability without importing optional packages or models."""
     path_tools = {'course.pack', 'course.discover', 'course.inspect', 'course.images', 'course.videos', 'course.audio'}
-    root = None if tool in path_tools else ROOT or get_target_root()
+    root = None
+    if tool not in path_tools and (group != "preview" or tool is not None):
+        if ROOT is not None or os.environ.get("CREATOR_SKILL_TARGET_CONFIG") or TARGET_ROOT_CONFIG.exists():
+            root = ROOT or get_target_root()
     groups = (
         list(GROUPS)
         if group == "all"
@@ -64,6 +68,23 @@ def diagnose(group: str, tool: str | None = None) -> list[dict]:
     ]
     if root is not None:
         checks.append({"name": "repository modules", "available": modules_directory(root).is_dir()})
+    if "preview" in groups:
+        node = shutil.which("node")
+        version, supported = "not found", False
+        if node:
+            try:
+                result = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=10, check=True)
+                version = result.stdout.strip()
+                supported = int(version.removeprefix("v").split(".", 1)[0]) >= 24
+            except (OSError, ValueError, subprocess.SubprocessError):
+                version = "version check failed"
+        checks.extend([
+            {"name": "Node.js >= 24", "available": supported, "detail": version},
+            {"name": "npm", "available": bool(shutil.which("npm"))},
+            {"name": "Player Preview dependencies",
+             "available": (SCRIPTS.parent / "player-preview/node_modules/vite/package.json").is_file(),
+             "optional": True, "detail": "npm run setup"},
+        ])
     packages = {name for key in groups for name in GROUPS[key]}
     if tool:
         from tools import catalog

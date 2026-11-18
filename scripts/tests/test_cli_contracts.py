@@ -189,3 +189,19 @@ def test_doctor_checks_node_as_an_executable(monkeypatch):
     checks = doctor.diagnose("core", "analyze.pages")
     assert next(item for item in checks if item["name"] == "Node")["available"]
     assert not any(item["name"] == "node" for item in checks)
+
+
+def test_preview_doctor_probes_node_without_a_target(tmp_path, monkeypatch):
+    from checks import doctor
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(doctor, "TARGET_ROOT_CONFIG", tmp_path / "target-root.json")
+    monkeypatch.delenv("CREATOR_SKILL_TARGET_CONFIG", raising=False)
+    assert all(item["available"] for item in doctor.diagnose("core"))
+    monkeypatch.setenv("CREATOR_SKILL_TARGET_CONFIG", str(tmp_path / "absent.json"))
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: name)
+    monkeypatch.setattr(doctor.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(stdout="v22.1.0"))
+    result = {item["name"]: item for item in doctor.diagnose("preview")}
+    assert not result["Node.js >= 24"]["available"]
+    assert result["npm"]["available"]
+    assert result["Player Preview dependencies"]["optional"]

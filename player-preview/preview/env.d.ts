@@ -38,3 +38,6 @@ declare module '@preview/survey-example' {
   export const surveyExampleDefinition: PreviewDefinition;
   export const SurveyExample: ComponentType<{onSubmit?: (answers: Record<string, unknown>) => void}>;
 }
+declare module 'virtual:preview-survey-template' {
+  export const SurveyTemplateDemo: import('react').ComponentType | undefined;
+}

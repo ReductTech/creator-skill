@@ -77,6 +77,28 @@
 
 ## 开始使用
 
+下载并解压仓库，或用 Git 克隆。安装 Node.js 24+ 后，在仓库根目录运行：
+
+```bash
+npm run setup
+npm start -- --demo
+```
+
+打开终端显示的地址，选择「播放课件」，就能在浏览器中操作入门课件。首次安装需要访问 npm。基本课件的创作与本地预览可以独立使用。Python 3.10+ 用于智能体调用检查和打包工具。
+
+把下面这段复制给有本地文件和终端权限的 AI 助手：
+
+> 请读取 Creator Skill 仓库根目录的 `SKILL.md`。帮我在一个新目录里创建可编辑的课件工程，并在本地打开预览。先告诉我示例是否跑通，再等我提供主题、PPT 或 PDF。
+
+也可以在仓库根目录自行创建和启动工程：
+
+```bash
+npm run new -- ../my-course
+npm start -- --project ../my-course
+```
+
+工程里的 `modules/<课程UUID>/pages/` 存放可编辑的 React 页面。试着修改 `ScalePage.tsx` 中的滑杆参数，保存后浏览器会自动刷新。
+
 ### 1. 获取 Skill，指定目标工程
 
 将 Skill 克隆到固定位置，可以与课程工程分开放置：
@@ -152,33 +174,30 @@ python creator-skill/scripts/tools.py capture.slides --help
 
 工具覆盖模块初始化、资源检查、原稿提取、真实页面截图和布局校验等任务。详细参数与执行效果见[创作工具索引](references/tools.md)。
 
-### 4. 可选：开发者本地预览
+### 4. 预览已有工程
 
 普通作者按环境启用本地检测：已有Node和相关依赖时默认执行静态、类型、本地构建及浏览器检查；缺依赖只问一次并保存安装意愿。Shuku仍独立复核入库、安全和正式发布。媒体处理依赖见[交付说明](references/engineering/delivery.md)。
 
-以下仅用于开发者主动选择本地预览。仓库附带 `player-preview/`，使用 Node.js 24+：
+智能体可使用当前窗口的配置启动预览，从课程列表打开对应课件：
 
 ```powershell
-cd player-preview
-npm ci --cache .npm-cache
-npm run build
-npm run dev
+npm start -- --context "<context.create 返回的绝对配置路径>"
 ```
 
-打开 [本地预览](http://127.0.0.1:5174/) 或 [播放器演示](http://127.0.0.1:5174/?demo=1)。课件预览复用根目录的 `target-root.json`，并需要 Shuku 的课程运行时。路径配置、目录与常见问题见 [Player Preview 使用说明](player-preview/README.md)。依赖、缓存和 `dist/` 已由 `.gitignore` 排除，源码与 `package-lock.json` 保留，用户自行构建。
+服务地址以终端输出为准。术库宿主服务与正式构建的配置见 [Player Preview 使用说明](player-preview/README.md)和[源码 ZIP 交付](references/engineering/delivery.md)。
 
 ### 使用环境
 
-本仓库提供 **Skill、参考资料、辅助工具、默认 Shared 和本地播放器预览源码**；课程运行时和平台后端仍由 Shuku 提供。本地开发预览与官网上传发布分别执行。
+本仓库提供 Skill、参考资料、辅助工具、默认 Shared、入门课件和独立本地预览。平台专属能力由术库提供。
 
 | 功能 | 所需环境 |
 | :--- | :--- |
 | 阅读与执行创作规范 | 支持工程文件读取与代码编辑的 AI 编程助手 |
-| 页面实现与预览 | Node.js 24+、Player Preview、目标课程工程与 Shuku 课程运行时 |
+| 页面实现与预览 | Node.js 24+ 和仓库自带的 Player Preview |
 | Python 辅助工具 | Python 3.10+；额外依赖按工具需要安装 |
 | 页面截图 | Python Playwright、Chromium 和 Pillow |
 | PPTX 原稿导出 | Windows 与桌面版 Microsoft PowerPoint |
-| 视觉设计图 | 当前 Skill 流程要求可用的 ImageGen 工具 |
+| 视觉设计图 | 优先使用助手可调用的生图工具，详见[页面设计指导](references/design/design.md#视觉设计图的工具约束) |
 | AI 评阅或 GPU 实验 | 配套服务与配置，按页面功能接入 |
 
 截图依赖可以在宿主工程中按需安装：
@@ -205,6 +224,7 @@ creator-skill/
 ├── scripts/               # 工具、模板与回归测试
 ├── shared/                # 完整默认风格包
 ├── player-preview/        # 播放器与预览源码，使用者自行安装构建
+├── starter/               # 入门课件，也是新建工程的模板
 └── docs/                  # 对外展示与实际课件截图
 ```
 
@@ -230,4 +250,4 @@ creator-skill/
 
 本仓库维护作者规范、辅助工具与测试。运行 `python scripts/module/package_course.py <目录>`，自动完成媒体压缩、可确定引用迁移、源码检查与普通 ZIP 交付；处理只发生在临时副本，原工程保留。图片用 Python/Pillow，引用迁移用 Python Tree-sitter，音视频另需 FFmpeg/ffprobe，按本地环境选择Node完整检测或Python补充。精简 stdout 指向完整转换与诊断报告，智能体按报告修复后重跑。本地先尽量检查与修复，Shuku仍独立校验、正式编译、生成缩略图并发布；平台工具与服务由 Shuku 自身维护。详见[源码 ZIP 交付](references/engineering/delivery.md)。
 
-逐页确认与每页 ImageGen 设计图是必需流程，见 [流程共用说明](references/workflow/common.md) 和 [页面设计指导](references/design/design.md)。
+默认逐页确认设计和验收，用户可以授权跳过或集中验收。确认范围与生图不可用时的替代流程见[流程共用说明](references/workflow/common.md)和[页面设计指导](references/design/design.md)。

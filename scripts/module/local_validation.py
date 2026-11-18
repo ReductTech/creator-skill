@@ -48,6 +48,7 @@ const locations=JSON.parse(process.argv[1]);
 function has(names, dirs){return dirs.some(dir=>{try{const r=createRequire(path.join(dir,'package.json'));for(const n of names)r.resolve(n);return true;}catch{return false;}})}
 console.log(JSON.stringify({supported:Number(process.versions.node.split('.')[0])>=24,
 typescript:has(['typescript'],locations),babel:has(['@babel/parser'],[locations[0]]),
+preview:has(['vite','@vitejs/plugin-react','@tailwindcss/vite','react','react-dom'],[locations[0]]),
 builder:has(['vite','typescript','react','react-dom','@vitejs/plugin-react','@tailwindcss/vite'],[locations[1]])}));"""
         probe = run_command([node, '-e', script, json.dumps([str(SKILL/'player-preview'), str(shuku/'tooling/course-build')])],
                             cwd=SKILL, env=os.environ.copy(), timeout=15)['result']
@@ -65,7 +66,8 @@ builder:has(['vite','typescript','react','react-dom','@vitejs/plugin-react','@ta
                 ('PROGRAMFILES(X86)', 'Microsoft/Edge/Application/msedge.exe')))
         except (OSError, RuntimeError):
             pass
-    available = {'node': node_ok, 'typescript': node_ok and typescript,
+    preview = node_ok and bool(probe.get('preview')) and (SKILL/'player-preview/scripts/start.mjs').is_file()
+    available = {'node': node_ok, 'typescript': node_ok and typescript, 'preview': preview,
                  'babel': node_ok and babel, 'runtime': runtime,
                  'build': node_ok and builder and runtime,
                  'browser': browser and package_available('PIL'),
@@ -76,7 +78,7 @@ builder:has(['vite','typescript','react','react-dom','@vitejs/plugin-react','@ta
     missing = []
     if (buildable or images) and not available['pillow']: missing.append('python-images')
     if buildable and not node_ok: missing.append('node')
-    elif buildable and (not typescript or not babel): missing.append('preview-packages')
+    elif buildable and (not typescript or not babel or (not runtime and not preview)): missing.append('preview-packages')
     if buildable:
         if runtime and node_ok and not builder: missing.append('builder-packages')
         if not available['browser']: missing.append('browser')
@@ -215,6 +217,10 @@ def local_checks(files, directory, capability, evidence, *, shared=None, actions
         if not available['build']:
             results.append({'check':module+'/build','status':'unverified','reason':'构建依赖或Shuku运行时不可用'})
             results.append({'check':module+'/browser','status':'unverified','reason':'没有本次副本的构建产物'})
+            if available.get('preview') and available['browser']:
+                execute(module+'/standalone-preview', [sys.executable, SKILL/'scripts/checks/check_standalone_preview.py',
+                    '--project',root,'--module',module,'--evidence',evidence/'standalone'/module,
+                    '--node',capability['node']], blocking=False)
             continue
         build_output = evidence/'build'
         status, _ = execute(module+'/build',[capability['node'],Path(capability['shukuRoot'])/'tooling/course-build/scripts/build.mjs','--module',module],
@@ -251,6 +257,8 @@ def local_checks(files, directory, capability, evidence, *, shared=None, actions
     results=permanent(results)
     build_checks=[r for r in results if r['check'].endswith('/build')]
     browser_checks=[r for r in results if r['check'].endswith(('/browser','/guide-browser'))]
+    preview_checks=[r for r in results if r['check'].endswith('/standalone-preview')]
     return {name:root/name for name in files}, {'checks':results,'issues':issues,'evidenceDirectory':str(evidence),
             'coverage':{'localBuild':bool(build_checks) and all(r['status']=='passed' for r in build_checks),
-                        'rendering':bool(browser_checks) and all(r['status']=='passed' for r in browser_checks)}}
+                        'rendering':bool(browser_checks) and all(r['status']=='passed' for r in browser_checks),
+                        'standaloneRendering':bool(preview_checks) and all(r['status']=='passed' for r in preview_checks)}}

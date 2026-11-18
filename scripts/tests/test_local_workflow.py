@@ -171,3 +171,26 @@ def test_recorded_browser_errors_block_instead_of_becoming_environment_warnings(
     staging=tmp_path/'stage';staging.mkdir()
     _,report=local_validation.local_checks(files,staging,cap,tmp_path/'evidence')
     assert any(i['blocking'] and i['path'].endswith('guide-browser') for i in report['issues'])
+
+
+def test_standalone_preview_checks_staged_source_without_claiming_a_platform_build(tmp_path, monkeypatch):
+    from module import local_validation
+
+    course_module = course(tmp_path / 'source')
+    prefix = 'modules/' + course_module.name
+    files = {prefix + '/' + file.name: file for file in course_module.iterdir() if file.is_file()}
+    capability_with_preview = capability(preview=True, browser=True)
+    capability_with_preview['node'] = 'node'
+    staging = tmp_path / 'stage'
+    staging.mkdir()
+
+    def run(command, **kwargs):
+        if any('check_standalone_preview.py' in str(arg) for arg in command):
+            project = Path(command[command.index('--project') + 1])
+            assert project == staging / 'checked-source'
+            assert (project / prefix / 'outlines.json').is_file()
+        return {'exitCode': 0, 'result': {}, 'log': None}
+
+    monkeypatch.setattr(local_validation, 'run_command', run)
+    _, report = local_validation.local_checks(files, staging, capability_with_preview, tmp_path / 'evidence')
+    assert report['coverage'] == {'localBuild': False, 'rendering': False, 'standaloneRendering': True}

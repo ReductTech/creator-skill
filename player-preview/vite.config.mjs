@@ -12,7 +12,14 @@ export default defineConfig(({mode}) => {
   const env = {...loadEnv(mode, root, ''), ...process.env};
   const targetConfig = path.resolve(root, env.CREATOR_SKILL_TARGET_CONFIG || '../target-root.json');
   let targetRoot;
-  if (fs.existsSync(targetConfig)) {
+  if (env.CREATOR_SKILL_DEMO === '1') {
+    targetRoot = path.resolve(root, '../starter');
+  } else if (env.CREATOR_SKILL_PROJECT_ROOT) {
+    targetRoot = path.resolve(env.CREATOR_SKILL_PROJECT_ROOT);
+    if (!fs.statSync(targetRoot, {throwIfNoEntry: false})?.isDirectory()) {
+      throw Error(`预览工程目录不存在：${targetRoot}`);
+    }
+  } else if (fs.existsSync(targetConfig)) {
     const config = JSON.parse(fs.readFileSync(targetConfig, 'utf8').replace(/^\uFEFF/, ''));
     if (!config || Object.keys(config).length !== 1 || typeof config.targetRoot !== 'string' ||
         !path.isAbsolute(config.targetRoot) || !fs.statSync(config.targetRoot).isDirectory()) {
@@ -22,15 +29,23 @@ export default defineConfig(({mode}) => {
   } else if (env.CREATOR_SKILL_TARGET_CONFIG) {
     throw Error(`找不到指定的目标配置：${targetConfig}`);
   }
+  targetRoot ??= path.resolve(root, '../starter');
   const coursesRoot = targetRoot && (fs.existsSync(path.join(targetRoot, 'modules')) ? path.join(targetRoot, 'modules') : targetRoot);
   const shukuRoot = path.resolve(root, env.SHUKU_ROOT || '../../Shuku');
-  const runtime = path.join(shukuRoot, 'packages/course-runtime');
+  const platformRuntime = path.join(shukuRoot, 'packages/course-runtime');
+  const standalone = env.CREATOR_SKILL_STANDALONE === '1';
+  const platformAvailable = !standalone && fs.existsSync(path.join(platformRuntime, 'react/index.ts'));
+  if (!standalone && env.SHUKU_ROOT && !platformAvailable) {
+    throw Error(`未找到指定的 Shuku 课程运行时：${platformRuntime}`);
+  }
+  const runtime = platformAvailable ? platformRuntime : path.join(root, 'runtime');
+  const platformStyle = path.join(shukuRoot, 'packages/course-styles/default');
+  const surveyTemplate = path.join(platformStyle, 'react/learning/SurveyTemplate.tsx');
+  const surveyExample = path.join(platformStyle, 'examples/survey/SurveyExample.tsx');
+  const hasPlatformSurvey = !standalone && fs.existsSync(surveyTemplate) && fs.existsSync(surveyExample);
   const style = coursesRoot && fs.existsSync(path.join(coursesRoot, 'shared/style.json'))
     ? path.join(coursesRoot, 'shared') : path.resolve(root, '../shared');
   const courses = coursesRoot ? readCourses(coursesRoot) : [];
-  if (courses.length && !fs.existsSync(path.join(runtime, 'react/index.ts'))) {
-    throw Error(`未找到 Shuku 课程运行时：${runtime}。请在 player-preview/.env.local 设置 SHUKU_ROOT。`);
-  }
   const localPlayer = normalizePath(path.join(root, 'src/index.ts'));
   const runtimeReact = normalizePath(path.join(style, 'react'));
   const sharedRoot = normalizePath(style);
@@ -56,6 +71,10 @@ export default defineConfig(({mode}) => {
       }
     },
     load(id) {
+      if (id === '\0virtual:preview-survey-template') {
+        if (!hasPlatformSurvey) return 'export const SurveyTemplateDemo = undefined;';
+        return `export {SurveyTemplateDemo} from ${JSON.stringify(normalizePath(path.join(root, 'preview/survey-template-demo.tsx')))};`;
+      }
       if (id === '\0virtual:preview-catalog') return `export default ${JSON.stringify(courses.map(({directory, ...course}) => course))};`;
       if (id === '\0preview-documents') {
         const creator = courses.find(course => course.alias === 'creator-guide');
@@ -108,14 +127,16 @@ export default defineConfig(({mode}) => {
   };
   return {
     root, envDir: root, publicDir: false,
-    cacheDir: path.join(root, 'node_modules/.vite'),
+    cacheDir: env.CREATOR_SKILL_PREVIEW_CACHE || path.join(root, 'node_modules/.vite'),
     plugins: [plugin, react(), tailwind()],
     resolve: {
       dedupe: ['react', 'react-dom', 'lucide-react'],
       alias: [
-        {find: '@preview/survey-template', replacement: normalizePath(path.join(shukuRoot, 'packages/course-styles/default/react/learning/SurveyTemplate.tsx'))},
-        {find: '@preview/survey-example', replacement: normalizePath(path.join(shukuRoot, 'packages/course-styles/default/examples/survey/SurveyExample.tsx'))},
-        {find: '@shuku/course-runtime', replacement: normalizePath(runtime)},
+        {find: '@preview/survey-template', replacement: normalizePath(surveyTemplate)},
+        {find: '@preview/survey-example', replacement: normalizePath(surveyExample)},
+        platformAvailable
+          ? {find: '@shuku/course-runtime', replacement: normalizePath(runtime)}
+          : {find: /^@shuku\/course-runtime(?:\/react(?:\/.*)?)?$/, replacement: normalizePath(path.join(runtime, 'local.tsx'))},
         {find: '@shuku/course-style', replacement: normalizePath(style)},
         {find: '@shuku/player', replacement: localPlayer},
         {find: '@preview/runtime', replacement: runtimeReact + '/presentation/index.ts'},

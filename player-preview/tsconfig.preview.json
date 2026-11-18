@@ -4,5 +4,5 @@
     "rootDir": ".", "noEmit": true, "declaration": false,
     "emitDeclarationOnly": false
   },
-  "include": ["src", "preview"]
+  "include": ["src", "preview", "runtime"]
 }
