@@ -17,6 +17,16 @@ SKIP = {'.git', 'node_modules', 'dist', '__pycache__', '_scratchpad',
         '.pytest_cache', '.venv', 'creator-skill'}
 
 
+def check_evidence_directory(target, output):
+    """Keep package checks under the selected source target, away from module siblings."""
+    scratch = Path(target).expanduser().resolve() / '_scratchpad'
+    checks = scratch / 'package-checks'
+    for directory in (scratch, checks):
+        if (directory.exists() or directory.is_symlink()) and linked(directory):
+            raise ValueError('Check evidence directory cannot be a link/junction: ' + str(directory))
+    return checks / output.stem
+
+
 def default_output(directories):
     """Place the package beside the selected modules, without an output argument."""
     roots = [Path(p).expanduser().absolute().resolve() for p in directories]
@@ -34,7 +44,7 @@ def default_output(directories):
     else:
         candidate = first.with_name(first.name + '.zip')
     original, number = candidate, 2
-    while (candidate.exists() or candidate.is_symlink() or candidate.with_suffix('.lock').exists() or candidate.with_suffix('.checks').exists() or candidate.with_suffix('.report.json').exists()
+    while (candidate.exists() or candidate.is_symlink() or candidate.with_suffix('.lock').exists() or check_evidence_directory(first, candidate).exists() or candidate.with_suffix('.report.json').exists()
            or candidate.with_suffix('.report.md').exists()):
         candidate = original.with_name(original.stem + '-' + str(number) + '.zip')
         number += 1

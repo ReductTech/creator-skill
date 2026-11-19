@@ -169,6 +169,8 @@ def local_checks(files, directory, capability, evidence, *, shared=None, actions
     available = capability['available']
     modules = [name.split('/')[1] for name in files if name.count('/')==2 and name.endswith('/outlines.json')]
     evidence.mkdir(parents=True, exist_ok=False)
+    # Shuku validates every segment of build output paths, including their parents.
+    build_output = directory/'build'
 
     def execute(name, command, *, blocking=True, extra_env=None):
         try:
@@ -236,7 +238,6 @@ def local_checks(files, directory, capability, evidence, *, shared=None, actions
                     '--project',root,'--module',module,'--evidence',evidence/'standalone'/module,
                     '--node',capability['node']], blocking=False)
             continue
-        build_output = evidence/'build'
         status, _ = execute(module+'/build',[capability['node'],Path(capability['shukuRoot'])/'tooling/course-build/scripts/build.mjs','--module',module],
             extra_env={'SHUKU_COURSE_SOURCE':str(root),'SHUKU_COURSE_OUTPUT':str(build_output)})
         source_editing(module, build_output if status == 'passed' else None)
@@ -255,6 +256,8 @@ def local_checks(files, directory, capability, evidence, *, shared=None, actions
             execute(module+'/guide-browser',[sys.executable,SKILL/'scripts/checks/check_guide.py','--module',module,'--build-output',build_output])
             if not doc.get('ppt',{}).get('entry'):
                 results.append({'check':module+'/interactions','status':'unverified','reason':'Guide已检查首屏；课程专属操作和滚动完成条件仍待验证'})
+    if build_output.is_dir():
+        shutil.move(build_output, evidence/'build')
     # Keep screenshots/source-local check reports after TemporaryDirectory is removed.
     for module in modules:
         scratch = root/'modules'/module/'_scratchpad'
@@ -265,7 +268,7 @@ def local_checks(files, directory, capability, evidence, *, shared=None, actions
                 scratch=str(root/'modules'/module/'_scratchpad')
                 if value.startswith(scratch):
                     return str(evidence/'pages'/module)+value[len(scratch):]
-            return value.replace(str(root)+os.sep,'')
+            return value.replace(str(root)+os.sep, '').replace(str(build_output), str(evidence/'build'))
         if isinstance(value,list):return [permanent(item) for item in value]
         if isinstance(value,dict):return {key:permanent(item) for key,item in value.items()}
         return value

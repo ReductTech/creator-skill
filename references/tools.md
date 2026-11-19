@@ -34,7 +34,7 @@ GPU导出、训练、绿幕和素材上传保留独立入口，按任务授权�
 
 stdout为JSON、进度写stderr；course.pack输出精简报告与完整报告路径。结果区分passed、failed、unverified、not-applicable。普通工具退出0为覆盖范围内成功、1为检查失败、2为执行错误；course.pack另用3表示等待首次回答或补齐已授权依赖。严重错误阻止出包；已保存的安装意愿不因失败、重试、新窗口或新增依赖再次询问。
 
-截图细节见[截图工具](tool-capture.md)。指定--actions只执行已授权操作；无操作清单不把默认截图标作交互已验证。检查截图放所属页/模块_scratchpad；自动打包将证据保存在同级.checks/。正式缩略图位于课程自己的assets/shuku-thumbnails/<页面UUID>.webp，1600×900、q20。
+截图细节见[截图工具](tool-capture.md)。指定--actions只执行已授权操作；无操作清单不把默认截图标作交互已验证。检查截图放所属页/模块_scratchpad；自动打包将证据保存在所选目标的 `_scratchpad/package-checks/` 内。正式缩略图位于课程自己的assets/shuku-thumbnails/<页面UUID>.webp，1600×900、q20。
 
 ## 工具回归
 

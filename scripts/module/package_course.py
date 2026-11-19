@@ -17,7 +17,7 @@ from contextlib import contextmanager
 
 sys.path[:0] = [str(Path(__file__).resolve().parents[1]), str(Path(__file__).resolve().parents[1] / 'common')]
 from skzip import digest
-from module.source_inputs import default_output
+from module.source_inputs import check_evidence_directory, default_output
 from module.source_checks import inspect_collection
 from module.source_prepare import prepare_images
 from module.source_media import prepare_media
@@ -149,7 +149,8 @@ def _export_source(directories, output, *, ffmpeg, ffprobe, checks, context, shu
             files, _ = prepare_images(files, Path(temporary))
             if capability:
                 stage, stage_started = 'local-checks', time.monotonic()
-                files, report['localChecks'] = local_checks(files,Path(temporary),capability,output.with_suffix('.checks'),shared=source_shared,actions=actions)
+                evidence = check_evidence_directory(directories[0], output)
+                files, report['localChecks'] = local_checks(files, Path(temporary), capability, evidence, shared=source_shared, actions=actions)
                 for item in report['localChecks']['issues']:
                     report['issues']['serious' if item.get('blocking') else 'warnings'].append(item)
                 report['coverage'].update(localBuild=report['localChecks']['coverage']['localBuild'], rendering=report['localChecks']['coverage']['rendering'])
