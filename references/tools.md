@@ -17,6 +17,7 @@
 | 检查并交付 | `course.pack <目录>`，自动调度媒体、引用、可用本地检查与归档；[交付](engineering/delivery.md) |
 | 完整引用迁移 | `assets.rewrite`，Node+TypeScript；自动打包优先复用其规划器，直接调用默认预览、--apply改原源码 |
 | 编辑ID | `module.edit-ids`，Node+Babel；打包时在副本补齐并检查，保留已有ID，原Shared只读 |
+| 可视化编辑兼容 | `check.source-editing --project <工程> --module <UUID> --shuku-root <Shuku> --build-output <构建输出>`；复用实际编辑器、内存替换与隔离 iframe，缺少条件标记未验证；详见[验收规则](eval/checks.md#shuku-可视化编辑兼容性验收) |
 | 资源导入、样式 | `check.asset-imports`、`check.styles`，Node |
 | 页面统计 | `analyze.pages`，Node+numpy+Pillow；源码近似统计，不证明当前渲染 |
 | 图片、资源清单 | `assets.compress`、`assets.inspect`；图片用Pillow；原地压缩按[迁移说明](engineering/asset-paths.md)收尾 |

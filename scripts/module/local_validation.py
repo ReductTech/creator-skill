@@ -189,6 +189,18 @@ def local_checks(files, directory, capability, evidence, *, shared=None, actions
             issues.append({'code':'LOCAL_CHECK_UNVERIFIED','path':name,'message':str(error),'blocking':False})
             return 'unverified', {}
 
+    def source_editing(module, build_output=None):
+        command = [sys.executable, SKILL/'scripts/checks/check_source_editing.py',
+                   '--project', root, '--module', module,
+                   '--evidence', evidence/'source-editing'/module]
+        if capability.get('shukuRoot'):
+            command.extend(['--shuku-root', capability['shukuRoot']])
+        if build_output is not None:
+            command.extend(['--build-output', build_output])
+        if not available['browser']:
+            command.append('--skip-browser')
+        return execute(module+'/source-editing', command)
+
     for module in modules:
         doc = json.loads((root/'modules'/module/'outlines.json').read_text(encoding='utf-8-sig'))
         execute(module+'/metadata',[sys.executable,SKILL/'scripts/checks/validate_module.py','--module',module])
@@ -209,12 +221,14 @@ def local_checks(files, directory, capability, evidence, *, shared=None, actions
         buildable = bool(doc.get('entry') or doc.get('ppt',{}).get('entry'))
         if not buildable:
             results.append({'check':module+'/build-and-browser','status':'not-applicable','reason':'只有大纲，没有实现入口'})
+            results.append({'check':module+'/source-editing','status':'not-applicable','reason':'只有大纲，没有可编辑的实现页面'})
             continue
         if available['typescript'] and available['runtime']:
             execute(module+'/typecheck',[capability['node'],SKILL/'scripts/checks/typecheck_course.mjs',str(root),module,capability['shukuRoot']])
         else:
             results.append({'check':module+'/typecheck','status':'unverified','reason':'缺少TypeScript或对应课程运行时'})
         if not available['build']:
+            source_editing(module)
             results.append({'check':module+'/build','status':'unverified','reason':'构建依赖或Shuku运行时不可用'})
             results.append({'check':module+'/browser','status':'unverified','reason':'没有本次副本的构建产物'})
             if available.get('preview') and available['browser']:
@@ -225,6 +239,7 @@ def local_checks(files, directory, capability, evidence, *, shared=None, actions
         build_output = evidence/'build'
         status, _ = execute(module+'/build',[capability['node'],Path(capability['shukuRoot'])/'tooling/course-build/scripts/build.mjs','--module',module],
             extra_env={'SHUKU_COURSE_SOURCE':str(root),'SHUKU_COURSE_OUTPUT':str(build_output)})
+        source_editing(module, build_output if status == 'passed' else None)
         if status != 'passed' or not available['browser']:
             results.append({'check':module+'/browser','status':'unverified','reason':'构建未通过或浏览器依赖不可用'})
             continue
@@ -258,7 +273,9 @@ def local_checks(files, directory, capability, evidence, *, shared=None, actions
     build_checks=[r for r in results if r['check'].endswith('/build')]
     browser_checks=[r for r in results if r['check'].endswith(('/browser','/guide-browser'))]
     preview_checks=[r for r in results if r['check'].endswith('/standalone-preview')]
+    editing_checks=[r for r in results if r['check'].endswith('/source-editing') and r['status']!='not-applicable']
     return {name:root/name for name in files}, {'checks':results,'issues':issues,'evidenceDirectory':str(evidence),
             'coverage':{'localBuild':bool(build_checks) and all(r['status']=='passed' for r in build_checks),
                         'rendering':bool(browser_checks) and all(r['status']=='passed' for r in browser_checks),
-                        'standaloneRendering':bool(preview_checks) and all(r['status']=='passed' for r in preview_checks)}}
+                        'standaloneRendering':bool(preview_checks) and all(r['status']=='passed' for r in preview_checks),
+                        'sourceEditing':bool(editing_checks) and all(r['status']=='passed' and r.get('result',{}).get('coverage',{}).get('sourceEditing') is True for r in editing_checks)}}

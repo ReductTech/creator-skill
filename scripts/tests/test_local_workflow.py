@@ -193,4 +193,4 @@ def test_standalone_preview_checks_staged_source_without_claiming_a_platform_bui
 
     monkeypatch.setattr(local_validation, 'run_command', run)
     _, report = local_validation.local_checks(files, staging, capability_with_preview, tmp_path / 'evidence')
-    assert report['coverage'] == {'localBuild': False, 'rendering': False, 'standaloneRendering': True}
+    assert report['coverage'] == {'localBuild': False, 'rendering': False, 'standaloneRendering': True, 'sourceEditing': False}

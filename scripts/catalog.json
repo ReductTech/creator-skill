@@ -122,6 +122,16 @@
       "arguments": []
     },
     {
+      "id": "check.source-editing",
+      "category": "checks",
+      "path": "scripts/checks/check_source_editing.py",
+      "runtime": "python",
+      "description": "检查 Shuku 实际可视化编辑能力、内存替换往返与 iframe 选中",
+      "effects": "只读课程源码和本次构建；替换仅在内存；隔离浏览器；可写指定证据目录；缺少运行时或浏览器标记未验证；不上传、不发布",
+      "dependencies": [],
+      "arguments": []
+    },
+    {
       "id": "check.skill",
       "category": "maintenance",
       "path": "scripts/checks/validate_skill.py",
