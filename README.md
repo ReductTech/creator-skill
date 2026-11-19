@@ -210,7 +210,7 @@ npm start -- --context "<context.create 返回的绝对配置路径>"
 | Python 辅助工具 | Python 3.10+；额外依赖按工具需要安装 |
 | 页面截图 | Python Playwright、Chromium 和 Pillow |
 | PPTX 原稿导出 | Windows 与桌面版 Microsoft PowerPoint |
-| 视觉设计图 | 优先使用助手可调用的生图工具，详见[页面设计指导](references/design/design.md#视觉设计图的工具约束) |
+| 视觉设计图 | 优先使用助手可调用的生图工具，仅以当页标题为内容输入，禁止查看或使用讲稿。详见[页面设计指导](references/design/design.md#视觉设计图的工具约束) |
 | AI 评阅或 GPU 实验 | 配套服务与配置，按页面功能接入 |
 
 截图依赖可以在宿主工程中按需安装：
