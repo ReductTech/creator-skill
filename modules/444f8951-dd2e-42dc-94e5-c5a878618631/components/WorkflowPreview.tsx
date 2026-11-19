@@ -1,11 +1,13 @@
-import river_video_posterAsset0 from '../assets/workflow/river-video-poster.webp';
-import boat_rectangularAsset1 from '../assets/workflow/boat-rectangular.webp';
-import elephantAsset2 from '../assets/workflow/elephant.webp';
-import rockAsset3 from '../assets/workflow/rock.webp';
+import { moduleAssetUrl } from '@shuku/course-runtime/react/assets';
 import { useState, type CSSProperties } from 'react';
 import { Button, Typography } from "@shuku/course-style/react";
 import outline from '../outlines.json';
 import type { WorkflowArtifact } from './workflowDemo';
+
+const river_video_posterAsset0 = moduleAssetUrl('workflow/river-video-poster.webp');
+const boat_rectangularAsset1 = moduleAssetUrl('workflow/boat-rectangular.webp');
+const elephantAsset2 = moduleAssetUrl('workflow/elephant.webp');
+const rockAsset3 = moduleAssetUrl('workflow/rock.webp');
 
 
 export function CaoChongPreview({ firstDesign = false, interactive = false, fixed = true }: { firstDesign?: boolean; interactive?: boolean; fixed?: boolean }) {

@@ -38,11 +38,12 @@ if (values.demo) process.env.CREATOR_SKILL_DEMO = '1';
 if (values.standalone) process.env.CREATOR_SKILL_STANDALONE = '1';
 const port = values.port === undefined ? undefined : Number(values.port);
 if (port !== undefined && (!values.port.trim() || !Number.isInteger(port) || port < 0 || port > 65535)) {
-  throw new Error('--port 必须是 0 至 65535 之间的整数，0 表示由系统分配。');
+  throw new Error('--port 必须是 0 至 65535 之间的整数，0 表示自动寻找可用端口。');
 }
 const server = await createServer({
   configFile: fileURLToPath(new URL('../vite.config.mjs', import.meta.url)),
-  server: {port, strictPort: port !== undefined},
+  server: {...(port ? {port, strictPort: true} : {strictPort: false}),
+    open: process.env.CREATOR_SKILL_OPEN === '1'},
 });
 await server.listen();
 if (values['ready-file']) {

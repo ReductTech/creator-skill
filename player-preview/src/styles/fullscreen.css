@@ -1,4 +1,27 @@
 /* Imported by the shared workspace, including both offline export entry points. */
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls>button[aria-label="退出全屏放映"]{color:#c54b4b}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls>button[aria-label="退出全屏放映"]:hover:not(:disabled){color:#b83232;background:#fde9e9;border-color:#e8aaaa}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls>button[aria-label="退出全屏放映"]:active:not(:disabled){color:#a82b2b;background:#f8d6d6;border-color:#dc9090}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls>button,.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-smart-start,.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-smart-menu>summary{position:relative;border:1px solid transparent;transition:background-color .12s,border-color .12s}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls>button:hover:not(:disabled),.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-smart-start:hover:not(:disabled),.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-smart-menu>summary:hover{border-color:#a9bdd8;background:#eaf0f8;color:#294b77}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls :is(button,summary)[aria-label]:after{content:attr(aria-label);position:absolute;bottom:calc(100% + 11px);left:50%;transform:translateX(-50%);padding:6px 9px;border:1px solid #cbd6e5;border-radius:6px;background:#fff;color:#344c6b;box-shadow:0 3px 12px #21375114;font:11px/1.5 Inter,Arial,'Microsoft YaHei',sans-serif;white-space:nowrap;pointer-events:none;opacity:0;visibility:hidden;z-index:40}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls :is(button,summary)[aria-label]:is(:hover,:focus-visible):after{opacity:1;visibility:visible}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls[data-menu-direction=below] :is(button,summary)[aria-label]:after{bottom:auto;top:calc(100% + 11px)}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-controls-drag:after{left:0;transform:none}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls>button:last-child:after{left:auto;right:0;transform:none}
+.shuku-ppt-reader .cw-fullscreen-controls{max-width:calc(100% - 16px);user-select:none}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-controls-drag{width:22px;cursor:grab;touch-action:none;padding:0}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-controls-drag:active{cursor:grabbing}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls[data-dragging]{background:#fff;color:#294b77;border-color:#cad7e8;box-shadow:0 4px 16px #182c4618}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls[data-dragging]>:not(.cw-fullscreen-count){opacity:1;transition:none}
+.shuku-ppt-reader .cw-fullscreen-controls .cw-smart-narration{position:static}
+.shuku-ppt-reader .cw-fullscreen-controls .cw-smart-label{display:none}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-smart-buttons{height:30px;border-radius:7px;background:#f5f7fa;border-color:#dfe6ef;box-shadow:none}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-smart-start{width:30px;height:28px;padding:0!important;border-radius:6px 0 0 6px!important}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-smart-start>svg{width:14px;height:14px}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-smart-menu>summary{width:20px;height:28px;padding:0;border-radius:0 6px 6px 0;box-shadow:none}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-smart-settings,.shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-smart-error{left:auto!important;right:0!important;bottom:calc(100% + 10px);top:auto!important}
+.shuku-ppt-reader.cw-app .cw-fullscreen-controls[data-menu-direction=below] .cw-smart-settings,.shuku-ppt-reader.cw-app .cw-fullscreen-controls[data-menu-direction=below] .cw-smart-error{top:calc(100% + 10px)!important;bottom:auto}
 .shuku-ppt-reader.cw-app .cw-fullscreen-controls{position:absolute;bottom:18px;right:18px;z-index:5;display:flex;align-items:center;gap:4px;padding:5px 6px;border:1px solid rgba(191,204,223,.1);border-radius:14px;background:rgba(255,255,255,.1);color:#536d91;font-size:12px;opacity:1;box-shadow:none;transition:none}
 .shuku-ppt-reader.cw-app .cw-fullscreen-controls:hover,.shuku-ppt-reader.cw-app .cw-fullscreen-controls:has(:focus-visible){background:#fff;color:#294b77;border-color:#cad7e8;opacity:1;box-shadow:0 4px 16px #182c4618;transition:background-color .4s ease,border-color .4s ease,box-shadow .4s ease}
 .shuku-ppt-reader.cw-app .cw-fullscreen-controls>:not(.cw-fullscreen-count){opacity:.1;transition:none}
@@ -8,3 +31,4 @@
 .shuku-ppt-reader.cw-app .cw-fullscreen-controls .cw-fullscreen-count{display:grid;place-items:center;box-sizing:border-box;min-width:72px;height:32px;margin-left:2px;padding:0 12px;border-radius:10px;background:#e7f0ff;color:#17375f;font-size:13px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap;opacity:.8;transition:none}
 .shuku-ppt-reader.cw-app .cw-fullscreen-controls:hover .cw-fullscreen-count,.shuku-ppt-reader.cw-app .cw-fullscreen-controls:has(:focus-visible) .cw-fullscreen-count{opacity:1;transition:opacity 1.2s ease}
 @media(prefers-reduced-motion:reduce){.shuku-ppt-reader.cw-app .cw-fullscreen-controls,.shuku-ppt-reader.cw-app .cw-fullscreen-controls>*{transition:none}}
+.shuku-ppt-reader .cw-laser-dot{position:absolute;left:0;top:0;width:12px;height:12px;border-radius:50%;background:#ff334c;box-shadow:0 0 0 3px #ff334c26,0 0 14px 3px #ff334c70;pointer-events:none;z-index:20;will-change:transform}.shuku-ppt-reader .cw-laser-dot[hidden]{display:none}.shuku-ppt-reader .cw-viewport[data-laser-active],.shuku-ppt-reader .cw-viewport[data-laser-active] .cw-slide-wrap *{cursor:none!important}.shuku-ppt-reader .cw-fullscreen-controls{z-index:30!important}.shuku-ppt-reader .cw-fullscreen-controls,.shuku-ppt-reader .cw-fullscreen-controls *{cursor:auto}.shuku-ppt-reader .cw-laser-hint{font-size:10px;color:#73859e;margin:0 6px;white-space:nowrap}@media(max-width:760px){.shuku-ppt-reader .cw-laser-hint{display:none}}

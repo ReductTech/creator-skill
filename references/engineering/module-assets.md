@@ -68,7 +68,7 @@ Shared 作为风格包时，在包根目录的 `style.json` 中用 `id` 保存�
 
 ```tsx
 import { moduleAssetUrl } from '@shuku/course-runtime/react/assets';
-const imageUrl = moduleAssetUrl('images/example.jpg');
+const imageUrl = moduleAssetUrl('images/example.webp');
 export function Lesson() { return <img src={imageUrl} alt="模型结构" />; }
 ```
 

@@ -2,7 +2,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": ".", "noEmit": true, "declaration": false,
-    "emitDeclarationOnly": false
+    "emitDeclarationOnly": false,
+    "allowImportingTsExtensions": true,
+    "paths": {"@shuku/course-runtime/*": ["./runtime/course-runtime/*"]}
   },
-  "include": ["src", "preview", "runtime"]
+  "include": ["src", "preview", "runtime/entry.tsx"]
 }

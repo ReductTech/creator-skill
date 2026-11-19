@@ -1,13 +1,15 @@
-import xiandaijianzhuAsset0 from '../../../../../assets/workflow/convolution-course/xiandaijianzhu.webp';
-import xielaqiaoAsset1 from '../../../../../assets/workflow/convolution-course/xielaqiao.webp';
-import caiermateAsset2 from '../../../../../assets/workflow/convolution-course/caiermate.jpg';
-import zebraAsset3 from '../../../../../assets/workflow/convolution-course/zebra.webp';
-import pineappleAsset4 from '../../../../../assets/workflow/convolution-course/pineapple.jpg';
-import be_cityAsset5 from '../../../../../assets/workflow/convolution-course/be_city.webp';
+import { moduleAssetUrl } from '@shuku/course-runtime/react/assets';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Down, Up, UploadPicture } from '@icon-park/react';
 import { ContentBlock, MathFormulaStatic, Typography } from "@shuku/course-style/react";
 import './CommonKernelsPage.css';
+
+const xiandaijianzhuAsset0 = moduleAssetUrl('workflow/convolution-course/xiandaijianzhu.webp');
+const xielaqiaoAsset1 = moduleAssetUrl('workflow/convolution-course/xielaqiao.webp');
+const caiermateAsset2 = moduleAssetUrl('workflow/convolution-course/caiermate.webp');
+const zebraAsset3 = moduleAssetUrl('workflow/convolution-course/zebra.webp');
+const pineappleAsset4 = moduleAssetUrl('workflow/convolution-course/pineapple.webp');
+const be_cityAsset5 = moduleAssetUrl('workflow/convolution-course/be_city.webp');
 
 const buildingImage = xiandaijianzhuAsset0;
 const bridgeImage = xielaqiaoAsset1;

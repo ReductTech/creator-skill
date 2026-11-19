@@ -1,4 +1,4 @@
-import bg1Asset0 from '../../../../../assets/workflow/convolution-course/bg1.webp';
+import { moduleAssetUrl } from '@shuku/course-runtime/react/assets';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { ContentBlock, Typography } from "@shuku/course-style/react";
 import { useGomokuOutcome } from '../../LessonContext';
@@ -12,6 +12,8 @@ import {
   type Stone,
 } from '../../gomokuEngine';
 import './BoardAsNumbersPage.css';
+
+const bg1Asset0 = moduleAssetUrl('workflow/convolution-course/bg1.webp');
 
 /** 局部放大窗口的边长：棋形的最小外接矩形 5 × 5，四周各留两层，正好 9 × 9。 */
 const WINDOW_SIZE = 9;

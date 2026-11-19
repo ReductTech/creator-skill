@@ -4,7 +4,8 @@ import {fileURLToPath} from 'node:url';
 import {defineConfig, loadEnv, normalizePath} from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwind from '@tailwindcss/vite';
-import {readCourses, entryExport} from './scripts/courses.mjs';
+import {readCourses} from './scripts/courses.mjs';
+import {publishOrigin, publishPackage} from './scripts/publish-package.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 
@@ -31,35 +32,34 @@ export default defineConfig(({mode}) => {
   }
   targetRoot ??= path.resolve(root, '../starter');
   const coursesRoot = targetRoot && (fs.existsSync(path.join(targetRoot, 'modules')) ? path.join(targetRoot, 'modules') : targetRoot);
-  const shukuRoot = path.resolve(root, env.SHUKU_ROOT || '../../Shuku');
-  const platformRuntime = path.join(shukuRoot, 'packages/course-runtime');
-  const standalone = env.CREATOR_SKILL_STANDALONE === '1';
-  const platformAvailable = !standalone && fs.existsSync(path.join(platformRuntime, 'react/index.ts'));
-  if (!standalone && env.SHUKU_ROOT && !platformAvailable) {
-    throw Error(`未找到指定的 Shuku 课程运行时：${platformRuntime}`);
+  const bundledRuntime = path.join(root, 'runtime/course-runtime');
+  const bundledStyle = path.join(root, 'runtime/default-style');
+  const shukuRoot = env.SHUKU_ROOT && path.resolve(root, env.SHUKU_ROOT);
+  const useExternalRuntime = !!shukuRoot && env.CREATOR_SKILL_STANDALONE !== '1';
+  const runtime = useExternalRuntime ? path.join(shukuRoot, 'packages/course-runtime') : bundledRuntime;
+  if (!fs.existsSync(path.join(runtime, 'react/index.ts'))) {
+    throw Error(`未找到 Shuku 课程运行时：${runtime}`);
   }
-  const runtime = platformAvailable ? platformRuntime : path.join(root, 'runtime');
-  const platformStyle = path.join(shukuRoot, 'packages/course-styles/default');
+  const externalStyle = useExternalRuntime && path.join(shukuRoot, 'packages/course-styles/default');
+  const platformStyle = externalStyle && fs.existsSync(path.join(externalStyle, 'style.json'))
+    ? externalStyle : bundledStyle;
   const surveyTemplate = path.join(platformStyle, 'react/learning/SurveyTemplate.tsx');
   const surveyExample = path.join(platformStyle, 'examples/survey/SurveyExample.tsx');
-  const hasPlatformSurvey = !standalone && fs.existsSync(surveyTemplate) && fs.existsSync(surveyExample);
-  const style = coursesRoot && fs.existsSync(path.join(coursesRoot, 'shared/style.json'))
-    ? path.join(coursesRoot, 'shared') : path.resolve(root, '../shared');
-  const courses = coursesRoot ? readCourses(coursesRoot) : [];
+  const style = [path.join(targetRoot, 'shared'), path.join(coursesRoot, 'shared')]
+    .find(directory => fs.existsSync(path.join(directory, 'style.json'))) || bundledStyle;
+  const styleManifest = JSON.parse(fs.readFileSync(path.join(style, 'style.json'), 'utf8'));
+  const courses = readCourses(coursesRoot);
+  const shukuPublishOrigin = publishOrigin(env.CREATOR_SKILL_SHUKU_ORIGIN);
   const localPlayer = normalizePath(path.join(root, 'src/index.ts'));
-  const runtimeReact = normalizePath(path.join(style, 'react'));
   const sharedRoot = normalizePath(style);
   const plugin = {
     name: 'local-course-preview', enforce: 'pre',
     async resolveId(id, importer) {
       if (id.startsWith('virtual:preview-')) return '\0' + id;
       if (id === 'virtual:creator-skill-documents') return '\0preview-documents';
-      if (id === '@preview/runtime') return path.join(style, 'react/presentation/index.ts');
+      if (id === 'virtual:shuku-course' || id === 'virtual:shuku-style') return '\0' + id;
       if (importer && (id.startsWith('.') || path.isAbsolute(id))) {
         const target = normalizePath(path.resolve(path.dirname(importer.split('?')[0]), id));
-        // Reuse platform course components, but always use the player copied into this folder.
-        if (target === normalizePath(path.join(shukuRoot, 'packages/player/src')) ||
-            target === normalizePath(path.join(shukuRoot, 'packages/player/src/index.ts'))) return localPlayer;
         if (target === sharedRoot || target.startsWith(sharedRoot + '/')) {
           return this.resolve(target, importer, {skipSelf: true});
         }
@@ -72,10 +72,34 @@ export default defineConfig(({mode}) => {
     },
     load(id) {
       if (id === '\0virtual:preview-survey-template') {
-        if (!hasPlatformSurvey) return 'export const SurveyTemplateDemo = undefined;';
         return `export {SurveyTemplateDemo} from ${JSON.stringify(normalizePath(path.join(root, 'preview/survey-template-demo.tsx')))};`;
       }
-      if (id === '\0virtual:preview-catalog') return `export default ${JSON.stringify(courses.map(({directory, ...course}) => course))};`;
+      if (id === '\0virtual:preview-catalog') return `export default ${JSON.stringify(courses.map(({directory, ...course}) => course))};
+        export const shukuPublishOrigin = ${JSON.stringify(shukuPublishOrigin)};`;
+      if (id === '\0virtual:shuku-course') {
+        const loaders = courses.map(course =>
+          `${JSON.stringify(course.id)}: () => import(${JSON.stringify('virtual:preview-course:' + course.id)})`);
+        const guideExports = Object.fromEntries(courses
+          .filter(course => course.entry)
+          .map(course => [course.id, path.basename(course.entry, path.extname(course.entry))]));
+        return `import courses from 'virtual:preview-catalog';
+          const selectedId = new URLSearchParams(location.search).get('course');
+          const course = courses.find(item => item.id === selectedId);
+          const loaders = {${loaders.join(',')}};
+          const load = loaders[selectedId];
+          export const metadata = {...course, asset_id: course.assetId,
+            modes: [...(course.entry ? ['guide'] : []), ...(course.ppt?.entry ? ['ppt'] : [])]};
+          export const guideExport = ${JSON.stringify(guideExports)}[selectedId] || '';
+          export const loadGuide = async () => (await load()).loadGuide();
+          export const loadPresentation = async () => (await load()).loadPresentation();`;
+      }
+      if (id === '\0virtual:shuku-style') {
+        const source = entry => JSON.stringify(normalizePath(path.join(style, entry)));
+        return (styleManifest.bootstrap ? `import ${source(styleManifest.bootstrap)};\n` : '') +
+          (styleManifest.presentation
+            ? `export const loadStylePresentation = () => import(${source(styleManifest.presentation)});`
+            : 'export const loadStylePresentation = async () => null;');
+      }
       if (id === '\0preview-documents') {
         const creator = courses.find(course => course.alias === 'creator-guide');
         const file = creator && path.join(creator.directory, 'assets/creator-skill-documents.json');
@@ -90,11 +114,17 @@ export default defineConfig(({mode}) => {
             ? `export const ${key}=()=>import(${JSON.stringify(normalizePath(path.join(course.directory, entry)))});`
             : `export const ${key}=async()=>null;`);
         }
-        imports.push(`export const guideExport = ${JSON.stringify(course.entry ? entryExport(course, course.entry) : '')};`);
         return imports.join('\n');
       }
     },
+    transform(css, id) {
+      const playbackCss = normalizePath(path.join(root, 'runtime/styles.css'));
+      if (normalizePath(id.split('?')[0]) !== playbackCss) return;
+      const sources = [...new Set([coursesRoot, style])];
+      return css + '\n' + sources.map(source => `@source ${JSON.stringify(normalizePath(source))};`).join('\n');
+    },
     configureServer(server) {
+      server.middlewares.use(publishPackage(courses, env));
       server.watcher.add(courses.map(course => path.join(course.directory, 'outlines.json')));
       server.watcher.on('change', file => {
         if (file.endsWith('outlines.json')) void server.restart();
@@ -134,18 +164,15 @@ export default defineConfig(({mode}) => {
       alias: [
         {find: '@preview/survey-template', replacement: normalizePath(surveyTemplate)},
         {find: '@preview/survey-example', replacement: normalizePath(surveyExample)},
-        platformAvailable
-          ? {find: '@shuku/course-runtime', replacement: normalizePath(runtime)}
-          : {find: /^@shuku\/course-runtime(?:\/react(?:\/.*)?)?$/, replacement: normalizePath(path.join(runtime, 'local.tsx'))},
+        {find: '@preview/course-entry', replacement: normalizePath(path.join(root, 'runtime/entry.tsx'))},
+        {find: '@shuku/course-runtime', replacement: normalizePath(runtime)},
         {find: '@shuku/course-style', replacement: normalizePath(style)},
         {find: '@shuku/player', replacement: localPlayer},
-        {find: '@preview/runtime', replacement: runtimeReact + '/presentation/index.ts'},
-        {find: '@preview/runtime-styles', replacement: normalizePath(path.join(style, 'vendor/mathlive/mathlive-fonts.css'))},
       ],
     },
     server: {
       host: '127.0.0.1', port: 5174, strictPort: true,
-      fs: {strict: true, allow: [root, style, ...(coursesRoot ? [coursesRoot] : []), runtime, path.join(shukuRoot, 'packages/player'), path.join(shukuRoot, 'packages/course-styles/default')]},
+      fs: {strict: true, allow: [root, style, coursesRoot, runtime, platformStyle]},
       proxy: env.SHUKU_API_URL ? {'/api': {target: env.SHUKU_API_URL, changeOrigin: true}} : undefined,
     },
   };

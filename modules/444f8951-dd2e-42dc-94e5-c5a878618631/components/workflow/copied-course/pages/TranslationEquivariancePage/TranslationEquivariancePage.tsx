@@ -1,10 +1,12 @@
-import bgAsset0 from '../../../../../assets/workflow/convolution-course/layerd_scene/bg.webp';
-import ufoAsset1 from '../../../../../assets/workflow/convolution-course/layerd_scene/ufo.png';
-import pillarAsset2 from '../../../../../assets/workflow/convolution-course/layerd_scene/pillar.png';
-import dark_foliageAsset3 from '../../../../../assets/workflow/convolution-course/layerd_scene/dark_foliage.png';
+import { moduleAssetUrl } from '@shuku/course-runtime/react/assets';
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { ContentBlock, Typography } from "@shuku/course-style/react";
 import './TranslationEquivariancePage.css';
+
+const bgAsset0 = moduleAssetUrl('workflow/convolution-course/layerd_scene/bg.webp');
+const ufoAsset1 = moduleAssetUrl('workflow/convolution-course/layerd_scene/ufo.webp');
+const pillarAsset2 = moduleAssetUrl('workflow/convolution-course/layerd_scene/pillar.webp');
+const dark_foliageAsset3 = moduleAssetUrl('workflow/convolution-course/layerd_scene/dark_foliage.webp');
 
 const backgroundUrl = bgAsset0;
 const ufoUrl = ufoAsset1;

@@ -75,6 +75,19 @@
 
 <p align="center"><sub>Creator Guide 内的流程模拟：展示从教学要求到页面预览的协作方式，不代表本仓库自带在线 Agent 服务。</sub></p>
 
+## npm 安装包
+
+本地测试包可直接安装。需要 Node.js 24+（含 npm）。
+
+```powershell
+npm install -g ./creator-skill-0.1.0.tgz
+creator demo
+creator init ./my-course
+creator preview ./my-course
+```
+
+示例与工程预览会启动本地服务并打开浏览器。终端保持运行，按 Ctrl+C 停止。可加上 `--no-open` 或 `--port 5180`。首次 npm 安装会下载运行依赖。发布课件 ZIP、原稿提取和深入检查仍按实际功能需要 Python、浏览器或媒体工具。AI 助手可读取安装目录里的 `SKILL.md` 与配套资料。
+
 ## 开始使用
 
 下载并解压仓库，或用 Git 克隆。安装 Node.js 24+ 后，在仓库根目录运行：
@@ -184,7 +197,7 @@ python creator-skill/scripts/tools.py capture.slides --help
 npm start -- --context "<context.create 返回的绝对配置路径>"
 ```
 
-服务地址以终端输出为准。术库宿主服务与正式构建的配置见 [Player Preview 使用说明](player-preview/README.md)和[源码 ZIP 交付](references/engineering/delivery.md)。
+服务地址以终端输出为准。术库宿主服务与正式构建的配置见 [术库本地预览](player-preview/README.md)和[源码 ZIP 交付](references/engineering/delivery.md)。
 
 ### 使用环境
 
@@ -193,7 +206,7 @@ npm start -- --context "<context.create 返回的绝对配置路径>"
 | 功能 | 所需环境 |
 | :--- | :--- |
 | 阅读与执行创作规范 | 支持工程文件读取与代码编辑的 AI 编程助手 |
-| 页面实现与预览 | Node.js 24+ 和仓库自带的 Player Preview |
+| 页面实现与预览 | Node.js 24+ 和仓库内置的术库播放器 |
 | Python 辅助工具 | Python 3.10+；额外依赖按工具需要安装 |
 | 页面截图 | Python Playwright、Chromium 和 Pillow |
 | PPTX 原稿导出 | Windows 与桌面版 Microsoft PowerPoint |
@@ -223,7 +236,7 @@ creator-skill/
 ├── assets/visual_samples/ # 成对视觉正反例
 ├── scripts/               # 工具、模板与回归测试
 ├── shared/                # 完整默认风格包
-├── player-preview/        # 播放器与预览源码，使用者自行安装构建
+├── player-preview/        # Shuku 播放器、课程运行时及本地预览入口
 ├── starter/               # 入门课件，也是新建工程的模板
 └── docs/                  # 对外展示与实际课件截图
 ```
@@ -239,15 +252,6 @@ creator-skill/
 | 设计页面与交互 | [页面设计指导](references/design/design.md) · [视觉案例](assets/visual_samples/) |
 | 编写 React 页面、管理素材 | [工程实现](references/engineering/implementation.md) · [资源约定](references/engineering/module-assets.md) |
 | 检查实际页面 | [基础检查与验收](references/eval/checks.md) |
-| 本地预览课件、构建播放器 | [Player Preview](player-preview/README.md) |
+| 本地预览课件、构建播放器 | [术库本地预览](player-preview/README.md) |
 | 查找工具与参数 | [创作工具索引](references/tools.md) |
-
----
-
-<p align="center"><strong>从知识出发，让表达可以被体验。</strong></p>
-
-## 与术库的关系
-
-本仓库维护作者规范、辅助工具与测试。运行 `python scripts/module/package_course.py <目录>`，自动完成媒体压缩、可确定引用迁移、源码检查与普通 ZIP 交付；处理只发生在临时副本，原工程保留。图片用 Python/Pillow，引用迁移用 Python Tree-sitter，音视频另需 FFmpeg/ffprobe，按本地环境选择Node完整检测或Python补充。精简 stdout 指向完整转换与诊断报告，智能体按报告修复后重跑。本地先尽量检查与修复，Shuku仍独立校验、正式编译、生成缩略图并发布；平台工具与服务由 Shuku 自身维护。详见[源码 ZIP 交付](references/engineering/delivery.md)。
-
-默认逐页确认设计和验收，用户可以授权跳过或集中验收。确认范围与生图不可用时的替代流程见[流程共用说明](references/workflow/common.md)和[页面设计指导](references/design/design.md)。
+| 打包与交付 | [源码 ZIP 交付](references/engineering/delivery.md) |

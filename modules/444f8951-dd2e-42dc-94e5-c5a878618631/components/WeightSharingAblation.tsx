@@ -1,11 +1,13 @@
-import without_structure_v2Asset0 from '../assets/images/skill-ablation/without-structure-v2.webp';
-import without_interaction_v2Asset1 from '../assets/images/skill-ablation/without-interaction-v2.webp';
-import without_visual_v2Asset2 from '../assets/images/skill-ablation/without-visual-v2.webp';
-import without_format_v2Asset3 from '../assets/images/skill-ablation/without-format-v2.webp';
-import weight_sharingAsset4 from '../assets/videos/weight-sharing.mp4';
+import { moduleAssetUrl } from '@shuku/course-runtime/react/assets';
 import { useEffect, useRef } from 'react';
 import { Typography } from "@shuku/course-style/react";
 import './WeightSharingAblation.css';
+
+const without_structure_v2Asset0 = moduleAssetUrl('images/skill-ablation/without-structure-v2.webp');
+const without_interaction_v2Asset1 = moduleAssetUrl('images/skill-ablation/without-interaction-v2.webp');
+const without_visual_v2Asset2 = moduleAssetUrl('images/skill-ablation/without-visual-v2.webp');
+const without_format_v2Asset3 = moduleAssetUrl('images/skill-ablation/without-format-v2.webp');
+const weight_sharingAsset4 = moduleAssetUrl('videos/weight-sharing.mp4');
 const generatedImages = [without_structure_v2Asset0,without_interaction_v2Asset1,without_visual_v2Asset2,without_format_v2Asset3];
 const constraintNames = ['内容结构','交互行为','视觉风格','页面规范'];
 export function WeightSharingAblation({category}:{category:number}) {

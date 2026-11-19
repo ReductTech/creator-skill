@@ -1,5 +1,4 @@
-import gomoku_play_completedAsset0 from '../assets/images/multi-format/convolution/gomoku-play-completed.webp';
-import gomoku_playAsset1 from '../assets/images/multi-format/convolution/gomoku-play.webp';
+import { moduleAssetUrl } from '@shuku/course-runtime/react/assets';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { LessonFlow, type LessonFlowStep, type LessonStepContext } from "@shuku/course-style/react";
 import { demoOutcome, GomokuLessonProvider, useGomokuOutcome } from './workflow/copied-course/LessonContext';
@@ -8,6 +7,9 @@ import { WindowScanPage } from './workflow/copied-course/pages/WindowScanPage/Wi
 import { KernelDesignPage } from './workflow/copied-course/pages/KernelDesignPage/KernelDesignPage';
 import './workflow/copied-course/tailwind.css';
 import './NativeStudyPreview.css';
+
+const gomoku_play_completedAsset0 = moduleAssetUrl('images/multi-format/convolution/gomoku-play-completed.webp');
+const gomoku_playAsset1 = moduleAssetUrl('images/multi-format/convolution/gomoku-play.webp');
 
 const image = (completed: boolean) => completed ? gomoku_play_completedAsset0 : gomoku_playAsset1;
 

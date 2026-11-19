@@ -107,10 +107,10 @@ def runtime_snapshot(context, base_url, outline):
         page.goto(
             (entry + '?mode=guide') if entry else base_url + outline["path"], wait_until="domcontentloaded", timeout=60000
         )
-        flow = page.locator(".edu-lesson-flow").first
+        flow = page.locator(".edu-lesson-flow:not([data-step-id] .edu-lesson-flow)").first
         page.locator('#root > :not([role="status"])').first.wait_for(timeout=15000)
         if not flow.count():
-            ids = page.locator('[data-step-id]').evaluate_all("elements=>elements.map(element=>element.dataset.stepId)")
+            ids = page.locator('[data-step-id]:not([data-step-id] [data-step-id])').evaluate_all("elements=>elements.map(element=>element.dataset.stepId)")
             return {**snapshot, 'guideIds':ids or None}
         key = flow.get_attribute("data-state-key")
         if not key:

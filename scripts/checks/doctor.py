@@ -81,7 +81,7 @@ def diagnose(group: str, tool: str | None = None) -> list[dict]:
         checks.extend([
             {"name": "Node.js >= 24", "available": supported, "detail": version},
             {"name": "npm", "available": bool(shutil.which("npm"))},
-            {"name": "Player Preview dependencies",
+            {"name": "Shuku preview dependencies",
              "available": (SCRIPTS.parent / "player-preview/node_modules/vite/package.json").is_file(),
              "optional": True, "detail": "npm run setup"},
         ])
@@ -110,7 +110,7 @@ def diagnose(group: str, tool: str | None = None) -> list[dict]:
             node = shutil.which('node')
             probe = SCRIPTS / 'media/rewrite_asset_paths.mjs'
             available = False
-            detail = 'Install Player Preview dependencies with npm ci'
+            detail = 'Install Shuku preview dependencies with npm ci'
             if node:
                 try:
                     result = subprocess.run([node, '--input-type=module', '-e',

@@ -1,6 +1,6 @@
 import { ContentBlock, Typography } from "@shuku/course-style/react";
 import type { ReactNode } from 'react';
-import '../pages/WormholePages.css';
+import './WormholePages.css';
 
 export function WormholeIcon({ kind }: { kind: 'light' | 'book' | 'heart' | 'eye' | 'ring' | 'formula' }) {
   const paths = {

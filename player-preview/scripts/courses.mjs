@@ -15,8 +15,3 @@ export function readCourses(root) {
     return [{...outline, id: item.name, directory, assetId: outline.moduleIdentity?.id || item.name}];
   }).sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
 }
-
-// Match the platform builder's named-export convention.
-export function entryExport(course, entry) {
-  return path.basename(entry, path.extname(entry));
-}

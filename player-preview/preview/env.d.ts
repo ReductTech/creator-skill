@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 declare module 'virtual:preview-catalog' {
+  export const shukuPublishOrigin: string;
   interface Course {
     id: string; alias?: string; assetId: string; title: string;
     description?: string; badge?: string; entry?: string;
@@ -10,15 +11,28 @@ declare module 'virtual:preview-catalog' {
   const courses: Course[];
   export default courses;
 }
-declare module '@preview/runtime' {
-  import type {ComponentType} from 'react';
-  export const SceneDeck: ComponentType<{
-    catalog: {id: string; [key: string]: unknown}[];
-    moduleId: string; assetId: string; progressKey: string;
-    getNotes: (id: string) => {text: string; selectors: string[]}[];
-  }>;
+declare module '@preview/course-entry' {
+  export function mountCourse(wrap?: (node: import('react').ReactNode) => import('react').ReactNode): void;
 }
-declare module '@preview/runtime-styles';
+
+declare module 'virtual:shuku-course' {
+  import type { ComponentType } from 'react';
+  import type { DeckDefinition } from '@shuku/course-runtime/react/presentation/types';
+  export function loadGuide(): Promise<Record<string, ComponentType> | null>;
+  export function loadPresentation(): Promise<{ deck?: DeckDefinition } | null>;
+  export const guideExport: string;
+  export const metadata: {
+    id: string; title: string; asset_id: string; modes: string[];
+    pages: {id: string; snippet?: string}[];
+    pageSources?: Record<string, unknown>;
+  };
+}
+
+declare module 'virtual:shuku-style' {
+  import type { ComponentType } from 'react';
+  import type { SceneDeckProps } from '@shuku/course-runtime/react/presentation/types';
+  export function loadStylePresentation(): Promise<{SceneDeck?: ComponentType<SceneDeckProps>} | null>;
+}
 
 declare module '@preview/survey-template' {
   import type {ComponentType, ReactNode} from 'react';
@@ -39,5 +53,5 @@ declare module '@preview/survey-example' {
   export const SurveyExample: ComponentType<{onSubmit?: (answers: Record<string, unknown>) => void}>;
 }
 declare module 'virtual:preview-survey-template' {
-  export const SurveyTemplateDemo: import('react').ComponentType | undefined;
+  export const SurveyTemplateDemo: import('react').ComponentType;
 }

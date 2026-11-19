@@ -1,12 +1,14 @@
-import bgAsset0 from '../../assets/images/translation-example/bg.webp';
-import ufoAsset1 from '../../assets/images/translation-example/ufo.png';
-import pillarAsset2 from '../../assets/images/translation-example/pillar.png';
-import dark_foliageAsset3 from '../../assets/images/translation-example/dark_foliage.png';
+import { moduleAssetUrl } from '@shuku/course-runtime/react/assets';
 // Scene assets, compositing, pointer control and idle trajectory copied from the original module.
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { Typography } from "@shuku/course-style/react";
 import { DesignComparisonArrow } from '../../components/DesignComparisonHeader';
 import { MAP_WIDTH, MAP_HEIGHT, loadImage, renderResponse, type Position, type SceneImages } from './laplacianResponse';
+
+const bgAsset0 = moduleAssetUrl('images/translation-example/bg.webp');
+const ufoAsset1 = moduleAssetUrl('images/translation-example/ufo.webp');
+const pillarAsset2 = moduleAssetUrl('images/translation-example/pillar.webp');
+const dark_foliageAsset3 = moduleAssetUrl('images/translation-example/dark_foliage.webp');
 const backgroundUrl = bgAsset0;
 const ufoUrl = ufoAsset1;
 const pillarUrl = pillarAsset2;

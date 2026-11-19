@@ -24,7 +24,7 @@ def verify(url, artifacts, chromium=None):
         # Course text must be actual selectable DOM text, never a slide screenshot.
         assert page.locator('.scl-reference,.scl-reference-crop').count()==0
         assert page.locator('.scl-art-heading h1').evaluate("(el)=>{const range=document.createRange();range.selectNodeContents(el);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);const text=selection.toString();selection.removeAllRanges();return text.includes('形成知识循环');}")
-        assert page.locator('.scl-artwork img').evaluate_all("els=>els.every(e=>e.complete && e.naturalWidth>0 && /(?:cat|noise|gradient-surface)-/.test(e.src))")
+        assert page.locator('.scl-artwork img').evaluate_all("els=>els.every(e=>e.complete && e.naturalWidth>0 && /[/](?:cat|noise|gradient-surface)[.]webp$/.test(new URL(e.currentSrc).pathname))")
         page.screenshot(path=str(artifacts/'overview.png'))
         page.get_by_role('button',name='放大课堂使用',exact=True).click()
         dialog=page.get_by_role('dialog')

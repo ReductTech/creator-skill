@@ -31,6 +31,6 @@ test('text-free assets and both course registrations are included',()=>{
  assert.equal(outline.pages.at(-1).id,'3ccbfdd4-22de-40ea-a6f3-613bcc668199');
  assert.equal(new Set(outline.pages.map(p=>p.id)).size,outline.pages.length);
  for(const file of ['../../CreatorPpt.tsx','../../CreatorGuide.tsx'])assert.match(readFileSync(new URL(file,import.meta.url),'utf8'),/ShukuCoCreationLoop/);
- assert.deepEqual(readdirSync(new URL('assets/',import.meta.url)).sort(),['cat.png','gradient-surface.png','noise.png']);
+ assert.deepEqual(readdirSync(new URL('../../assets/images/shuku-co-creation/',import.meta.url)).sort(),['cat.webp','gradient-surface.webp','noise.webp']);
  assert.doesNotMatch(readFileSync(new URL('LoopArtwork.tsx',import.meta.url),'utf8'),/loop-reference|ReferenceCrop/);
 });

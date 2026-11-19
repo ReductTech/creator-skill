@@ -1,10 +1,15 @@
-import React, {useState, type ComponentType} from 'react';
+import {useState, type ReactNode} from 'react';
 import {createRoot} from 'react-dom/client';
-import courses from 'virtual:preview-catalog';
-import './styles.css';
+import courses, {shukuPublishOrigin} from 'virtual:preview-catalog';
+import {LocalPreviewContext} from '../src/LocalPreviewContext';
+import {PublishButton} from './PublishButton';
 
-const root = createRoot(document.getElementById('root')!);
+const container = document.getElementById('root')!;
+const render = (element: ReactNode) => createRoot(container).render(
+  <LocalPreviewContext.Provider value={{}}>{element}</LocalPreviewContext.Provider>
+);
 const params = new URLSearchParams(location.search);
+if (!params.has('course') || params.has('demo')) void import('./styles.css');
 
 function Catalog() {
   const [search, setSearch] = useState('');
@@ -31,47 +36,32 @@ function Catalog() {
 async function openCourse(id: string) {
   const course = courses.find(course => course.id === id);
   if (!course) throw Error('没有找到课程：' + id);
-  document.title = course.title + ' · 本地预览';
-  Reflect.set(globalThis, '__SHUKU_COURSE_ID__', course.assetId);
-  Reflect.set(globalThis, '__SHUKU_ASSET_BASE__', location.origin);
-  Reflect.set(globalThis, '__SHUKU_PAGE_CATALOG__', course);
-  // Load only the selected course. Full page navigation keeps course CSS and state isolated.
-  const module = await import(/* @vite-ignore */ `/@id/__x00__virtual:preview-course:${course.id}`);
-  const mode = params.get('view') || (course.ppt?.entry ? 'ppt' : 'guide');
+  const mode = params.get('view') || params.get('mode') || (course.ppt?.entry ? 'ppt' : 'guide');
   const url = new URL(location.href);
   url.searchParams.set('mode', mode);
   history.replaceState(null, '', url);
-  const notes = (id: string) => {
-    const page = course.pages.find(page => page.id === id);
-    return typeof page?.snippet === 'string' ? [{text: page.snippet, selectors: []}] : [];
-  };
-  if (mode === 'guide') {
-    const guide = await module.loadGuide();
-    const Guide = guide?.[module.guideExport] as ComponentType | undefined;
-    if (!Guide) throw Error('Guide 入口必须导出与 TSX 文件名相同的命名组件。');
-    root.render(<Guide />);
-  } else if (mode === 'ppt') {
-    const [presentation, {SceneDeck}] = await Promise.all([module.loadPresentation(), import('@preview/runtime')]);
-    await import('@preview/runtime-styles');
-    if (!presentation?.deck) throw Error('PPT 入口必须导出 deck。');
-    root.render(<SceneDeck catalog={[{...presentation.deck, id: course.id}]} moduleId={course.id}
-      assetId={course.assetId} progressKey={'shuku-preview:' + course.id} getNotes={notes} />);
-  } else throw Error('不支持的播放模式：' + mode);
+  Reflect.set(globalThis, '__SHUKU_COURSE_ID__', course.assetId);
+  Reflect.set(globalThis, '__SHUKU_ASSET_BASE__', location.origin);
+  const {mountCourse} = await import('@preview/course-entry');
+  mountCourse(node => <LocalPreviewContext.Provider value={{
+    publish: <PublishButton course={course.id} origin={shukuPublishOrigin} />,
+  }}>{node}</LocalPreviewContext.Provider>);
 }
 
 if (params.get('demo') === 'survey-template') {
   document.title = '标准问卷控件 · 本地预览';
-  import('virtual:preview-survey-template').then(({SurveyTemplateDemo}) => root.render(SurveyTemplateDemo
-    ? <SurveyTemplateDemo />
-    : <main className="preview-status"><p>标准问卷模板需要配置 Shuku 源码。</p><a href="?demo=survey">打开独立问卷演示</a></main>));
+  import('virtual:preview-survey-template').then(({SurveyTemplateDemo}) => render(<SurveyTemplateDemo />));
 } else if (params.get('demo') === 'survey') {
   document.title = '问卷与调研 · 本地效果预览';
-  import('./survey-demo').then(({SurveyDemo}) => root.render(<SurveyDemo />));
+  import('./survey-demo').then(({SurveyDemo}) => render(<SurveyDemo />));
 } else if (params.has('demo')) {
-  import('./demo').then(({Demo}) => root.render(<Demo />));
+  import('./demo').then(({Demo}) => render(<Demo />));
 } else if (params.has('course')) {
-  root.render(<p className="preview-status" aria-busy="true">正在加载课程…</p>);
-  openCourse(params.get('course')!).catch(error => root.render(<main className="preview-status" role="alert">
-    <h1>课程加载失败</h1><p>{String(error.message || error)}</p><p>详细信息可查看终端和浏览器控制台。</p><a href="/">返回课程列表</a>
-  </main>));
-} else root.render(<Catalog />);
+  container.textContent = '正在加载课程…';
+  openCourse(params.get('course')!).catch(async error => {
+    await import('./styles.css');
+    render(<main className="preview-status" role="alert">
+      <h1>课程加载失败</h1><p>{String(error.message || error)}</p><p>详细信息可查看终端和浏览器控制台。</p><a href="/">返回课程列表</a>
+    </main>);
+  });
+} else render(<Catalog />);

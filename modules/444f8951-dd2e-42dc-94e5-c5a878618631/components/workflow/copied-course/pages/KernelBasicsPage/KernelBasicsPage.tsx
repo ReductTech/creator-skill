@@ -1,9 +1,11 @@
-import mengdelianAsset0 from '../../../../../assets/workflow/convolution-course/mengdelian.webp';
-import xielaqiaoAsset1 from '../../../../../assets/workflow/convolution-course/xielaqiao.webp';
+import { moduleAssetUrl } from '@shuku/course-runtime/react/assets';
 import { useEffect, useRef, useState } from 'react';
 import { ContentBlock, Typography } from "@shuku/course-style/react";
 import { useGomokuOutcome } from '../../LessonContext';
 import './KernelBasicsPage.css';
+
+const mengdelianAsset0 = moduleAssetUrl('workflow/convolution-course/mengdelian.webp');
+const xielaqiaoAsset1 = moduleAssetUrl('workflow/convolution-course/xielaqiao.webp');
 
 const cityImage = mengdelianAsset0;
 const bridgeImage = xielaqiaoAsset1;

@@ -1,8 +1,10 @@
-import xiandaijianzhuAsset0 from '../../../../../assets/workflow/convolution-course/xiandaijianzhu.webp';
+import { moduleAssetUrl } from '@shuku/course-runtime/react/assets';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Light, Picture } from '@icon-park/react';
 import { ContentBlock, MathFormulaBlock, MathFormulaStatic, Typography } from "@shuku/course-style/react";
 import './GradientPage.css';
+
+const xiandaijianzhuAsset0 = moduleAssetUrl('workflow/convolution-course/xiandaijianzhu.webp');
 
 const buildingImage = xiandaijianzhuAsset0;
 
