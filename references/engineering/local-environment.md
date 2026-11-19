@@ -5,12 +5,12 @@
 旧的 Skill根目录 `target-root.json` 只含 `targetRoot`，仍支持已有单窗口任务。它不是多窗口共享的“当前工程”；不要由不同窗口轮流覆盖它。新窗口按用户明确指定的绝对路径创建上下文：
 
 ```powershell
-python <Skill>/scripts/tools.py context.create --target-root <工程绝对路径> --context-directory <当前窗口工作目录> [--module <课程UUID或alias>] [--shuku-root <本地Shuku目录>]
+python <Skill>/scripts/tools.py context.create --target-root <工程绝对路径> --context-directory <目标课程或页面的_scratchpad绝对路径> [--module <课程UUID或alias>] [--shuku-root <本地Shuku目录>]
 python <Skill>/scripts/tools.py --context <返回的target-root.json绝对路径> check.outlines
 python <Skill>/scripts/tools.py --context <同一路径> course.pack <课程目录>
 ```
 
-context.create在指定工作目录下新建带随机UUID的独立目录，保存兼容的target-root.json和context.json（窗口身份、工程、可选课程及Shuku位置）。不会覆盖全局配置。续作沿用当前窗口的绝对配置路径；用户明确换工程时新建上下文，不改旧上下文。原始targetRoot只作为目录边界，不随每次课件切换改写。
+context.create 在目标课程或页面的 `_scratchpad/` 下新建带随机UUID的独立目录，保存兼容的target-root.json和context.json（窗口身份、工程、可选课程及Shuku位置）。不会覆盖全局配置。续作沿用当前窗口的绝对配置路径；用户明确换工程时新建上下文，不改旧上下文。原始targetRoot只作为目录边界，不随每次课件切换改写。
 
 工具只对本次子进程传递 `CREATOR_SKILL_TARGET_CONFIG`，不修改系统环境变量。显式绑定课程后，支持module参数的工具默认选中该课程；冲突参数、越界路径和越界打包拒绝执行。相对工程路径在该窗口targetRoot下解析。仅传绝对路径的直接course工具仍可独立使用。
 
