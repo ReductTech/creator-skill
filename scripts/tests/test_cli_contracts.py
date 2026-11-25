@@ -11,8 +11,7 @@ import pytest
 from tools import catalog
 
 SCRIPTS = Path(__file__).resolve().parents[1]
-from _common import get_target_root
-ROOT = get_target_root()
+ROOT = Path(__file__).resolve().parents[2]
 PYTHON_TOOLS = sorted(
     {
         Path(tool["path"]).relative_to("scripts").as_posix()
@@ -140,6 +139,7 @@ def test_validation_results_distinguish_failed_check_from_execution_error(tmp_pa
 def test_media_execution_preserves_encoding_options_and_reports_files(
     tmp_path, monkeypatch, capsys
 ):
+    monkeypatch.setenv("CREATOR_SKILL_PROJECT_ROOT", str(tmp_path))
     from media import remove_green_screen as media
 
     source = tmp_path / "input.mp4"
@@ -170,6 +170,7 @@ def test_upload_dry_run_returns_json_without_importing_oss(
     spec = importlib.util.spec_from_file_location(
         "upload_cli", SCRIPTS / "media/upload-assets-oss.py"
     )
+    monkeypatch.setenv("CREATOR_SKILL_PROJECT_ROOT", str(tmp_path))
     uploader = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(uploader)
     (tmp_path / "image.png").write_bytes(b"fixture")
@@ -195,10 +196,9 @@ def test_preview_doctor_probes_node_without_a_target(tmp_path, monkeypatch):
     from checks import doctor
     from types import SimpleNamespace
 
-    monkeypatch.setattr(doctor, "TARGET_ROOT_CONFIG", tmp_path / "target-root.json")
-    monkeypatch.delenv("CREATOR_SKILL_TARGET_CONFIG", raising=False)
+    monkeypatch.delenv("CREATOR_SKILL_PROJECT_ROOT", raising=False)
     assert all(item["available"] for item in doctor.diagnose("core"))
-    monkeypatch.setenv("CREATOR_SKILL_TARGET_CONFIG", str(tmp_path / "absent.json"))
+    monkeypatch.setenv("CREATOR_SKILL_PROJECT_ROOT", str(tmp_path / "absent.json"))
     monkeypatch.setattr(doctor.shutil, "which", lambda name: name)
     monkeypatch.setattr(doctor.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(stdout="v22.1.0"))
     result = {item["name"]: item for item in doctor.diagnose("preview")}

@@ -109,11 +109,9 @@ def snapshot_files(files, root):
     return result
 
 
-def target_environment(root, directory):
-    config = directory/'target-root.json'
-    config.write_text(json.dumps({'targetRoot': str(root.resolve())}), encoding='utf-8')
+def target_environment(root):
     env = os.environ.copy()
-    env['CREATOR_SKILL_TARGET_CONFIG'] = str(config)
+    env['CREATOR_SKILL_PROJECT_ROOT'] = str(root.resolve())
     # Never inherit switches that archive/upload source or invoke platform storage.
     for key in ('SHUKU_SOURCE_PYTHON', 'SHUKU_ASSET_PYTHON', 'SHUKU_BUILD_MODE', 'SHUKU_CONFIG', 'SHUKU_COLLECTION_ID', 'SHUKU_COLLECTION_TITLE'):
         env.pop(key, None)
@@ -127,7 +125,7 @@ def node_references(files, changes, directory, capability):
     root = directory/'tree'
     root.mkdir(parents=True)
     staged = snapshot_files(files, root)
-    env = target_environment(root, directory)
+    env = target_environment(root)
     if capability.get('shukuRoot'):
         env['SHUKU_ROOT'] = capability['shukuRoot']
     records, issues, changed = [], [], 0
@@ -163,7 +161,7 @@ def local_checks(files, directory, capability, evidence, *, shared=None, actions
     default_style = root/'modules/shared'
     if shared:
         shutil.copytree(shared, default_style)
-    env = target_environment(root, directory)
+    env = target_environment(root)
     if capability.get('shukuRoot'): env['SHUKU_ROOT'] = capability['shukuRoot']
     results, issues = [], []
     available = capability['available']

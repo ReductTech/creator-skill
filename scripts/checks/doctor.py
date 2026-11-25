@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from _common import SCRIPTS, TARGET_ROOT_CONFIG, get_target_root, modules_directory, emit_result, report_error
+from _common import SCRIPTS, get_target_root, modules_directory, emit_result, report_error
 
 ROOT = None
 
@@ -52,7 +52,7 @@ def diagnose(group: str, tool: str | None = None) -> list[dict]:
     path_tools = {'course.pack', 'course.discover', 'course.inspect', 'course.images', 'course.videos', 'course.audio'}
     root = None
     if tool not in path_tools and (group != "preview" or tool is not None):
-        if ROOT is not None or os.environ.get("CREATOR_SKILL_TARGET_CONFIG") or TARGET_ROOT_CONFIG.exists():
+        if ROOT is not None or os.environ.get("CREATOR_SKILL_PROJECT_ROOT"):
             root = ROOT or get_target_root()
     groups = (
         list(GROUPS)

@@ -73,7 +73,7 @@ export function main(args=process.argv.slice(2)) {
     const root=getTargetRoot();
     const selected=args.includes('--module')?args[args.indexOf('--module')+1]:undefined;
     if(selected&&!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(selected))throw Error('Module must be a direct course directory name or UUID');
-    if(args.includes('--root')&&fs.realpathSync(path.resolve(args[args.indexOf('--root')+1]))!==root)throw Error('--root must match targetRoot in target-root.json');
+    if(args.includes('--root')&&fs.realpathSync(path.resolve(args[args.indexOf('--root')+1]))!==root)throw Error('--root must match the selected project');
     const base=coursePaths.modulesDirectory(root);
     const errors=checkAssetImports(root,selected?[coursePaths.resolveModule(root,selected)]:[base]);
     console.log(JSON.stringify({status:errors.length?'failed':'ok',errors}));return errors.length?1:0;

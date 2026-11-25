@@ -11,6 +11,7 @@ from media import extract_pptx as tool
 
 @pytest.fixture
 def module_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("CREATOR_SKILL_PROJECT_ROOT", str(tmp_path))
     directory = tmp_path / "modules/Demo"
     directory.mkdir(parents=True)
     monkeypatch.setattr(tool, "resolve_module", lambda _: (directory, {}))

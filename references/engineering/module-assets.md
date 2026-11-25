@@ -18,7 +18,7 @@ Shuku 不接受非 UUID 课程目录。旧语义目录需显式迁移目录、id
 
 本 Skill 根目录自带完整的 `shared/` 风格包。初始化课程工程或目标缺少 Shared 时，智能体直接复制这份目录，不要求用户另外寻找、下载或手工复制。
 
-1. 以 `target-root.json.targetRoot` 为目标根目录。`modules/<UUID>/` 布局复制到 `<targetRoot>/modules/shared/`；已有平铺 `<UUID>/` 布局复制到 `<targetRoot>/shared/`；空工程默认采用 `modules/` 布局。
+1. 以 `--project` 指定的目录 为目标根目录。`modules/<UUID>/` 布局复制到 `<targetRoot>/modules/shared/`；已有平铺 `<UUID>/` 布局复制到 `<targetRoot>/shared/`；空工程默认采用 `modules/` 布局。
 2. 复制整个 `<Skill根目录>/shared/`，包括 `style.json`、`bootstrap.ts`、`react/`、`assets/`、`types/` 与 `vendor/`，保持目录层级。目标已有 Shared 或已登记同一风格 UUID 时复用现有包，不覆盖或重复登记。
 3. 原样使用内置包时保留 `style.json.id`，不因复制而生成新 UUID。不存在 `course-styles.json` 时，Shuku 可从标准位置的 `shared/style.json` 自动发现；已有登记文件时补齐对应 `styles[].id/path`，保留其他风格与既有选择。
 4. 课程组件通过 `@shuku/course-style/react` 使用复制后的 Shared；资源、请求与状态仍从 `@shuku/course-runtime/react/...` 导入。复制 Shared 不代替 Shuku 构建环境。独立新风格按下方 UUID 规则处理。

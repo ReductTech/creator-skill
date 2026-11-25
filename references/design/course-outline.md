@@ -178,7 +178,7 @@
 执行初始化前，读取[工具索引](../tools.md)中的“发现与调用”和“模块大纲与工程创建”；已读取且仍适用时无需重复加载。随后从仓库根目录执行：
 
 ```bash
-python creator-skill/scripts/tools.py module.init --directory the_module_name
+python creator-skill/scripts/tools.py --project . module.init --directory the_module_name
 ```
 
 替换为目标模块名。文件存在时脚本直接返回，缺失时创建初始大纲。仅讨论选题或结构时，不必提前初始化。
@@ -241,7 +241,7 @@ python creator-skill/scripts/tools.py module.init --directory the_module_name
 - 大纲的页面 `id` 是场景与讲稿的关联键，实现层必须复用；不可依赖标题匹配或仅靠数组顺序关联。
 - 大纲可以包含待实现页面，不将不存在的入口或页面宣称为可播放成果。
 
-落盘后执行 `python creator-skill/scripts/tools.py check.outlines`，验证页面身份与字段类型，标题采用展示默认值、讲稿允许为空，页面 ID 为标准小写 UUID且不重复。只检查当前模块时加 `--module <目录名>`。历史缺失 ID 可用 `--fix` 从现有场景补齐；脚本不编造讲稿，缺失标题使用默认值；缺少讲稿保留空字符串，不因检查要求编造讲稿。
+落盘后执行 `python creator-skill/scripts/tools.py --project . check.outlines`，验证页面身份与字段类型，标题采用展示默认值、讲稿允许为空，页面 ID 为标准小写 UUID且不重复。只检查当前模块时加 `--module <目录名>`。历史缺失 ID 可用 `--fix` 从现有场景补齐；脚本不编造讲稿，缺失标题使用默认值；缺少讲稿保留空字符串，不因检查要求编造讲稿。
 
 落盘后检查 JSON 格式、页序和页面字段。交付已实现模块前，再核对入口、Guide 与 PPT 的对应关系。
 

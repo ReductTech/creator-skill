@@ -11,11 +11,9 @@ SKILL = Path(__file__).resolve().parents[2]
 
 
 def invoke(tmp_path, target, *args):
-    config = tmp_path / "target.json"
-    config.write_text(json.dumps({"targetRoot": str(target)}), encoding="utf-8")
     result = subprocess.run(
         [sys.executable, str(SKILL / "scripts/tools.py"), "scratchpad.clean", *map(str, args)],
-        cwd=tmp_path, env={**os.environ, "CREATOR_SKILL_TARGET_CONFIG": str(config)},
+        cwd=tmp_path, env={**os.environ, "CREATOR_SKILL_PROJECT_ROOT": str(target)},
         capture_output=True, text=True, encoding="utf-8", timeout=15)
     return result
 

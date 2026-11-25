@@ -15,8 +15,7 @@ from checks.course_consistency import compare_course
 from media import capture_slides
 from checks.inspect_assets import inspect_assets
 
-from _common import get_target_root
-ROOT=get_target_root()
+ROOT=Path(__file__).resolve().parents[2]
 SKILL=Path(__file__).resolve().parents[2]
 OUTLINE={"title":"Example","pages":[{"id":"f2ac1473-665f-46f8-bcb1-53c9438f6482","title":"First","snippet":"Notes"}]}
 
@@ -93,6 +92,7 @@ def test_slide_ids_cannot_escape_output_directory():
 
 
 def test_real_capture_uses_existing_engine_for_default_and_click_states(tmp_path, monkeypatch):
+    monkeypatch.setenv("CREATOR_SKILL_PROJECT_ROOT", str(tmp_path))
     pytest.importorskip('playwright')
     from PIL import Image
     html='''<html><style>html,body{margin:0}main{width:1600px;height:900px;background:rgb(255,0,0)}</style><main class="ppt-slide-surface" data-scene-deck-capture data-deck-id="fixture" data-scene-id="one" data-scene-ids='["one"]'><button onclick="this.parentNode.style.background='rgb(0,0,255)'">Change</button></main></html>'''

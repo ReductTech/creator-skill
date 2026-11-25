@@ -11,7 +11,6 @@ const root = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig(({mode}) => {
   const env = {...loadEnv(mode, root, ''), ...process.env};
-  const targetConfig = path.resolve(root, env.CREATOR_SKILL_TARGET_CONFIG || '../target-root.json');
   let targetRoot;
   if (env.CREATOR_SKILL_DEMO === '1') {
     targetRoot = path.resolve(root, '../starter');
@@ -20,15 +19,6 @@ export default defineConfig(({mode}) => {
     if (!fs.statSync(targetRoot, {throwIfNoEntry: false})?.isDirectory()) {
       throw Error(`预览工程目录不存在：${targetRoot}`);
     }
-  } else if (fs.existsSync(targetConfig)) {
-    const config = JSON.parse(fs.readFileSync(targetConfig, 'utf8').replace(/^\uFEFF/, ''));
-    if (!config || Object.keys(config).length !== 1 || typeof config.targetRoot !== 'string' ||
-        !path.isAbsolute(config.targetRoot) || !fs.statSync(config.targetRoot).isDirectory()) {
-      throw Error('target-root.json 必须只含 targetRoot，并指向已存在的课程工程绝对路径。');
-    }
-    targetRoot = path.resolve(config.targetRoot);
-  } else if (env.CREATOR_SKILL_TARGET_CONFIG) {
-    throw Error(`找不到指定的目标配置：${targetConfig}`);
   }
   targetRoot ??= path.resolve(root, '../starter');
   const coursesRoot = targetRoot && (fs.existsSync(path.join(targetRoot, 'modules')) ? path.join(targetRoot, 'modules') : targetRoot);

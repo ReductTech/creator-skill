@@ -56,8 +56,7 @@ def test_mixed_course_layout_is_reported_instead_of_silently_skipping_courses(tm
 
 def test_every_catalog_help_and_python_import_work_without_a_target(tmp_path, isolated_skill):
     skill, env = isolated_skill
-    (skill / 'target-root.json').unlink()
-    env = {**env, 'CREATOR_SKILL_TARGET_CONFIG': str(tmp_path / 'missing-target-root.json')}
+    env.pop("CREATOR_SKILL_PROJECT_ROOT", None)
     for tool in catalog():
         result = subprocess.run([sys.executable, '-S', str(skill / 'scripts/tools.py'), tool['id'], '--help'],
                                 env=env, cwd=tmp_path, text=True, capture_output=True, timeout=15)
@@ -71,9 +70,7 @@ def test_every_catalog_help_and_python_import_work_without_a_target(tmp_path, is
 
 def test_typecheck_attributes_real_new_errors_and_missing_environment(tmp_path):
     runner = SCRIPTS / 'tests/typecheck_scaffold.mjs'
-    config = tmp_path / 'typecheck-target.json'
-    config.write_text(json.dumps({'targetRoot': str(SCRIPTS.parent / 'player-preview')}), encoding='utf-8')
-    env = {**os.environ, 'CREATOR_SKILL_TARGET_CONFIG': str(config)}
+    env = {**os.environ, 'CREATOR_SKILL_PROJECT_ROOT': str(SCRIPTS.parent / 'player-preview')}
     env.pop('CREATOR_SKILL_TEST_SHUKU_ROOT', None)
     result = subprocess.run(['node', str(runner)], input=json.dumps({'Broken.tsx': 'export const count: number = "wrong";'}),
                             env=env, text=True, capture_output=True, timeout=60)
@@ -82,7 +79,7 @@ def test_typecheck_attributes_real_new_errors_and_missing_environment(tmp_path):
     assert any(issue['code'] == 2322 for issue in report['newIssues'])
     assert report['environmentErrors'] == []
     result = subprocess.run(['node', str(runner)], input='{}', text=True, capture_output=True, timeout=15,
-                            env={**os.environ, 'CREATOR_SKILL_TARGET_CONFIG': str(tmp_path / 'missing.json')})
+                            env={**os.environ, 'CREATOR_SKILL_PROJECT_ROOT': str(tmp_path / 'missing.json')})
     report = json.loads(result.stdout)
     assert result.returncode == 2 and report['status'] == 'error'
     assert report['environmentErrors'] and report['unverified']

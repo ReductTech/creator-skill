@@ -11,7 +11,7 @@ const cache = new Map();
 function buildParser() {
     return {
         help: { type: 'boolean', short: 'h', description: 'show help without scanning source files' },
-        root: { type: 'string', description: 'must match targetRoot in target-root.json' },
+        root: { type: 'string', description: 'must match the selected project' },
     };
 }
 
@@ -275,7 +275,7 @@ async function main(argv = process.argv.slice(2)) {
         const { getTargetRoot } = await import('../common/_target_root.mjs');
         const target = getTargetRoot();
         if (args.root && fs.realpathSync(path.resolve(args.root)) !== target) {
-            throw new Error('--root must match targetRoot in target-root.json');
+            throw new Error('--root must match the selected project');
         }
         emitResult(collectMetrics(target));
         return 0;

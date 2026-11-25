@@ -1,24 +1,19 @@
 # 本地环境、一次性安装意愿与多窗口目录
 
-## 每窗口独立绑定
-
-旧的 Skill根目录 `target-root.json` 只含 `targetRoot`，仍支持已有单窗口任务。它不是多窗口共享的“当前工程”；不要由不同窗口轮流覆盖它。新窗口按用户明确指定的绝对路径创建上下文：
+## 每次调用指定工程
 
 ```powershell
-python <Skill>/scripts/tools.py context.create --target-root <工程绝对路径> --context-directory <目标课程或页面的_scratchpad绝对路径> [--module <课程UUID或alias>] [--shuku-root <本地Shuku目录>]
-python <Skill>/scripts/tools.py --context <返回的target-root.json绝对路径> check.outlines
-python <Skill>/scripts/tools.py --context <同一路径> course.pack <课程目录>
+python <Skill>/scripts/tools.py --project "<工程目录>" check.outlines
+python <Skill>/scripts/tools.py --project "<工程目录>" --module <课程UUID或alias> course.pack <课程目录>
 ```
 
-context.create 在目标课程或页面的 `_scratchpad/` 下新建带随机UUID的独立目录，保存兼容的target-root.json和context.json（窗口身份、工程、可选课程及Shuku位置）。不会覆盖全局配置。续作沿用当前窗口的绝对配置路径；用户明确换工程时新建上下文，不改旧上下文。原始targetRoot只作为目录边界，不随每次课件切换改写。
+工程路径按当前终端目录解析，随后以绝对路径传给本次子进程（`CREATOR_SKILL_PROJECT_ROOT`）。工具中的相对工程路径以该工程为基准。要限定课程，在工具名前传 `--module`；支持课程筛选的工具自动选中它，路径清理与打包也会核对范围。直接打包仍可只传课程目录。联调外部 Shuku 时使用 `SHUKU_ROOT`。
 
-工具只对本次子进程传递 `CREATOR_SKILL_TARGET_CONFIG`，不修改系统环境变量。显式绑定课程后，支持module参数的工具默认选中该课程；冲突参数、越界路径和越界打包拒绝执行。相对工程路径在该窗口targetRoot下解析。仅传绝对路径的直接course工具仍可独立使用。
-
-打包使用隔离的临时快照和输出占位锁，检查证据保存在目标 `_scratchpad/package-checks/` 下，预览服务使用系统分配端口。上下文不会合并两窗口对同一文件的直接编辑。同一课程续作复用原目录，并行编辑时分配不同页面文件。
+打包使用隔离的临时快照和输出占位锁，检查证据保存在目标 `_scratchpad/package-checks/` 下，预览服务使用系统分配端口。同一课程续作复用原目录，并行编辑时分配不同页面文件。
 
 ## 一次性安装意愿
 
-创作偏好 `references/preferences.md` 不保存安装授权；target-root.json也不增加授权字段。本机当前账号跨窗口、跨Skill检出共用独立JSON：Windows为 `%LOCALAPPDATA%/creator-skill/dependency-preferences.json`；其他系统使用XDG配置目录或`~/.config/creator-skill/`。`CREATOR_SKILL_LOCAL_STATE` 可显式指定隔离状态目录（例如测试）。凭据不写入这些文件。
+创作偏好 `references/preferences.md` 不保存安装授权。本机当前账号跨窗口、跨Skill检出共用独立JSON：Windows为 `%LOCALAPPDATA%/creator-skill/dependency-preferences.json`；其他系统使用XDG配置目录或`~/.config/creator-skill/`。`CREATOR_SKILL_LOCAL_STATE` 可显式指定隔离状态目录（例如测试）。凭据不写入这些文件。
 
 安装状态只有 unknown、pending、allowed、declined：
 

@@ -120,14 +120,14 @@ npm start -- --project ../my-course
 git clone https://github.com/ReductTech/creator-skill.git creator-skill
 ```
 
-仅讨论内容或查看帮助无需绑定工程。需要工程操作时，每个窗口使用 `context.create` 创建独立绑定，不共同改写一个“当前工程”：
+每个窗口在命令中指定工程目录：
 
 ```powershell
-python <Skill>/scripts/tools.py context.create --target-root <工程绝对路径> --context-directory <当前窗口工作目录> [--module <课程UUID>]
-python <Skill>/scripts/tools.py --context <返回的target-root.json绝对路径> course.pack <课程目录>
+python <Skill>/scripts/tools.py --project "<工程目录>" check.outlines
+python <Skill>/scripts/tools.py --project "<工程目录>" course.pack <课程目录>
 ```
 
-旧的Skill根目录target-root.json仍兼容单窗口默认；新窗口不改它。绑定支持modules/<UUID>/与平铺<UUID>/布局。依赖安装意愿保存在本机账号的独立配置，只问一次，跨窗口共用；详见[本地环境与窗口](references/engineering/local-environment.md)。
+工程支持modules/<UUID>/与平铺<UUID>/布局。依赖安装意愿保存在本机账号的独立配置，只问一次，跨窗口共用；详见[本地环境与窗口](references/engineering/local-environment.md)。
 
 本仓库根目录已附带完整 `shared/`。初始化用户工程时，AI 助手可直接复制到目标的 `modules/shared/`（平铺布局用 `shared/`），保留风格 UUID；已有 Shared 则复用。详见[复制内置 Shared](references/engineering/module-assets.md#复制内置-shared)。
 
@@ -137,7 +137,6 @@ python <Skill>/scripts/tools.py --context <返回的target-root.json绝对路径
 your-course-project/
 ├── creator-skill/          # 本仓库
 │   ├── SKILL.md
-│   ├── target-root.json    # 首次使用时创建，Git 忽略
 │   ├── references/
 │   ├── assets/
 │   ├── shared/             # 可直接复制给目标工程的完整默认风格包
@@ -172,7 +171,7 @@ your-course-project/
 
 在配套课程工程根目录运行：
 
-下面命令以工程内安装为例；独立安装时，用 `tools.py` 的绝对路径调用。执行入口会自动切换到配置的目标工程；查看清单、工具描述和检查 Skill 文档不要求配置目标。
+下面命令以工程内安装为例；独立安装时，用 `tools.py` 的绝对路径调用。执行入口会自动切换到本次指定的工程；查看清单、工具描述和检查 Skill 文档不要求配置目标。
 
 ```bash
 # 查看工具清单，不执行创作或上传任务
@@ -191,10 +190,10 @@ python creator-skill/scripts/tools.py capture.slides --help
 
 普通作者按环境启用本地检测：已有Node和相关依赖时默认执行静态、类型、本地构建及浏览器检查；缺依赖只问一次并保存安装意愿。Shuku仍独立复核入库、安全和正式发布。媒体处理依赖见[交付说明](references/engineering/delivery.md)。
 
-智能体可使用当前窗口的配置启动预览，从课程列表打开对应课件：
+智能体可使用工程目录启动预览，从课程列表打开对应课件：
 
 ```powershell
-npm start -- --context "<context.create 返回的绝对配置路径>"
+npm start -- --project "<工程目录>"
 ```
 
 服务地址以终端输出为准。术库宿主服务与正式构建的配置见 [术库本地预览](player-preview/README.md)和[源码 ZIP 交付](references/engineering/delivery.md)。
@@ -225,7 +224,6 @@ python -m playwright install chromium
 ```text
 creator-skill/
 ├── SKILL.md               # AI 助手的创作入口
-├── target-root.json       # 使用时创建的本地配置，不纳入 Git
 ├── references/
 │   ├── workflow/          # 从零创作、参考改编与续作规则
 │   ├── design/            # 大纲、口播、视觉设计与习题

@@ -24,12 +24,17 @@ def catalog():
 
 def main(argv=None):
     argv=list(sys.argv[1:] if argv is None else argv)
-    context_file = None
-    if argv[:1] == ['--context']:
+    project = None
+    bound_module = None
+    if argv[:1] == ['--project']:
         if len(argv) < 3:
-            print('Usage: tools.py --context <absolute target-root.json> <tool-id> ...', file=sys.stderr)
+            print('Usage: tools.py --project <directory> [--module <id>] <tool-id> ...', file=sys.stderr)
             return 2
-        context_file, argv = argv[1], argv[2:]
+        project, argv = str(Path(argv[1]).resolve()), argv[2:]
+        if argv[:1] == ['--module']:
+            if len(argv) < 3:
+                return 2
+            bound_module, argv = argv[1], argv[2:]
     try:tools=catalog()
     except (ValueError,OSError) as exc:print(f'Tool catalog error: {exc}',file=sys.stderr);return 2
     if not argv or argv[0] in {'list','--help','-h','--json'}:
@@ -40,7 +45,7 @@ def main(argv=None):
         selected=[tool for tool in tools if not args.category or tool['category']==args.category]
         if args.json:print(json.dumps(selected,ensure_ascii=False,indent=2))
         else:
-            print(f'Run: python "{Path(__file__).resolve()}" <tool-id> --help')
+            print(f'Run: python "{Path(__file__).resolve()}" --project <directory> [--module <id>] <tool-id> ...')
             for tool in selected:print(f"{tool['id']:<32} {tool['description']} [{tool['category']}]")
         return 0
     describe=argv[0]=='describe'
@@ -56,19 +61,21 @@ def main(argv=None):
     command=[executable,str(SKILL/tool['path']),*tool.get('arguments',[]),*argv[1:]]
     try:
         environment = os.environ.copy()
-        metadata = None
-        if context_file:
-            from local_context import context_metadata
-            metadata = context_metadata(context_file)
-            environment['CREATOR_SKILL_TARGET_CONFIG'] = str(Path(context_file).resolve())
-            if metadata.get('shukuRoot'):
-                environment['SHUKU_ROOT'] = metadata['shukuRoot']
+        if project:
+            environment['CREATOR_SKILL_PROJECT_ROOT'] = str(get_target_root(project))
         help_only = any(arg in {'--help', '-h'} for arg in argv[1:])
-        explicit_paths = key in {'course.pack', 'course.discover', 'course.inspect', 'course.images', 'course.videos', 'course.audio'}
-        root = (Path(metadata['targetRoot']) if metadata else Path.cwd()) if explicit_paths else SKILL if key in {'check.skill', 'scratchpad.clean', 'environment.doctor', 'context.create', 'dependencies.policy', 'dependencies.install'} or help_only else get_target_root(context_file)
-        if metadata and not help_only:
-            bound_root = Path(metadata['targetRoot'])
-            bound_module = metadata.get('module')
+        explicit_paths = key in {'check.source-editing', 'course.pack', 'course.discover', 'course.inspect', 'course.images', 'course.videos', 'course.audio'}
+        independent = {'check.skill', 'scratchpad.clean', 'environment.doctor', 'dependencies.policy', 'dependencies.install'}
+        if project:
+            root = Path(project)
+        elif explicit_paths:
+            root = Path.cwd()
+        elif key in independent or help_only:
+            root = SKILL
+        else:
+            root = get_target_root()
+        if project and not help_only:
+            bound_root = root
             scope_root = bound_root
             if bound_module:
                 from _common import resolve_module
@@ -91,7 +98,20 @@ def main(argv=None):
                         value=(value if value.is_absolute() else bound_root/value).resolve()
                         if not value.is_relative_to(scope_root):
                             raise ValueError('Output path leaves this window course/project scope')
-            module_tools = {'check.module', 'check.outlines', 'check.course', 'check.styles', 'check.asset-imports',
+            if key == 'check.source-editing':
+                declared = next((arg.partition('=')[2] for arg in argv[1:] if arg.startswith('--project=')), None)
+                if '--project' in argv[1:]:
+                    index = argv.index('--project') + 1
+                    if index >= len(argv):
+                        raise ValueError('--project requires a directory')
+                    declared = argv[index]
+                if declared is None:
+                    command.extend(['--project', str(root)])
+                elif (root / declared).resolve() != root:
+                    raise ValueError('Target overrides must match the selected project')
+            if key == 'course.pack' and bound_module:
+                environment['CREATOR_SKILL_PACK_MODULE'] = bound_module
+            module_tools = {'check.module', 'check.outlines', 'check.course', 'check.styles', 'check.asset-imports', 'check.source-editing',
                             'capture.slides', 'capture.thumbnails', 'capture.inspect', 'assets.rewrite', 'analyze.pages', 'assets.upload'}
             if bound_module and key in module_tools:
                 from _common import resolve_module
@@ -104,13 +124,13 @@ def main(argv=None):
                         raise ValueError('Requested module conflicts with this window context')
                 else:
                     command.extend(['--module', bound_module])
-        if key not in {'check.skill', 'scratchpad.clean', 'environment.doctor', 'context.create', 'dependencies.policy', 'dependencies.install'} and not explicit_paths and not help_only:
+        if key not in independent and not explicit_paths and not help_only:
             for index, argument in enumerate(argv[1:], 1):
                 option, separator, value = argument.partition('=')
                 if option in {'--repository', '--root'}:
                     value = value if separator else argv[index+1] if index+1 < len(argv) else ''
                     if not value or Path(value).resolve() != root:
-                        raise ValueError('Target overrides must match targetRoot in target-root.json')
+                        raise ValueError('Target overrides must match the selected project')
         return subprocess.run(command,cwd=root,env=environment,check=False).returncode
     except ValueError as exc:return report_error(exc)
     except KeyboardInterrupt:return 130

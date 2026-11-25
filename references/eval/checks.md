@@ -40,7 +40,7 @@
 `course.pack --checks auto` 由 `scripts/module/local_validation.py` 自动调度；确定的旧脚本、无效能力或替换错误阻止出包。缺少 Shuku Python 运行时、对应构建、解析依赖或浏览器时保留可执行的检查，其余标记“未验证”，不得降级成“通过”。仅有大纲时不适用。结果只证明本地已执行的能力，不代替服务器入库、审核、发布或全部交互验收。
 
 ```powershell
-python creator-skill/scripts/tools.py check.source-editing --project <工程绝对路径> --module <课程UUID> --shuku-root <Shuku源码绝对路径> --build-output <本次构建输出绝对路径> --evidence <检查证据目录>
+python creator-skill/scripts/tools.py --project <工程绝对路径> check.source-editing --module <课程UUID> --shuku-root <Shuku源码绝对路径> --build-output <本次构建输出绝对路径> --evidence <检查证据目录>
 ```
 
 退出码：`0` 为所需检查均通过（不存在的元素类型可不适用）；`1` 为确定不通过；`2` 为存在未验证项或执行条件不足。`--skip-browser` 必须将 iframe 选中标记为“未验证”，不能用来宣称完整通过。
@@ -86,7 +86,7 @@ course.pack默认按能力调度下列原有工具；每次报告实际执行与
 日常页面检查可使用：
 
 ```powershell
-python creator-skill/scripts/tools.py capture.slides --module <模块名> --slide <页ID> --page-directory <语义页目录>
+python creator-skill/scripts/tools.py --project . capture.slides --module <模块名> --slide <页ID> --page-directory <语义页目录>
 ```
 
 关键状态沿用同一命令的 `--actions <动作JSON> --state <状态名>`；仅明确存在字数上限时添加 `--max-chars <上限>`。动作只能覆盖任务已授权的操作。逐页产物保存在 `pages/<语义页目录>/_scratchpad/`；读取截图并核对交互后再形成结论。

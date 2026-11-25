@@ -392,18 +392,6 @@
       "arguments": []
     },
     {
-      "id": "context.create",
-      "category": "environment",
-      "path": "scripts/checks/local_settings.py",
-      "runtime": "python",
-      "description": "为当前窗口创建独立工程与可选课程绑定，不修改全局目标",
-      "effects": "仅写本机配置；不安装依赖、不访问服务器",
-      "dependencies": [],
-      "arguments": [
-        "context"
-      ]
-    },
-    {
       "id": "dependencies.policy",
       "category": "environment",
       "path": "scripts/checks/local_settings.py",

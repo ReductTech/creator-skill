@@ -28,5 +28,4 @@ const modulePath = path.join(project, 'modules', id);
 await cp(source, modulePath, {recursive: true});
 await cp(new URL('../shared/', import.meta.url), path.join(project, 'modules', 'shared'), {recursive: true});
 await writeFile(path.join(modulePath, 'outlines.json'), JSON.stringify(outline, null, 2) + '\n');
-await writeFile(path.join(project, 'target-root.json'), JSON.stringify({targetRoot: project}, null, 2) + '\n', {flag: 'wx'});
 console.log(JSON.stringify({project, modulePath, module: id}));

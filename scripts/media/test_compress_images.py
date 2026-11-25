@@ -149,11 +149,9 @@ def test_cli_dry_run_writes_neither_report_nor_images(tmp_path):
     directory.mkdir()
     source = directory / 'large.png'
     Image.new('RGB', (2000, 1000), 'red').save(source)
-    config = tmp_path / 'target-root.json'
-    config.write_text(json.dumps({'targetRoot': str(tmp_path)}))
     result = subprocess.run([sys.executable, str(SCRIPTS / 'tools.py'), 'assets.compress',
         'assets', '--dry-run', '--report', 'report.json'], capture_output=True, text=True,
-        env={**os.environ, 'CREATOR_SKILL_TARGET_CONFIG': str(config)}, timeout=20)
+        env={**os.environ, 'CREATOR_SKILL_PROJECT_ROOT': str(tmp_path)}, timeout=20)
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout)['images'][0]['after_size'] == [1600, 800]
     assert list(directory.iterdir()) == [source]

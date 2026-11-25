@@ -1,4 +1,5 @@
 """Observable Shuku contracts, independent of a platform checkout or credentials."""
+import os
 import hashlib
 import importlib.util
 import json
@@ -124,10 +125,9 @@ def test_source_only_flat_course_media_check_uses_configured_root(tmp_path):
     module.mkdir(parents=True)
     (module / 'outlines.json').write_text(json.dumps({'id': MID}))
     (module / 'page.tsx').write_text("import image from './media/image.png';")
-    (skill / 'target-root.json').write_text(json.dumps({'targetRoot': str(root)}))
     tool = skill / 'scripts/checks/asset_imports.mjs'
     def run(*extra):
-        return subprocess.run(['node', str(tool), *extra], cwd=tmp_path, text=True, capture_output=True, timeout=15)
+        return subprocess.run(['node', str(tool), *extra], env={**os.environ, 'CREATOR_SKILL_PROJECT_ROOT': str(root)}, cwd=tmp_path, text=True, capture_output=True, timeout=15)
     assert run('--module', MID).returncode == 1
     (module / 'media').mkdir()
     (module / 'media/image.png').write_bytes(b'image')

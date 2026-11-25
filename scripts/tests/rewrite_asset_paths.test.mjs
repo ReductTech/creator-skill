@@ -21,9 +21,8 @@ function fixture(t, sources, mapping = {'images/a.jpg': 'images/a.webp'}, extras
   for (const name of [...Object.values(mapping), ...extras]) write(assets, name, 'asset-bytes-' + name);
   const changes = new Map(Object.entries(mapping));
   const plan = () => planReferences({course, changes, ts});
-  const config = path.join(root, 'target-root.json'); write(root, 'target-root.json', JSON.stringify({targetRoot: root}));
   write(root, 'changes.json', JSON.stringify(mapping));
-  const cli = (...args) => spawnSync(process.execPath, [script, '--module', 'demo', '--changes', 'changes.json', ...args], {cwd: os.tmpdir(), env: {...process.env, CREATOR_SKILL_TARGET_CONFIG: config}, encoding: 'utf8'});
+  const cli = (...args) => spawnSync(process.execPath, [script, '--module', 'demo', '--changes', 'changes.json', ...args], {cwd: os.tmpdir(), env: {...process.env, CREATOR_SKILL_PROJECT_ROOT: root}, encoding: 'utf8'});
   return {root, course, assets, changes, plan, cli, write};
 }
 
@@ -297,12 +296,12 @@ test('accepts conversion reports without touching skipped images', t => {
 
 test('discovery works even when old assets are already removed', t => {
   const f=fixture(t,{'page.tsx':"const a='images/a.jpg';"});
-  const run=spawnSync(process.execPath,[script,'--module','demo','--to-ext','webp'],{encoding:'utf8',env:{...process.env,CREATOR_SKILL_TARGET_CONFIG:path.join(f.root,'target-root.json')}});
+  const run=spawnSync(process.execPath,[script,'--module','demo','--to-ext','webp'],{encoding:'utf8',env:{...process.env,CREATOR_SKILL_PROJECT_ROOT:f.root}});
   assert.equal(run.status,0,run.stderr);assert.equal(JSON.parse(run.stdout).changedFiles.length,1);
 });
 
 test('help does not require configured targets or optional libraries', () => {
-  const result=spawnSync(process.execPath,[script,'--help'],{encoding:'utf8',env:{...process.env,CREATOR_SKILL_TARGET_CONFIG:'missing.json'}});
+  const result=spawnSync(process.execPath,[script,'--help'],{encoding:'utf8',env:{...process.env,CREATOR_SKILL_PROJECT_ROOT:'missing.json'}});
   assert.equal(result.status,0,result.stderr);assert.ok(result.stdout.includes('usage:'));
 });
 

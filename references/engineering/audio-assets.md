@@ -6,7 +6,7 @@
 
 ## 调用
 
-需要 Python 3.10+、FFmpeg（原生 AAC 编码器）和 ffprobe，不安装或下载依赖。相对路径以调用时的工作目录为准，不读取 `target-root.json`。
+需要 Python 3.10+、FFmpeg（原生 AAC 编码器）和 ffprobe，不安装或下载依赖。相对路径以调用时的工作目录为准。
 
 ```powershell
 # 默认只探测和列出计划，不生成文件。

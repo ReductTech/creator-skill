@@ -13,8 +13,8 @@ from skzip import canonical, digest
 SCRIPTS = Path(__file__).resolve().parents[1]
 
 
-def tool(root, config, name, arguments, timeout, *, advisory=False):
-    env = {**os.environ, 'CREATOR_SKILL_TARGET_CONFIG': str(config)}
+def tool(root, name, arguments, timeout, *, advisory=False):
+    env = {**os.environ, 'CREATOR_SKILL_PROJECT_ROOT': str(root.resolve())}
     process = subprocess.run([sys.executable, str(SCRIPTS/'tools.py'), name, *map(str, arguments)],
                              cwd=root, env=env, capture_output=True, text=True, encoding='utf-8', timeout=timeout)
     try:
@@ -37,8 +37,6 @@ def compressor():
 
 def prepare(root, courses, workspace, timeout):
     """Compress -> rewrite -> repeat check -> add/check IDs -> metadata/import checks."""
-    config = workspace/'target-root.json'
-    config.write_bytes(canonical({'targetRoot': str(root)}))
     results = []
     convert = compressor().convert
     originals = set()
@@ -71,14 +69,14 @@ def prepare(root, courses, workspace, timeout):
         change_file.write_bytes(canonical(changes))
         arguments = ['--module', course['module_id'], '--changes', change_file]
         for apply in (False, True, False):
-            plan = tool(root, config, 'assets.rewrite', [*arguments, *(['--apply'] if apply else [])], timeout, advisory=True)
-        applied = tool(root, config, 'module.edit-ids', [directory, '--apply', '--backup-dir', workspace/'id-backups'], timeout, advisory=True)
-        checked = tool(root, config, 'module.edit-ids', [directory, '--check'], timeout, advisory=True)
+            plan = tool(root, 'assets.rewrite', [*arguments, *(['--apply'] if apply else [])], timeout, advisory=True)
+        applied = tool(root, 'module.edit-ids', [directory, '--apply', '--backup-dir', workspace/'id-backups'], timeout, advisory=True)
+        checked = tool(root, 'module.edit-ids', [directory, '--check'], timeout, advisory=True)
         results.append({'module': course['module_id'], 'images': images, 'migratedPaths': changes,
                         'idsAdded': applied.get('idsWritten', 0), 'idsKept': checked.get('existingIdsKept', 0),
                         'skippedComponents': checked.get('skipped', []),
                         'references':plan, 'editIds':checked})
-    return results, originals, config
+    return results, originals
 
 
 def resource_review(root, courses, originals, snapshot):

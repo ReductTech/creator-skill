@@ -47,7 +47,8 @@ def runtime():
         thread.join(timeout=5)
 
 
-def test_one_loaded_document_resets_state_and_waits_until_ready(runtime):
+def test_one_loaded_document_resets_state_and_waits_until_ready(runtime, tmp_path, monkeypatch):
+    monkeypatch.setenv("CREATOR_SKILL_PROJECT_ROOT", str(tmp_path))
     context, url = runtime
     assert capture.scene_ids(context, url, 'fixture') == ['one', 'two']
     warm_page = context._idl_capture_page

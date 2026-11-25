@@ -8,29 +8,17 @@ from course_paths import modules_directory, outline_paths
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 SKILL = SCRIPTS.parent
-TARGET_ROOT_CONFIG = SKILL / "target-root.json"
 sys.path.insert(0, str(SCRIPTS))
 
 
-def get_target_root(config_file=None):
-    """Read the single configured absolute directory; never infer a target."""
-    config = Path(config_file) if config_file is not None else Path(os.environ.get("CREATOR_SKILL_TARGET_CONFIG") or TARGET_ROOT_CONFIG)
-    try:
-        document = json.loads(config.read_text(encoding="utf-8-sig"))
-    except (OSError, ValueError) as exc:
-        raise ValueError(f"Cannot read target-root.json: {exc}") from exc
-    if not isinstance(document, dict) or set(document) != {"targetRoot"}:
-        raise ValueError("target-root.json must contain only the targetRoot field")
-    value = document["targetRoot"]
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError("Set targetRoot in target-root.json to the target project's absolute directory")
+def get_target_root(project=None):
+    value = project if project is not None else os.environ.get("CREATOR_SKILL_PROJECT_ROOT")
+    if not value:
+        raise ValueError("Specify the project directory with --project")
     root = Path(value)
-    if not root.is_absolute():
-        raise ValueError("targetRoot must be an absolute directory")
-    if not root.is_dir():
-        raise ValueError(f"targetRoot directory does not exist: {root}")
-    root = root.resolve()
-    return root
+    if not root.is_absolute() or not root.is_dir():
+        raise ValueError(f"Project must be an existing absolute directory: {root}")
+    return root.resolve()
 
 
 def __getattr__(name):
@@ -44,12 +32,12 @@ def require_target_root(requested=None):
     """Legacy root arguments may confirm the configured root, never override it."""
     root = get_target_root()
     if requested is not None and Path(requested).resolve() != root:
-        raise ValueError("Target overrides must match targetRoot in target-root.json")
+        raise ValueError("Target overrides must match the selected project")
     return root
 
 
 def project_path(value, *, external=False):
-    """Anchor relative paths to the JSON target, independent of the caller's cwd."""
+    """Anchor relative paths to the selected project, independent of the caller's cwd."""
     root = get_target_root()
     value = Path(value).expanduser()
     target = (value if value.is_absolute() else root / value).resolve()

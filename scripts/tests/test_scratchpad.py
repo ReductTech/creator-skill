@@ -79,10 +79,7 @@ def test_module_check_ignores_scratch_sources(tmp_path):
 
 @pytest.fixture
 def report_data(tmp_path, monkeypatch):
-    import _common
-    config = tmp_path / "target-root.json"
-    config.write_text(json.dumps({"targetRoot": str(tmp_path)}), encoding="utf-8")
-    monkeypatch.setattr(_common, "TARGET_ROOT_CONFIG", config)
+    monkeypatch.setenv("CREATOR_SKILL_PROJECT_ROOT", str(tmp_path))
     modules, pages = [], []
     for name in ("First", "Second"):
         directory = tmp_path / "modules" / name
@@ -147,6 +144,7 @@ def test_report_output_requires_matching_module(tmp_path, report_data):
 
 
 def test_snapshot_writes_only_within_its_module(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("CREATOR_SKILL_PROJECT_ROOT", str(tmp_path))
     directory = tmp_path / "module"
     snapshot = tmp_path / "input.json"
     snapshot.write_text(

@@ -30,15 +30,7 @@ npm run new -- ../my-course
 npm start -- --project ../my-course
 ```
 
-新工程会获得课件和页面的新 UUID、默认 Shared 和 `target-root.json`。已有工程可以用 `npm start -- --context "<配置文件绝对路径>"`，直接复用创作工具的窗口配置。配置示例：
-
-```json
-{
-  "targetRoot": "D:/Courses/MyProject"
-}
-```
-
-路径必须是已存在的课程工程绝对路径。支持 `modules/<课程UUID>/outlines.json` 和平铺 `<课程UUID>/outlines.json` 两种布局。课件源码与素材保留在目标工程，不搬进播放器目录；风格从目标的 `shared/` 或 `modules/shared/` 读取，工程缺少风格时使用内置的 Shuku 默认风格。
+新工程会获得课件和页面的新 UUID 及默认 Shared。已有工程直接用 `npm start -- --project "<工程目录>"` 预览。支持 `modules/<课程UUID>/outlines.json` 和平铺 `<课程UUID>/outlines.json` 两种布局。课件源码与素材保留在目标工程，不搬进播放器目录；风格从目标的 `shared/` 或 `modules/shared/` 读取，工程缺少风格时使用内置的 Shuku 默认风格。
 
 预览默认使用内置的 Shuku 课程运行时。需要联调另一份 Shuku 源码时，将本目录 `.env.example` 复制为 `.env.local`，填写以下可选配置。
 

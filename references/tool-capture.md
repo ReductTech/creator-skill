@@ -9,7 +9,7 @@
 **仅更新缩略图，直接执行一条命令：**
 
 ```powershell
-python creator-skill/scripts/tools.py capture.thumbnails --module AI-Practice-Education
+python creator-skill/scripts/tools.py --project . capture.thumbnails --module AI-Practice-Education
 ```
 
 工具只使用已构建的课件，任务结束后自动关闭自己启动的临时服务；显式传入的预览服务保持运行。页 ID 已知时用 `--slide <ID>` 只更新受影响页，不必先扫描全部场景。缺少构建、素材或浏览器依赖时按具体错误处理。
@@ -23,9 +23,9 @@ python creator-skill/scripts/tools.py capture.thumbnails --module AI-Practice-Ed
 检查 `generationStatus` 和生成数量后打开总览核对。`generationStatus: ok` 表示图片已写入；`checksStatus: failed` / 退出码 `1` 表示另有布局检查发现，不等于没有生成图片，**不要因此反复重跑整套**。保留并按范围核对这些发现；只有执行错误、缺页或图像错误才补采相关页。缩略图维护不默认制作 ZIP、额外逐页截图或执行全仓库测试；修改了工具本身才运行工具回归测试。
 
 ```powershell
-python creator-skill/scripts/tools.py capture.slides --module <UUID> --slide <页面UUID> --page-directory OpeningPage --build-output D:/Builds/Shuku
-python creator-skill/scripts/tools.py capture.thumbnails --module Policy-Gradient --slide play-maze
-python creator-skill/scripts/tools.py capture.inspect --module Policy-Gradient
+python creator-skill/scripts/tools.py --project . capture.slides --module <UUID> --slide <页面UUID> --page-directory OpeningPage --build-output D:/Builds/Shuku
+python creator-skill/scripts/tools.py --project . capture.thumbnails --module Policy-Gradient --slide play-maze
+python creator-skill/scripts/tools.py --project . capture.inspect --module Policy-Gradient
 ```
 
 逐页使用 `capture.slides --slide <场景ID> --page-directory <语义页目录>`，保存到 `modules/<模块目录名>/pages/<语义页目录>/_scratchpad/screenshots/<场景ID>.png`；操作状态用 `--state` 命名为 `<场景ID>/<状态>.png`。批量捕获旧模块而未指定页目录时仍兼容模块级输出，制作新页时使用逐页目录。`--output` 可指定对应页 `_scratchpad/` 内的图片目录。

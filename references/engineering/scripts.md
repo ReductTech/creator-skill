@@ -1,6 +1,6 @@
 # 工具脚本规范
 
-`course.pack`、`course.discover`、`course.inspect`、`course.images`、`course.videos`、`course.audio` 无上下文时接收明确路径，相对路径按调用目录解析；使用--context时路径受本窗口工程与课程约束。打包入口只编排独立的发现、源码检查、媒体准备、Python引用迁移与归档组件，默认调度所有可用本地检测、构建与浏览器检查，缺依赖遵循保存的一次性安装意愿。`scratchpad.clean` 按用户指定的绝对路径清理，可不配置工程；相对路径仍按 `targetRoot` 解析。其他工程工具的目标工程根目录从明确指定的 `target-root.json` 读取，独立使用默认位于 Skill 根目录；平台可显式指定本次调用的配置文件。Python 使用 `_common.get_target_root()`／`project_path()`，Node 使用 `common/_target_root.mjs` 的 `getTargetRoot()`；相对工程路径以配置为基准，不使用当前工作目录、脚本父目录层数或旧环境变量推算。Skill 自己的文档、模板、检查器和浏览器启动文件按脚本自身位置读取。旧的 `--root`／`--repository` 参数只能确认同一目标，不能覆盖配置。
+`course.pack`、`course.discover`、`course.inspect`、`course.images`、`course.videos`、`course.audio` 无上下文时接收明确路径，相对路径按调用目录解析；使用 `--project` 时相对路径以指定工程为基准。打包入口只编排独立的发现、源码检查、媒体准备、Python引用迁移与归档组件，默认调度所有可用本地检测、构建与浏览器检查，缺依赖遵循保存的一次性安装意愿。`scratchpad.clean` 按用户指定的绝对路径清理，可不配置工程；相对路径仍按 `targetRoot` 解析。其他工程工具通过 `tools.py --project "<工程目录>" <工具>` 指定工程。Python 使用 `_common.get_target_root()`／`project_path()`，Node 使用 `common/_target_root.mjs` 的 `getTargetRoot()`；相对工程路径以指定工程为基准，不使用当前工作目录、脚本父目录层数或旧环境变量推算。Skill 自己的文档、模板、检查器和浏览器启动文件按脚本自身位置读取。旧的 `--root`／`--repository` 参数只能确认同一目标，不能覆盖配置。
 
 用于维护 `scripts/` 中供智能体调用的工具。按用途分为 `module/`、`checks/`、`media/`、`analysis/`、`common/`、`tests/`，模板单独放在 `templates/`，不再增加更深层级。统一入口、清单与依赖文件保留在根目录；测试和内部辅助文件不强套命令行模板。
 

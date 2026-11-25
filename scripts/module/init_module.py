@@ -32,7 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--repository",
         type=Path,
         default=None,
-        help="must match targetRoot in the Skill's target-root.json",
+        help="must match the selected project",
     )
     parser.add_argument(
         "--dry-run",

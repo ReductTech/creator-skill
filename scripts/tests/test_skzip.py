@@ -99,7 +99,7 @@ def test_prepare_converts_small_png_rewrites_and_adds_ids(tmp_path):
     (course/'assets').mkdir()
     Image.new('RGBA', (20, 30), (1, 2, 3, 40)).save(course/'assets/image.png')
     work = tmp_path/'work'; work.mkdir()
-    rows, originals, _ = prepare(root, [record], work, 30)
+    rows, originals = prepare(root, [record], work, 30)
     source = (course/'Guide.tsx').read_text()
     assert 'moduleAssetUrl("image.webp")' in source and 'shuku-edit-id=' in source
     assert rows[0]['idsAdded'] == 1
@@ -113,7 +113,7 @@ def test_opaque_references_are_reported_without_blocking_preparation(tmp_path):
     root = tmp_path/'source'
     course, record = fixture(root, "import {moduleAssetUrl} from '@shuku/course-runtime/react/assets';export function Guide(){return <img src={moduleAssetUrl(location.hash)}/>} ")
     work = tmp_path/'work'; work.mkdir()
-    rows, _, _ = prepare(root, [record], work, 30)
+    rows, _ = prepare(root, [record], work, 30)
     assert rows[0]['references'].get('unverified') or rows[0]['references'].get('unresolved')
 
 

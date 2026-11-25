@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from common.local_context import create_context, install_policy
+from common.local_context import install_policy
 from module.package_course import export_source
 from module.local_validation import node_references
 from test_delivery import course, snapshot
@@ -44,24 +44,23 @@ def test_concurrent_question_claim_does_not_duplicate(tmp_path):
 def test_two_window_contexts_do_not_change_global_target_or_each_other(tmp_path):
     a=tmp_path/'a';b=tmp_path/'b';a.mkdir();b.mkdir()
     ca=course(a);cb=course(b)
-    first=create_context(a,tmp_path/'contexts',module=ca.name)
-    second=create_context(b,tmp_path/'contexts',module=cb.name)
-    assert first['context']!=second['context']
-    for ctx,expected in [(first,ca),(second,cb)]:
-        completed=subprocess.run([sys.executable,str(SCRIPTS/'tools.py'),'--context',ctx['context'],'check.outlines'],
-            cwd=tmp_path,env=os.environ.copy(),text=True,capture_output=True,check=True)
-        assert json.loads(completed.stdout)['modules']==1
-        result=export_source([expected],context=Path(ctx['context']),checks='basic')
-        assert result['status']=='passed'
-    denied=export_source([cb],context=Path(first['context']),checks='basic')
-    assert denied['status']=='error' and not denied['outputCreated']
-    assert json.loads(Path(first['context']).read_text())['targetRoot']==str(a.resolve())
+    def check(project, selected):
+        completed = subprocess.run([sys.executable, str(SCRIPTS/'tools.py'), '--project', str(project),
+                                    '--module', selected.name, 'check.outlines'], cwd=tmp_path,
+                                   text=True, capture_output=True, check=True)
+        assert json.loads(completed.stdout)['modules'] == 1
+        assert export_source([selected], project=project, checks='basic')['status'] == 'passed'
+
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        list(workers.map(check, [a, b], [ca, cb]))
+    denied = export_source([cb], project=a, checks='basic')
+    assert denied['status'] == 'error' and not denied['outputCreated']
+    assert not list(tmp_path.rglob('target-root.json'))
 
 
 def test_bound_course_rejects_other_module_in_same_project(tmp_path):
     a=course(tmp_path/'project');b=course(a.parent)
-    ctx=create_context(a.parent,tmp_path/'contexts',module=a.name)
-    completed=subprocess.run([sys.executable,str(SCRIPTS/'tools.py'),'--context',ctx['context'],'check.outlines','--module='+b.name],
+    completed=subprocess.run([sys.executable,str(SCRIPTS/'tools.py'),'--project',str(a.parent),'--module',a.name,'check.outlines','--module='+b.name],
         text=True,capture_output=True)
     assert completed.returncode==2 and 'conflicts' in completed.stdout
 
@@ -152,8 +151,7 @@ def test_installer_requires_saved_consent_and_failure_does_not_reask(tmp_path,mo
 def test_bound_context_rejects_cleanup_of_sibling_course(tmp_path):
     a=course(tmp_path/'project');b=course(a.parent)
     scratch=b/'_scratchpad';scratch.mkdir();(scratch/'keep.txt').write_text('keep')
-    ctx=create_context(a.parent,tmp_path/'contexts',module=a.name)
-    completed=subprocess.run([sys.executable,str(SCRIPTS/'tools.py'),'--context',ctx['context'],'scratchpad.clean',str(b),'--apply'],
+    completed=subprocess.run([sys.executable,str(SCRIPTS/'tools.py'),'--project',str(a.parent),'--module',a.name,'scratchpad.clean',str(b),'--apply'],
         text=True,capture_output=True)
     assert completed.returncode==2 and (scratch/'keep.txt').is_file()
 

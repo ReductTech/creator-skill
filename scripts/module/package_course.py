@@ -24,7 +24,7 @@ from module.source_media import prepare_media
 from module.source_archive import write_source_archive
 from module.source_report import start_report, record_stage, finish_report
 from module.local_validation import capabilities, dependency_gate, node_references, local_checks
-from common.local_context import context_metadata
+from _common import get_target_root, resolve_module
 from media.prepare_videos import EXTENSIONS as VIDEO_EXTENSIONS
 from media.prepare_audio import EXTENSIONS as AUDIO_EXTENSIONS
 from common.image_policy import IMAGE_SUFFIXES
@@ -38,7 +38,6 @@ def build_parser():
     parser.add_argument('--ffmpeg', default='ffmpeg', help='FFmpeg executable name or path; only needed for audio/video')
     parser.add_argument('--ffprobe', default='ffprobe', help='ffprobe executable name or path; only needed for audio/video')
     parser.add_argument('--checks', choices=['auto','basic'], default=os.environ.get('CREATOR_SKILL_CHECK_MODE','auto'), help='auto: run every available check; basic only at explicit user request')
-    parser.add_argument('--context', type=Path, help='This window absolute target-root.json; never changes the global binding')
     parser.add_argument('--shuku-root', type=Path, help='Optional local Shuku runtime/build checkout')
     parser.add_argument('--actions', type=Path, help='Authorized course-specific browser actions JSON; otherwise check default states')
     return parser
@@ -61,45 +60,29 @@ def reserve_output(directories):
         lock.unlink(missing_ok=True)
 
 
-def export_source(directories, *, ffmpeg='ffmpeg', ffprobe='ffprobe', checks=None, context=None, shuku=None, actions=None):
+def export_source(directories, *, ffmpeg='ffmpeg', ffprobe='ffprobe', checks=None, project=None, shuku=None, actions=None):
     """Reserve unique outputs so simultaneous windows never overwrite each other's reports."""
-    bound = context or os.environ.get('CREATOR_SKILL_TARGET_CONFIG')
-    if bound and (context or (Path(bound).parent/'context.json').is_file()):
-        metadata = context_metadata(bound)
-        directories = [Path(p) if Path(p).is_absolute() else Path(metadata['targetRoot'])/p for p in directories]
-        root=Path(metadata['targetRoot'])
-        allowed=root
-        if metadata.get('module'):
-            from _common import resolve_module
-            allowed=resolve_module(metadata['module'],root)[0]
-        if any(not Path(p).resolve().is_relative_to(root) or metadata.get('module') and Path(p).resolve()!=allowed for p in directories):
+    project = project or os.environ.get('CREATOR_SKILL_PROJECT_ROOT')
+    if project:
+        root = get_target_root(Path(project).resolve())
+        directories = [(root / p).resolve() for p in directories]
+        module = os.environ.get('CREATOR_SKILL_PACK_MODULE')
+        selected = resolve_module(module, root)[0] if module else None
+        if any(not p.is_relative_to(root) or (selected and p != selected) for p in directories):
             started=time.monotonic();report=start_report(directories,None)
-            report['issues']['serious'].append({'code':'CONTEXT_SCOPE','message':'输入不属于本窗口绑定的工程或课件，未写入其他目录。'})
+            report['issues']['serious'].append({'code':'CONTEXT_SCOPE','message':'输入超出指定工程或课件范围。'})
             return finish_report(report,started,'error')
     with reserve_output(directories) as output:
         return _export_source(directories, output, ffmpeg=ffmpeg, ffprobe=ffprobe,
-                              checks=checks or os.environ.get('CREATOR_SKILL_CHECK_MODE','auto'), context=context, shuku=shuku, actions=actions)
+                              checks=checks or os.environ.get('CREATOR_SKILL_CHECK_MODE','auto'), shuku=shuku, actions=actions)
 
 
-def _export_source(directories, output, *, ffmpeg, ffprobe, checks, context, shuku, actions):
+def _export_source(directories, output, *, ffmpeg, ffprobe, checks, shuku, actions):
     """Pass one inventory through the pipeline; severe errors block the whole request."""
     started = time.monotonic()
     report = start_report(directories, output)
     stage, stage_started = 'source-checks', time.monotonic()
     try:
-        bound = context or os.environ.get('CREATOR_SKILL_TARGET_CONFIG')
-        metadata = context_metadata(bound) if bound and (context or (Path(bound).parent/'context.json').is_file()) else {}
-        if metadata:
-            report['context'] = metadata
-            root = Path(metadata['targetRoot'])
-            for directory in directories:
-                if not Path(directory).resolve().is_relative_to(root):
-                    raise ValueError('Input leaves this window targetRoot')
-            if metadata.get('module'):
-                from _common import resolve_module
-                selected = resolve_module(metadata['module'], root)[0]
-                if any(Path(p).resolve() != selected for p in directories):
-                    raise ValueError('Bound course context only packages that course; pass its explicit directory')
         files, inspection = inspect_collection(directories)
         report.update({key: value for key, value in inspection.items() if key != 'coverage'})
         report['sourceCheckCoverage'] = inspection['coverage']
@@ -123,12 +106,12 @@ def _export_source(directories, output, *, ffmpeg, ffprobe, checks, context, shu
                             (path.suffix.lower()!='.ts' or '/assets/' in name) for name,path in files.items())
             buildable = any(json.loads(path.read_text(encoding='utf-8-sig')).get('entry') or json.loads(path.read_text(encoding='utf-8-sig')).get('ppt',{}).get('entry')
                             for name,path in files.items() if name.endswith('/outlines.json') and name.count('/')==2)
-            capability = capabilities(shuku=shuku or metadata.get('shukuRoot'), media=has_media, buildable=buildable,
+            capability = capabilities(shuku=shuku, media=has_media, buildable=buildable,
                                       images=any(path.suffix.lower() in IMAGE_SUFFIXES for path in files.values()))
             if has_media and shutil.which(ffmpeg) and shutil.which(ffprobe):
                 capability['missing'] = [m for m in capability['missing'] if m!='ffmpeg']
             report['capabilities'] = capability
-            report['dependencySetup'] = dependency_gate(capability, owner=metadata.get('sessionId'))
+            report['dependencySetup'] = dependency_gate(capability)
             if report['dependencySetup']['blockedForSetup']:
                 return finish_report(report, started, 'needs-input' if report['dependencySetup']['policy']['installation']=='pending' else 'needs-setup')
         stage, stage_started = 'media-and-references', time.monotonic()
@@ -176,7 +159,7 @@ def main(argv=None):
     args = build_parser().parse_args(argv)
     try:
         result = export_source(args.directories, ffmpeg=args.ffmpeg, ffprobe=args.ffprobe,
-                               checks=args.checks, context=args.context, shuku=args.shuku_root, actions=args.actions)
+                               checks=args.checks, shuku=args.shuku_root, actions=args.actions)
     except (ValueError, OSError) as error:
         started = time.monotonic()
         result = start_report(args.directories, None)
