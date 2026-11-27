@@ -240,7 +240,7 @@
       "path": "scripts/media/compress-images.py",
       "runtime": "python",
       "description": "普通图片仅宽超过 1600 或高超过 900 时等比缩小，同时满足宽高两个上限，输出 WebP q=80；缩略图与封面为 1600×900 WebP q=20",
-      "effects": "独立维护默认保留小图；官方 --delivery 模式将小 PNG/JPEG 也转 WebP；保留原图、原地 WebP 先备份；SVG 原样保留、不转换；引用迁移由作者维护阶段显式执行",
+      "effects": "所有尺寸图片均在原目录转换为 WebP，SVG 原样保留；自动迁移源码引用，成功后删除旧图，不创建图片副本或备份；失败明确报错",
       "dependencies": [
         "Pillow"
       ],

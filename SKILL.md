@@ -78,7 +78,7 @@ npm 包提供 `creator demo`、`creator init <新目录>` 和 `creator preview <
 
 ## 源码交付
 
-运行 `python <Skill>/scripts/module/package_course.py <课程或工程目录>`，或 `tools.py course.pack <目录>`。一次完成环境调度、源码检查、媒体准备、引用迁移、可用的本地深入检查、归档与完整性核验。转换与改引用仅发生在临时副本，原工程不修改。默认 Shared、缓存与临时文件不入包，明确依赖的自定义风格保留。
+运行 `python <Skill>/scripts/module/package_course.py <课程或工程目录>`，或 `tools.py course.pack <目录>`。一次完成环境调度、源码检查、媒体准备、引用迁移、可用的本地深入检查、归档与完整性核验。图片在原目录转换并更新原源码引用，成功后删除旧图，不创建图片副本；仅保留 WebP 和 SVG。所有尺寸的非 SVG/WebP 图片均须转换，失败阻止打包。默认 Shared、缓存与临时文件不入包，明确依赖的自定义风格保留。
 
 stdout 是精简 JSON，完整转换映射、问题与行号保存在同级 `.report.json`，简明说明在 `.report.md`。智能体先修复授权范围内可确定的问题再重跑；不可靠的转换路径、碰撞或转换失败阻止出包，不猜测修复。详见[交付与依赖](references/engineering/delivery.md)。
 

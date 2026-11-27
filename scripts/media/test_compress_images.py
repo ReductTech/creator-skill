@@ -20,7 +20,7 @@ def test_delivery_preserves_svg_without_creating_webp(tmp_path):
     raw = b'<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1600"/>'
     source.write_bytes(raw)
     result = compress.convert(source, delivery=True)
-    assert result['status'] == 'skipped'
+    assert result['status'] == 'preserved'
     assert source.read_bytes() == raw
     assert not source.with_suffix('.webp').exists()
 
@@ -39,120 +39,77 @@ def test_fixed_width_and_height_limits_preserve_aspect_ratio(size, expected):
     assert compress.fit_size(*size) == expected
 
 
-@pytest.mark.parametrize('suffix', ['png', 'jpg', 'webp'])
-@pytest.mark.parametrize('size', [(800, 600), (900, 400), (400, 900),
-                                 (1600, 900), (900, 800), (1200, 800), (900, 900)])
-def test_small_and_boundary_images_are_byte_identical(tmp_path, suffix, size):
-    source = tmp_path / ('small.' + suffix)
-    Image.new('RGB', size, 'red').save(source)
-    original = source.read_bytes()
-    assert compress.convert(source)['reason'] == 'within-bounds'
-    assert source.read_bytes() == original
-    assert list(tmp_path.iterdir()) == [source]
-
-
-@pytest.mark.parametrize('suffix', ['png', 'jpg', 'jpeg'])
-def test_large_images_become_webp_q80_and_retain_source(tmp_path, suffix):
-    source = tmp_path / ('photo.' + suffix)
-    Image.effect_noise((2000, 1000), 64).convert('RGB').save(source)
-    original = source.read_bytes()
-    result = compress.convert(source)
-    assert result['status'] == 'converted' and result['quality'] == 80
+@pytest.mark.parametrize('suffix', ['png','jpg','jpeg','bmp','tiff','gif','ico'])
+@pytest.mark.parametrize('size', [(64,64),(2000,1000)])
+def test_all_sizes_convert_and_remove_original(tmp_path, suffix, size):
+    source=tmp_path/('image.'+suffix)
+    Image.new('RGB',size,'red').save(source)
+    result=compress.convert(source)
+    assert result['status']=='converted'
+    assert not source.exists()
     with Image.open(source.with_suffix('.webp')) as image:
-        assert image.format == 'WEBP' and image.size == (1600, 800)
-    assert source.read_bytes() == original
-    assert compress.convert(source)['reason'] == 'webp-already-exists'
+        assert image.format=='WEBP'
 
+def test_valid_webp_retained(tmp_path):
+    source=tmp_path/'image.webp'
+    Image.new('RGB',(40,40),'blue').save(source)
+    raw=source.read_bytes()
+    assert compress.convert(source)['status']=='preserved'
+    assert source.read_bytes()==raw
 
-def test_transparent_png_keeps_alpha(tmp_path):
-    source = tmp_path / 'alpha.png'
-    Image.new('RGBA', (2000, 1000), (255, 0, 0, 128)).save(source)
-    assert compress.convert(source)['status'] == 'converted'
+def test_animation_is_converted_with_frames(tmp_path):
+    source=tmp_path/'animation.gif'
+    frames=[Image.new('RGB',(40,40),c) for c in ['red','blue']]
+    frames[0].save(source,save_all=True,append_images=frames[1:],duration=[100,200],loop=2)
+    compress.convert(source)
+    assert not source.exists()
     with Image.open(source.with_suffix('.webp')) as image:
-        assert image.size == (1600, 800)
-        assert image.getchannel('A').getextrema() == (128, 128)
+        assert image.n_frames==2 and image.info['loop']==2
+
+def test_collision_blocks_without_removing_original(tmp_path):
+    source=tmp_path/'image.png'; target=source.with_suffix('.webp')
+    Image.new('RGB',(40,40),'red').save(source)
+    Image.new('RGB',(40,40),'blue').save(target)
+    raw=target.read_bytes()
+    with pytest.raises(ValueError):compress.convert(source)
+    assert source.exists() and target.read_bytes()==raw
+
+def test_high_bit_depth_fails_explicitly(tmp_path):
+    source=tmp_path/'depth.png'
+    Image.new('I;16',(40,40),30000).save(source)
+    with pytest.raises(ValueError):compress.convert(source)
+    assert source.exists()
 
 
-def test_palette_transparency_is_preserved(tmp_path):
-    source = tmp_path / 'palette.png'
-    Image.new('P', (2000, 1000)).save(source, transparency=0)
-    assert compress.convert(source)['status'] == 'converted'
+def test_cli_updates_source_references_in_place(tmp_path):
+    assets=tmp_path/'assets';assets.mkdir()
+    Image.new('RGBA',(64,64),(255,0,0,128)).save(assets/'a.png')
+    code=tmp_path/'page.tsx'
+    code.write_text('const url="assets/a.png";',encoding='utf-8')
+    result=subprocess.run([sys.executable,str(SCRIPTS/'media/compress-images.py'),str(tmp_path)],
+                          capture_output=True,text=True,encoding='utf-8',
+                          env={**os.environ,'CREATOR_SKILL_PROJECT_ROOT':str(tmp_path)})
+    assert result.returncode==0,result.stdout+result.stderr
+    assert code.read_text()=='const url="assets/a.webp";'
+    assert not (assets/'a.png').exists()
+    assert sorted(p.name for p in tmp_path.iterdir())==['assets','page.tsx']
+    with Image.open(assets/'a.webp') as image:
+        assert image.getchannel('A').getextrema()==(128,128)
+
+
+def test_thumbnail_profile_and_transparency(tmp_path):
+    folder=tmp_path/'course-thumbnails';folder.mkdir()
+    source=folder/'page.png'
+    Image.new('RGBA',(320,180),(255,0,0,128)).save(source)
+    compress.convert(source)
+    assert not source.exists()
     with Image.open(source.with_suffix('.webp')) as image:
-        assert image.getchannel('A').getextrema() == (0, 0)
+        assert image.size==(1600,900)
 
-
-def test_existing_large_webp_is_backed_up_once(tmp_path):
-    source, backup = tmp_path / 'large.webp', tmp_path / 'backup/large.webp'
-    Image.new('RGB', (1200, 1800), 'red').save(source)
-    original = source.read_bytes()
-    assert compress.convert(source, backup=backup)['status'] == 'converted'
-    assert backup.read_bytes() == original
-    with Image.open(source) as image:
-        assert image.format == 'WEBP' and image.size == (600, 900)
-    once = source.read_bytes()
-    assert compress.convert(source, backup=backup)['reason'] == 'within-bounds'
-    assert backup.read_bytes() == original and source.read_bytes() == once
-
-
-def test_dry_run_does_not_write_and_reports_dimensions(tmp_path):
-    source = tmp_path / 'photo.png'
-    Image.new('RGB', (1000, 2000), 'red').save(source)
-    original = source.read_bytes()
-    result = compress.convert(source, dry_run=True)
-    assert result['status'] == 'eligible' and result['after_size'] == [450, 900]
-    assert list(tmp_path.iterdir()) == [source] and source.read_bytes() == original
-
-
-@pytest.mark.parametrize('folder', ['shuku-thumbnails', 'scenedeck-thumbnails', 'course-thumbnails', 'course-covers'])
-def test_thumbnail_and_cover_profiles_override_ordinary_limit(tmp_path, folder):
-    directory = tmp_path / folder
-    directory.mkdir()
-    source = directory / 'page.png'
-    Image.new('RGB', (320, 180), 'navy').save(source)
-    result = compress.convert(source)
-    assert result['quality'] == 20 and result['status'] == 'converted'
+def test_exif_orientation_before_resize(tmp_path):
+    source=tmp_path/'photo.jpg'
+    exif=Image.Exif();exif[274]=6
+    Image.new('RGB',(2500,1000),'red').save(source,exif=exif)
+    compress.convert(source)
     with Image.open(source.with_suffix('.webp')) as image:
-        assert image.format == 'WEBP' and image.size == (1600, 900)
-
-
-@pytest.mark.parametrize('suffix', ['png', 'webp'])
-def test_animation_is_untouched(tmp_path, suffix):
-    source = tmp_path / ('animation.' + suffix)
-    Image.new('RGB', (2000, 1000), 'red').save(source, save_all=True,
-        append_images=[Image.new('RGB', (2000, 1000), 'blue')], duration=100, loop=0)
-    original = source.read_bytes()
-    assert compress.convert(source)['reason'] == 'animated'
-    assert source.read_bytes() == original
-
-
-def test_high_bit_depth_png_is_untouched(tmp_path):
-    source = tmp_path / 'scientific.png'
-    Image.new('I;16', (2000, 1000), 30000).save(source)
-    original = source.read_bytes()
-    assert compress.convert(source)['reason'] == 'unsupported-bit-depth-or-mode'
-    assert source.read_bytes() == original
-
-
-def test_exif_orientation_is_applied_before_fitting(tmp_path):
-    source = tmp_path / 'rotated.jpg'
-    exif = Image.Exif()
-    exif[274] = 6
-    Image.new('RGB', (2500, 1000), 'red').save(source, exif=exif)
-    result = compress.convert(source)
-    assert result['before_size'] == [1000, 2500]
-    with Image.open(source.with_suffix('.webp')) as image:
-        assert image.size == (360, 900) and image.getexif().get(274, 1) == 1
-
-
-def test_cli_dry_run_writes_neither_report_nor_images(tmp_path):
-    directory = tmp_path / 'assets'
-    directory.mkdir()
-    source = directory / 'large.png'
-    Image.new('RGB', (2000, 1000), 'red').save(source)
-    result = subprocess.run([sys.executable, str(SCRIPTS / 'tools.py'), 'assets.compress',
-        'assets', '--dry-run', '--report', 'report.json'], capture_output=True, text=True,
-        env={**os.environ, 'CREATOR_SKILL_PROJECT_ROOT': str(tmp_path)}, timeout=20)
-    assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout)['images'][0]['after_size'] == [1600, 800]
-    assert list(directory.iterdir()) == [source]
-    assert not (tmp_path / 'report.json').exists()
+        assert image.size==(360,900)

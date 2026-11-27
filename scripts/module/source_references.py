@@ -1,6 +1,6 @@
 """Plan literal media references with Python AST bindings; never execute course code.
 
-Dynamic expressions are reported, not evaluated. Changes only affect staged files.
+Dynamic expressions are reported, not evaluated. A None output directory edits originals.
 """
 import json
 import posixpath
@@ -27,14 +27,15 @@ def parser_for(suffix):
 
 
 def rewrite_references(files, changes, directory):
-    """Return staged inventory and actionable records, preserving original author files."""
+    """Plan references; commit author-file edits only after all reference checks pass."""
     result, records, issues = dict(files), [], []
+    pending = {}
     if not changes:
         return result, {'changedFiles': 0, 'replacements': 0, 'issues': [], 'records': []}
 
     def problem(name, line, code, message, **details):
         issues.append({'code': code, 'path': name, 'line': line, 'message': message,
-                       'repair': '在作者源码中使用原工程实际存在的完整输入路径或固定路径列表，再运行 course.pack；副本会自动迁移到成品路径。', **details})
+                       'repair': '在作者源码中使用原工程实际存在的完整输入路径或固定路径列表，再运行 course.pack；工具会自动迁移到成品路径。', **details})
 
     def replacement(name, value, line, *, helper=False):
         if not isinstance(value, str) or len(value) > 2048 or re.match(r'^(?:[\w+.-]+:|//|#)', value):
@@ -188,17 +189,23 @@ def rewrite_references(files, changes, directory):
             after = pattern.sub(update, text)
             raw = (b'\xef\xbb\xbf' if raw.startswith(b'\xef\xbb\xbf') else b'')+after.encode('utf-8')
         if raw != path.read_bytes():
-            target = directory/name
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(raw)
-            result[name] = target
+            if directory is None:
+                pending[path] = raw
+            else:
+                target = directory/name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(raw)
+                result[name] = target
         # Detect remaining references even when another reference in the file was migrated.
         if suffix not in CODE:
             remaining = raw.decode('utf-8-sig')
             remaining = re.sub(r'/\*.*?\*/|<!--.*?-->', '', remaining, flags=re.S)
             if any(PurePosixPath(old).name in remaining for old in local_changes):
                 problem(name, 1, 'REFERENCE_REVIEW', '文件仍含转换前文件名，请确认是说明还是未覆盖的引用。', blocking=True)
-    return result, {'changedFiles': sum(result[n] != files[n] for n in result),
+    if not any(i.get('blocking') for i in issues):
+        for path, raw in pending.items():
+            path.write_bytes(raw)
+    return result, {'changedFiles': len(pending) if directory is None else sum(result[n] != files[n] for n in result),
                     'replacements': len(records), 'issues': issues, 'records': records,
                     'runtimeVerified': False,
                     'coverage': 'Literal AST/data/CSS/attribute references only; no arbitrary program evaluation, external data or real playback validation.'}

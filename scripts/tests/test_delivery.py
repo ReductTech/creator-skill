@@ -71,14 +71,15 @@ def test_directory_shapes_pack_source_and_exclude_shared(tmp_path, shape, shared
         assert all('shared' not in p.lower().split('/') for p in archive.namelist())
 
 
-def test_original_inputs_are_preserved_when_image_is_converted(tmp_path):
+def test_image_is_converted_in_original_directory(tmp_path):
     directory=course(tmp_path/'source')
     assets=directory/'assets';assets.mkdir()
     (assets/'picture.png').write_bytes(PNG)
     before=snapshot(directory)
     result=export_source([directory])
     assert result['outputCreated'] and result['media']['counts']['imageConverted']==1
-    assert snapshot(directory)==before
+    assert not (assets/'picture.png').exists()
+    assert (assets/'picture.webp').is_file()
 
 
 def test_single_pipeline_does_not_execute_subprocesses_or_source(tmp_path, monkeypatch):

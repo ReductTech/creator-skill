@@ -253,3 +253,7 @@ creator-skill/
 | 本地预览课件、构建播放器 | [术库本地预览](player-preview/README.md) |
 | 查找工具与参数 | [创作工具索引](references/tools.md) |
 | 打包与交付 | [源码 ZIP 交付](references/engineering/delivery.md) |
+
+### 打包图片处理
+
+`course.pack` 直接在原目录转换图片并更新源码引用，成功后删除原图，不创建图片副本。所有尺寸的图片均处理，最终仅允许 WebP 和 SVG；无法转换、同名冲突或引用无法可靠迁移时，报错阻止打包。

@@ -192,3 +192,19 @@ def test_standalone_preview_checks_staged_source_without_claiming_a_platform_bui
     monkeypatch.setattr(local_validation, 'run_command', run)
     _, report = local_validation.local_checks(files, staging, capability_with_preview, tmp_path / 'evidence')
     assert report['coverage'] == {'localBuild': False, 'rendering': False, 'standaloneRendering': True, 'sourceEditing': False}
+
+
+@pytest.mark.skipif(not __import__('shutil').which('node'),reason='Node required')
+def test_node_planner_migrates_original_without_backups(tmp_path):
+    import shutil
+    root=course(tmp_path/'source');(root/'assets/images').mkdir(parents=True)
+    (root/'assets/images/a.webp').write_bytes(b'converted-placeholder')
+    code=root/'Guide.tsx'
+    code.write_text('const ids=["a"]; const path=`images/${ids[0]}.png`;')
+    prefix='modules/'+root.name
+    files={prefix+'/'+p.relative_to(root).as_posix():p for p in root.rglob('*') if p.is_file()}
+    result,report=node_references(files,{prefix+'/assets/images/a.png':prefix+'/assets/images/a.webp'},None,
+                                  {'node':shutil.which('node')})
+    assert report['engine']=='node' and report['applied'] and not report['issues'],report
+    assert result==files and '.webp' in code.read_text()
+    assert not (root/'_scratchpad').exists()

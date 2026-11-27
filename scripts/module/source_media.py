@@ -1,6 +1,6 @@
 """Prepare image/video/audio delivery bytes in a private staging directory.
 
-Original files are never overwritten. The selected reference planner never executes course source.
+Images and their references are updated in place when requested. The selected reference planner never executes course source.
 """
 from collections import Counter
 from pathlib import PurePosixPath
@@ -11,7 +11,7 @@ from media import prepare_videos as video, prepare_audio as audio
 from module.source_references import rewrite_references
 
 
-def prepare_media(files, directory, *, ffmpeg='ffmpeg', ffprobe='ffprobe', reference_runner=None):
+def prepare_media(files, directory, *, ffmpeg='ffmpeg', ffprobe='ffprobe', reference_runner=None, in_place=False, lossless=False):
     result, conversions, issues = dict(files), [], []
     counts = Counter()
     images = {'status': 'passed', 'counts': {}, 'converted': 0, 'conversions': [], 'issues': []}
@@ -25,7 +25,9 @@ def prepare_media(files, directory, *, ffmpeg='ffmpeg', ffprobe='ffprobe', refer
         if target_name != name and target_name.casefold() in reserved_names:
             raise ValueError('转换目标与现有文件冲突，未覆盖：'+target_name)
         reserved_names.add(target_name.casefold())
-        target = directory/'media'/target_name
+        target = (files[name].with_suffix('.webp') if in_place and kind == 'image' else directory/'media'/target_name)
+        if in_place and kind == 'image' and target != files[name] and target.exists():
+            raise ValueError('转换目标与现有文件冲突，未覆盖：'+str(target))
         target.parent.mkdir(parents=True, exist_ok=True)
         return target
 
@@ -45,6 +47,11 @@ def prepare_media(files, directory, *, ffmpeg='ffmpeg', ffprobe='ffprobe', refer
             target_name = name
             if kind == 'image':
                 from PIL import Image, ImageOps
+                if suffix == ".avif":
+                    try:
+                        import pillow_avif  # Optional codec for Pillow builds without AV1 decoding.
+                    except ImportError:
+                        pass
                 from media.thumbnail_profiles import thumbnail_image
                 with Image.open(source) as original:
                     expected = {'.png': 'PNG', '.jpg': 'JPEG', '.jpeg': 'JPEG', '.gif': 'GIF',
@@ -80,6 +87,8 @@ def prepare_media(files, directory, *, ffmpeg='ffmpeg', ffprobe='ffprobe', refer
                         frames.append(frame)
                         durations.append(original.info.get('duration', 100))
                     options = {'quality': 20 if thumbnail else 80, 'method': 6}
+                    if lossless:
+                        options.update(lossless=True, exact=True)
                     if len(frames) > 1:
                         options.update(save_all=True, append_images=frames[1:], duration=durations, loop=loop)
                     frames[0].save(target, format='WEBP', **options)
@@ -116,14 +125,41 @@ def prepare_media(files, directory, *, ffmpeg='ffmpeg', ffprobe='ffprobe', refer
         except (ValueError, OSError, RuntimeError, KeyError, ImportError) as error:
             problem(name, 'MEDIA_PREPARE_FAILED', error)
 
+    image_committed = False
     changes = {row['source']: row['target'] for row in conversions if row['source'] != row['target']}
     try:
-        result, references = (reference_runner or rewrite_references)(result, changes, directory/'references')
+        if in_place:
+            image_changes = {r['source']:r['target'] for r in conversions
+                             if r['type']=='image' and r['source']!=r['target']}
+            if any(i.get('blocking') for i in issues):
+                references = {'changedFiles':0,'replacements':0,'records':[],'issues':[]}
+            else:
+                result, references = (reference_runner or rewrite_references)(result, image_changes, None)
+                image_committed = not any(i.get('blocking') for i in references['issues'])
+            other_changes = {old:new for old,new in changes.items() if old not in image_changes}
+            if other_changes and not any(i.get('blocking') for i in references['issues']):
+                result, other = (reference_runner or rewrite_references)(result, other_changes, directory/'references')
+                references['issues'].extend(other['issues'])
+                references['records'].extend(other['records'])
+                references['changedFiles'] += other['changedFiles']
+                references['replacements'] += other['replacements']
+        else:
+            result, references = (reference_runner or rewrite_references)(result, changes, directory/'references')
         issues.extend(references['issues'])
     except (ValueError, OSError, RuntimeError) as error:
         references = {'changedFiles': 0, 'replacements': 0, 'records': [], 'issues': []}
         problem('', 'REFERENCE_PREPARE_FAILED', error)
+    if in_place:
+        failed = not image_committed
+        for row in conversions:
+            if row['type'] == 'image' and row['source'] != row['target']:
+                if failed:
+                    files[row['source']].with_suffix('.webp').unlink(missing_ok=True)
+                else:
+                    files[row['source']].unlink()
     for name, source in result.items():
+        if in_place and any(i.get('blocking') for i in issues):
+            break
         try:
             inspect_image(name, source.read_bytes())
         except (ValueError, OSError, EOFError) as error:

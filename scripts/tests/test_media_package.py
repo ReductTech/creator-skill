@@ -32,7 +32,9 @@ def test_real_conversion_updates_literals_data_css_and_bom_without_node(tmp_path
     compact = json.loads(execution.stdout)
     report = json.loads(Path(compact['reportPath']).read_text(encoding='utf-8'))
     assert report['status'] == 'passed', report['issues']
-    assert snapshot(root) == before
+    assert not (root/'assets/images/a.png').exists()
+    assert (root/'assets/images/a.webp').is_file()
+    assert b'images/a.webp' in (root/'Guide.tsx').read_bytes()
     assert compact['references']['replacements'] == 4
     assert compact['media']['counts']['imageConverted'] == 1
     with zipfile.ZipFile(compact['output']) as archive:
@@ -146,6 +148,8 @@ def test_comments_are_untouched_but_alias_dynamic_call_is_reported(tmp_path):
     with zipfile.ZipFile(result['output']) as archive:
         code=archive.read('modules/'+root.name+'/Guide.tsx')
         assert b'// images/a.png' in code and b'"images/a.webp"' in code
+    Image.new('RGB', (40,40), 'red').save(root/'assets/images/a.png')
+    (root/'assets/images/a.webp').unlink()
     (root/'Guide.tsx').write_text("import {moduleAssetUrl as asset} from '@shuku/course-runtime/react/assets'; const x=asset(data.path);")
     result=export_source([root])
     assert result['status']=='failed'
@@ -179,3 +183,19 @@ def test_pack_dependency_diagnostic_does_not_require_node_or_target_config(tmp_p
     assert result['status']=='passed'
     assert not any(item['name']=='Node' for item in result['checks'])
     assert all(item.get('optional') for item in result['checks'] if item['name'] in {'ffmpeg','ffprobe'})
+
+
+def test_lossless_in_place_keeps_exact_teaching_pixels(tmp_path):
+    from module.source_media import prepare_media
+    root=course(tmp_path/'source');(root/'assets').mkdir()
+    source=root/'assets/sample.png'
+    from PIL import Image
+    image=Image.new('RGBA',(32,32),(200,50,10,0))
+    image.putpixel((1,1),(10,20,30,128));image.save(source)
+    prefix='modules/'+root.name
+    files={prefix+'/assets/sample.png':source}
+    _,report,_=prepare_media(files,tmp_path,in_place=True,lossless=True)
+    assert report['status']=='passed',report
+    with Image.open(source.with_suffix('.webp')) as encoded:
+        assert encoded.convert('RGBA').tobytes()==image.tobytes()
+    assert not source.exists()

@@ -121,7 +121,7 @@ def _export_source(directories, output, *, ffmpeg, ffprobe, checks, shuku, actio
                 registry.write_text(json.dumps(inspection['styleRegistry'], ensure_ascii=False), encoding='utf-8')
                 files['course-styles.json'] = registry
             reference_runner = (lambda f,c,d:node_references(f,c,d,capability)) if capability and capability['available']['typescript'] else None
-            files, report['media'], report['images'] = prepare_media(files, Path(temporary), ffmpeg=ffmpeg, ffprobe=ffprobe, reference_runner=reference_runner)
+            files, report['media'], report['images'] = prepare_media(files, Path(temporary), ffmpeg=ffmpeg, ffprobe=ffprobe, reference_runner=reference_runner, in_place=True)
             for item in report['media']['issues']:
                 report['issues']['serious' if item.get('blocking') else 'warnings'].append(item)
             blocked = bool(report['issues']['serious'])

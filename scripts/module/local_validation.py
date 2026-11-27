@@ -122,6 +122,29 @@ def node_references(files, changes, directory, capability):
     """Prefer the original, more complete Node planner when it is available."""
     if not changes:
         return files, {'engine':'node','changedFiles':0,'replacements':0,'records':[],'issues':[],'runtimeVerified':False}
+    if directory is None:
+        import subprocess
+        scopes=[]
+        for prefix in sorted({'/'.join(name.split('/')[:2]) for name in changes}):
+            mapping={old[len(prefix+'/assets/'):]:new[len(prefix+'/assets/'):] for old,new in changes.items()
+                     if old.startswith(prefix+'/assets/') and new.startswith(prefix+'/assets/')}
+            if len(mapping) != sum(old.startswith(prefix+'/') for old in changes):
+                return files, {'issues':[{'code':'REFERENCE_SCOPE','path':prefix,'message':'图片必须位于 assets 内。','blocking':True}], 'changedFiles':0,'replacements':0,'records':[]}
+            name=next(n for n in files if n.startswith(prefix+'/'))
+            course=files[name]
+            for _ in name[len(prefix+'/'):].split('/'):course=course.parent
+            scopes.append({'prefix':prefix,'course':str(course),'changes':mapping})
+        completed=subprocess.run([capability['node'],str(SKILL/'scripts/module/rewrite_in_place.mjs')],
+                                 input=json.dumps({'scopes':scopes}),capture_output=True,text=True,encoding='utf-8')
+        result=json.loads(completed.stdout)
+        if result.get('unavailable'):
+            from module.source_references import rewrite_references
+            return rewrite_references(files, changes, None)
+        if completed.returncode or result.get('error'):
+            raise ValueError(result.get('error',completed.stderr))
+        for row in result['issues']:
+            row.update(code='REFERENCE_NODE',path=row.pop('prefix')+'/'+row.get('file',''),message=row.get('reason',str(row)))
+        return files,result
     root = directory/'tree'
     root.mkdir(parents=True)
     staged = snapshot_files(files, root)
